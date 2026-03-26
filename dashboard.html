@@ -11,7 +11,7 @@
     :root {
       --bg: #0b0f1a; --surface: #111827; --border: #1f2d40;
       --accent: #00e5ff; --text: #e2e8f0; --muted: #4b5e72;
-      --danger: #f43f5e; --success: #10b981;
+      --danger: #f43f5e; --success: #10b981; --warn: #f59e0b;
     }
     body {
       font-family: 'DM Mono', monospace; background: var(--bg); color: var(--text);
@@ -58,6 +58,8 @@
     .btn-rescan { width: 100%; margin-top: 14px; padding: 12px; background: transparent; color: var(--accent); border: 1px solid rgba(0,229,255,.3); border-radius: 10px; font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; transition: background .2s; display: none; }
     .btn-rescan:hover { background: rgba(0,229,255,.08); border-color: var(--accent); }
     .btn-rescan.show { display: block; }
+    .fichaje-extra { font-size: 12px; color: var(--warn); margin-top: 4px; }
+    .fichaje-loc   { font-size: 10px; color: var(--muted); margin-top: 2px; }
   </style>
 </head>
 <body>
@@ -77,6 +79,8 @@
       <div id="statusMsg"></div>
       <div class="fichaje-hora"  id="fichajeHora"></div>
       <div class="fichaje-fecha" id="fichajeDate"></div>
+      <div class="fichaje-extra" id="fichajeExtra"></div>
+      <div class="fichaje-loc"   id="fichajeLoc"></div>
     </div>
     <button class="btn-rescan" id="btnRescan">Escanear de nuevo</button>
   </div>
@@ -108,43 +112,65 @@
     });
 
     // ── Escáner ───────────────────────────────────────────────────────────────
-    let scanner = null;
+    const html5QrCode = new Html5Qrcode("reader");
 
-    function initScanner() {
+    async function initScanner() {
       document.getElementById('statusBox').className = 'status-box';
       document.getElementById('statusMsg').textContent = '';
       document.getElementById('fichajeHora').textContent = '';
       document.getElementById('fichajeDate').textContent = '';
+      document.getElementById('fichajeExtra').textContent = '';
+      document.getElementById('fichajeLoc').textContent = '';
       document.getElementById('btnRescan').classList.remove('show');
 
-      if (scanner) { try { scanner.clear(); } catch(_){} }
+      try {
+        await html5QrCode.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          onScanSuccess,
+          () => {}
+        );
+      } catch(err) {
+        let msg = '❌ No se pudo acceder a la cámara.<br>';
+        if (err.name === 'NotAllowedError') msg += 'Permiso denegado. Permite la cámara en el navegador.';
+        else if (err.name === 'NotFoundError') msg += 'No se detectó ninguna cámara.';
+        else msg += err.message;
+        document.getElementById('reader').innerHTML = `<div style="padding:24px;text-align:center;color:#f43f5e;font-size:13px;line-height:1.8;">${msg}</div>`;
+      }
+    }
 
-      scanner = new Html5QrcodeScanner('reader', {
-        fps: 10,
-        qrbox: { width: 240, height: 240 },
-        rememberLastUsedCamera: true,
-        showTorchButtonIfSupported: true
-      }, false);
-
-      scanner.render(onScanSuccess, () => {});
+    // ── Geolocalización ───────────────────────────────────────────────────────
+    async function getLocation() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) { resolve({ lat: null, lng: null, locError: 'Geolocalización no soportada' }); return; }
+        navigator.geolocation.getCurrentPosition(
+          pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude, locError: null }),
+          err => resolve({ lat: null, lng: null, locError: err.message }),
+          { timeout: 8000, maximumAge: 60000 }
+        );
+      });
     }
 
     async function onScanSuccess(deptId) {
-      try { await scanner.clear(); } catch(_) {}
+      try { await html5QrCode.stop(); } catch(_) {}
 
-      // Hora exacta del fichaje (lado cliente, antes de ir a Firestore)
       const ahora = new Date();
-      const horaStr = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const horaStr  = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
       const fechaStr = ahora.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
       try {
-        // Verificar que el departamento existe
-        const deptDoc = await db.collection('departamentos').doc(deptId).get();
+        // Obtener geolocalización y datos del departamento en paralelo
+        const [locResult, deptDoc] = await Promise.all([
+          getLocation(),
+          db.collection('departamentos').doc(deptId).get()
+        ]);
+
         if (!deptDoc.exists) {
           showError('❌ QR no válido o departamento eliminado');
           return;
         }
         const dept = deptDoc.data();
+        const loc  = locResult;
 
         // Determinar tipo: entrada o salida
         const ultimoSnap = await db.collection('fichajes')
@@ -156,24 +182,76 @@
         let tipo = 'entrada';
         if (!ultimoSnap.empty && ultimoSnap.docs[0].data().tipo === 'entrada') tipo = 'salida';
 
-        // Guardar fichaje con timestamp del servidor (hora real y fiable)
+        // Calcular horas normales y extra si es salida
+        const MAX_HORAS_NORMALES = 8;
+        let horasNormales = null;
+        let horasExtra    = null;
+        let duracionMin   = null;
+
+        if (tipo === 'salida') {
+          const entradaSnap = await db.collection('fichajes')
+            .where('userId', '==', user.id)
+            .where('tipo', '==', 'entrada')
+            .orderBy('timestamp', 'desc')
+            .limit(1)
+            .get();
+
+          if (!entradaSnap.empty) {
+            const entradaTs = entradaSnap.docs[0].data().timestamp;
+            if (entradaTs && entradaTs.toDate) {
+              const entradaDate = entradaTs.toDate();
+              duracionMin   = Math.round((ahora - entradaDate) / 60000);
+              const durHoras = duracionMin / 60;
+              horasNormales  = Math.min(durHoras, MAX_HORAS_NORMALES);
+              horasExtra     = Math.max(0, durHoras - MAX_HORAS_NORMALES);
+            }
+          }
+        }
+
+        // Guardar fichaje en Firestore
         await db.collection('fichajes').add({
-          userId:       user.id,
-          email:        user.email,
-          nombre:       user.nombre || '',
-          empresa:      user.empresa || '',
-          departamento: dept.nombre,
-          departamentoId: deptId,
+          userId:           user.id,
+          email:            user.email,
+          nombre:           user.nombre || '',
+          empresa:          user.empresa || '',
+          departamento:     dept.nombre,
+          departamentoId:   deptId,
           tipo,
-          timestamp:    firebase.firestore.FieldValue.serverTimestamp()
+          timestamp:        firebase.firestore.FieldValue.serverTimestamp(),
+          timestampCliente: ahora.toISOString(),
+          lat:              loc.lat,
+          lng:              loc.lng,
+          locError:         loc.locError,
+          horasNormales:    horasNormales,
+          horasExtra:       horasExtra,
+          duracionMin:      duracionMin
         });
 
-        // Mostrar resultado con la hora
+        // Mostrar resultado
         const statusBox = document.getElementById('statusBox');
         statusBox.className = 'status-box ok';
-        document.getElementById('statusMsg').textContent = `✅ Fichaje de ${tipo} registrado · ${dept.nombre}`;
+        document.getElementById('statusMsg').textContent = `✅ ${tipo === 'entrada' ? 'Entrada' : 'Salida'} registrada · ${dept.nombre}`;
         document.getElementById('fichajeHora').textContent = horaStr;
         document.getElementById('fichajeDate').textContent = fechaStr;
+
+        // Extra: jornada y horas (solo en salida)
+        if (tipo === 'salida' && duracionMin !== null) {
+          const h = Math.floor(duracionMin / 60);
+          const m = duracionMin % 60;
+          const normH = Math.floor(horasNormales);
+          const normM = Math.round((horasNormales - normH) * 60);
+          const extH  = Math.floor(horasExtra);
+          const extM  = Math.round((horasExtra - extH) * 60);
+          document.getElementById('fichajeExtra').textContent =
+            `🕐 Jornada: ${h}h ${m}m · Normales: ${normH}h ${normM}m · Extra: ${extH}h ${extM}m`;
+        }
+
+        // Localización
+        if (loc.lat !== null && loc.lng !== null) {
+          document.getElementById('fichajeLoc').textContent = `📍 ${loc.lat.toFixed(5)}, ${loc.lng.toFixed(5)}`;
+        } else if (loc.locError) {
+          document.getElementById('fichajeLoc').textContent = `📍 ${loc.locError}`;
+        }
 
       } catch(err) {
         console.error(err);
@@ -186,9 +264,11 @@
     function showError(msg) {
       const statusBox = document.getElementById('statusBox');
       statusBox.className = 'status-box err';
-      document.getElementById('statusMsg').textContent = msg;
-      document.getElementById('fichajeHora').textContent = '';
-      document.getElementById('fichajeDate').textContent = '';
+      document.getElementById('statusMsg').innerHTML = msg;
+      document.getElementById('fichajeHora').textContent  = '';
+      document.getElementById('fichajeDate').textContent  = '';
+      document.getElementById('fichajeExtra').textContent = '';
+      document.getElementById('fichajeLoc').textContent   = '';
       document.getElementById('btnRescan').classList.add('show');
     }
 
