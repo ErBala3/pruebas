@@ -302,6 +302,13 @@
     }
     const db = firebase.firestore();
 
+    // ── Test de permisos al cargar ─────────────────────────────────────────────
+    db.collection('usuarios').limit(1).get().catch(e => {
+      if (e.code === 'permission-denied') {
+        document.getElementById('permBanner').style.display = 'block';
+      }
+    });
+
     // ── Logout ────────────────────────────────────────────────────────────────
     document.getElementById('btnLogout').addEventListener('click', () => {
       localStorage.removeItem('user'); location.href = 'index.html';
@@ -374,11 +381,8 @@
             <td style="color:var(--accent);font-weight:500">${fmt(f.timestamp)}</td>
           </tr>`;
         }).join('')}</tbody></table>`;
-      } catch(e) { console.error(e); }
+      } catch(e) { toast('Error: ' + e.message, 'err'); }
     }
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  USUARIOS
     // ─────────────────────────────────────────────────────────────────────────
     async function loadUsuarios() {
       document.getElementById('tablaUsuarios').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
@@ -401,7 +405,7 @@
             </td>
           </tr>`;
         }).join('')}</tbody></table>`;
-      } catch(e) { document.getElementById('tablaUsuarios').innerHTML = '<div class="empty">Error al cargar</div>'; }
+      } catch(e) { document.getElementById('tablaUsuarios').innerHTML = '<div class="empty">Error: ' + e.message + '</div>'; }
     }
 
     // ── Modal usuario ─────────────────────────────────────────────────────────
@@ -468,13 +472,17 @@
     });
 
     async function editUser(id) {
-      const doc = await db.collection('usuarios').doc(id).get();
-      editingUserId = id; openUserModal('Editar usuario', doc.data());
+      try {
+        const doc = await db.collection('usuarios').doc(id).get();
+        editingUserId = id; openUserModal('Editar usuario', doc.data());
+      } catch(e) { toast('Error: ' + e.message, 'err'); }
     }
     async function delUser(id, nombre) {
       if (!confirm(`¿Eliminar "${nombre}"?`)) return;
-      await db.collection('usuarios').doc(id).delete();
-      toast('🗑️ Usuario eliminado'); loadUsuarios(); loadResumen();
+      try {
+        await db.collection('usuarios').doc(id).delete();
+        toast('🗑️ Usuario eliminado'); loadUsuarios(); loadResumen();
+      } catch(e) { toast('Error: ' + e.message, 'err'); }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -490,7 +498,7 @@
         }
         document.getElementById('qrGrid').innerHTML = '';
         snap.docs.forEach(d => renderQRCard(d.id, d.data()));
-      } catch(e) { console.error(e); }
+      } catch(e) { toast('Error: ' + e.message, 'err'); }
     }
 
     function renderQRCard(id, data) {
@@ -543,8 +551,10 @@
 
     async function delDept(id, nombre) {
       if (!confirm(`¿Eliminar el departamento "${nombre}"?`)) return;
-      await db.collection('departamentos').doc(id).delete();
-      toast('🗑️ Departamento eliminado'); loadDepartamentos(); loadResumen();
+      try {
+        await db.collection('departamentos').doc(id).delete();
+        toast('🗑️ Departamento eliminado'); loadDepartamentos(); loadResumen();
+      } catch(e) { toast('Error: ' + e.message, 'err'); }
     }
 
     // Ver QR grande + descargar
@@ -609,5 +619,9 @@
     // ── Carga inicial ─────────────────────────────────────────────────────────
     loadResumen();
   </script>
+  <div id="permBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#f43f5e;color:white;padding:14px 24px;font-size:13px;z-index:9999;text-align:center;">
+    ⚠️ Error de permisos en Firestore. Ve a <strong>Firebase Console → Firestore → Reglas</strong> y permite lectura/escritura para el proyecto <code>basededatos-dd6b3</code>.
+  </div>
+
 </body>
 </html>

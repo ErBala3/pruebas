@@ -71,7 +71,7 @@
 
   <div class="card">
     <div class="card-title">Escáner de Fichaje</div>
-    <div class="card-sub">Apunta la cámara al código QR del departamento</div>
+    <div class="card-sub">Pulsa <strong>Iniciar escáner</strong> y apunta la cámara al código QR</div>
     <div id="reader"></div>
     <div class="status-box" id="statusBox">
       <div id="statusMsg"></div>
@@ -110,7 +110,51 @@
     // ── Escáner ───────────────────────────────────────────────────────────────
     let scanner = null;
 
-    function initScanner() {
+    function checkSecureContext() {
+      const isSecure = location.protocol === 'https:' ||
+                       location.hostname === 'localhost' ||
+                       location.hostname === '127.0.0.1';
+      if (!isSecure) {
+        document.getElementById('reader').innerHTML = `
+          <div style="padding:24px;text-align:center;color:#f59e0b;font-size:13px;line-height:1.8;">
+            ⚠️ <strong>La cámara requiere HTTPS</strong><br>
+            Esta página debe servirse desde <code>https://</code> o <code>localhost</code>.<br>
+            Usa un servidor local (ej: <code>npx serve .</code>) o despliega la app.
+          </div>`;
+        return false;
+      }
+      return true;
+    }
+
+    async function checkCameraPermission() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        document.getElementById('reader').innerHTML = `
+          <div style="padding:24px;text-align:center;color:#f43f5e;font-size:13px;line-height:1.8;">
+            ❌ <strong>Cámara no disponible</strong><br>
+            Tu navegador no soporta acceso a la cámara, o la página no está en HTTPS.<br>
+            Prueba desde Chrome/Firefox en <code>localhost</code> o <code>https://</code>.
+          </div>`;
+        return false;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        stream.getTracks().forEach(t => t.stop()); // liberar inmediatamente
+        return true;
+      } catch(err) {
+        let msg = '❌ <strong>Sin acceso a la cámara</strong><br>';
+        if (err.name === 'NotAllowedError') {
+          msg += 'Permiso denegado. Ve a Configuración del navegador → Permisos → Cámara y permite este sitio.';
+        } else if (err.name === 'NotFoundError') {
+          msg += 'No se detectó ninguna cámara en este dispositivo.';
+        } else {
+          msg += 'Error: ' + err.message;
+        }
+        document.getElementById('reader').innerHTML = `<div style="padding:24px;text-align:center;color:#f43f5e;font-size:13px;line-height:1.8;">${msg}</div>`;
+        return false;
+      }
+    }
+
+    async function initScanner() {
       document.getElementById('statusBox').className = 'status-box';
       document.getElementById('statusMsg').textContent = '';
       document.getElementById('fichajeHora').textContent = '';
@@ -119,6 +163,10 @@
 
       if (scanner) { try { scanner.clear(); } catch(_){} }
 
+      if (!checkSecureContext()) return;
+      const camOk = await checkCameraPermission();
+      if (!camOk) return;
+
       scanner = new Html5QrcodeScanner('reader', {
         fps: 10,
         qrbox: { width: 240, height: 240 },
@@ -126,7 +174,11 @@
         showTorchButtonIfSupported: true
       }, false);
 
-      scanner.render(onScanSuccess, () => {});
+      scanner.render(onScanSuccess, (errorMsg) => {
+        // html5-qrcode llama esto por cada frame sin QR, ignorar errores de frame
+        // Solo logear en consola para debug
+        // console.debug('QR scan frame error:', errorMsg);
+      });
     }
 
     async function onScanSuccess(deptId) {
