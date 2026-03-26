@@ -507,7 +507,7 @@
       document.getElementById('qrGrid').appendChild(card);
 
       // Generar QR pequeño — apunta a la pantalla de login con el ID del departamento
-      const qrUrl = window.location.origin + window.location.pathname.replace('admin.html', '') + 'index.html?dept=' + id;
+      const qrUrl = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1) + 'index.html?dept=' + encodeURIComponent(id);
       new QRCode(document.getElementById('qrbox-' + id), {
         text: qrUrl,
         width: 200, height: 200,
@@ -551,7 +551,7 @@
     // Ver QR grande + descargar
     let currentQRData = null;
     function verQR(id, nombre, empresa) {
-      const qrUrl = window.location.origin + window.location.pathname.replace('admin.html', '') + 'index.html?dept=' + id;
+      const qrUrl = window.location.origin + window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1) + 'index.html?dept=' + encodeURIComponent(id);
       document.getElementById('qrModalTitle').textContent = nombre;
       document.getElementById('qrModalInfo').textContent  = empresa ? empresa + ' · ' + qrUrl : qrUrl;
       document.getElementById('qrModalCanvas').innerHTML  = '';
