@@ -190,6 +190,8 @@
           <div class="stat-card"><div class="stat-label">Departamentos</div><div class="stat-value c-accent" id="stDepts">—</div></div>
           <div class="stat-card"><div class="stat-label">Fichajes hoy</div><div class="stat-value c-success" id="stHoy">—</div></div>
           <div class="stat-card"><div class="stat-label">Dentro ahora</div><div class="stat-value c-warn" id="stActivos">—</div></div>
+          <div class="stat-card"><div class="stat-label">H. Normales hoy</div><div class="stat-value c-success" id="stHNorm">—</div></div>
+          <div class="stat-card"><div class="stat-label">H. Extra hoy</div><div class="stat-value c-warn" id="stHExtra">—</div></div>
         </div>
         <div class="tcard">
           <div class="tcard-head">
@@ -357,6 +359,19 @@
         const last = {};
         fSnap.docs.slice().reverse().forEach(d => { const f = d.data(); if(!last[f.userId]) last[f.userId] = f.tipo; });
         document.getElementById('stActivos').textContent = Object.values(last).filter(t=>t==='entrada').length;
+
+        // horas normales y extra de hoy
+        let hNorm = 0, hExtra = 0;
+        fSnap.docs.forEach(d => {
+          const f = d.data();
+          const ts = f.timestamp;
+          if (ts && ts.toDate && ts.toDate() >= hoy) {
+            if (f.horasNormales) hNorm  += f.horasNormales;
+            if (f.horasExtra)    hExtra += f.horasExtra;
+          }
+        });
+        document.getElementById('stHNorm').textContent  = hNorm.toFixed(1)  + 'h';
+        document.getElementById('stHExtra').textContent = hExtra.toFixed(1) + 'h';
 
         const recientes = fSnap.docs.slice(0,10);
         if (!recientes.length) {
@@ -592,15 +607,40 @@
             return;
           }
           document.getElementById('tablaFichajes').innerHTML = `<table><thead><tr>
-            <th>Nombre</th><th>Email</th><th>Departamento</th><th>Tipo</th><th>Hora exacta del fichaje</th>
+            <th>Nombre</th><th>Email</th><th>Departamento</th><th>Tipo</th><th>Hora exacta del fichaje</th><th>Jornada</th><th>H. Normal</th><th>H. Extra</th><th>Ubicación</th>
           </tr></thead><tbody>${snap.docs.map(d => {
             const f = d.data();
+            // Jornada
+            let jornada = '—';
+            if (f.duracionMin != null) {
+              const h = Math.floor(f.duracionMin / 60);
+              const m = f.duracionMin % 60;
+              jornada = `${h}h ${m}m`;
+            }
+            // Horas normales
+            const hNorm = f.horasNormales != null ? f.horasNormales.toFixed(2) : '—';
+            // Horas extra
+            const hExtraVal = f.horasExtra != null ? f.horasExtra : null;
+            const hExtra = hExtraVal != null
+              ? `<span style="${hExtraVal > 0 ? 'color:var(--warn)' : ''}">${hExtraVal.toFixed(2)}</span>`
+              : '—';
+            // Ubicación
+            let ubicacion = '—';
+            if (f.lat != null && f.lng != null) {
+              ubicacion = `<a href="https://maps.google.com/?q=${f.lat},${f.lng}" target="_blank" style="color:var(--accent)">Ver mapa</a>`;
+            } else if (f.locError) {
+              ubicacion = `<span style="color:var(--muted)">${f.locError}</span>`;
+            }
             return `<tr>
               <td>${f.nombre||'—'}</td>
               <td style="color:var(--muted)">${f.email||'—'}</td>
               <td style="color:var(--muted)">${f.departamento||'—'}</td>
               <td><span class="pill pill-${f.tipo}">${f.tipo}</span></td>
               <td style="color:var(--accent);letter-spacing:.5px">${fmt(f.timestamp)}</td>
+              <td style="color:var(--muted)">${jornada}</td>
+              <td>${hNorm}</td>
+              <td>${hExtra}</td>
+              <td>${ubicacion}</td>
             </tr>`;
           }).join('')}</tbody></table>`;
         }, err => console.error(err));
