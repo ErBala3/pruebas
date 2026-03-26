@@ -257,6 +257,7 @@
       <div class="modal-title">Nuevo departamento</div>
       <div class="field"><label>Nombre del departamento</label><input type="text" id="fDeptNombre" placeholder="Ej: Almacén, Oficina, Producción..."></div>
       <div class="field"><label>Empresa</label><input type="text" id="fDeptEmpresa" placeholder="Mi Empresa SL"></div>
+      <div class="field"><label for="fDeptDireccion">Dirección</label><input type="text" id="fDeptDireccion" placeholder="Ej: Calle Mayor 1, Madrid"></div>
       <div class="field"><label>Latitud (opcional)</label><input type="number" step="any" id="fDeptLat" placeholder="Ej: 40.4168"></div>
       <div class="field"><label>Longitud (opcional)</label><input type="number" step="any" id="fDeptLng" placeholder="Ej: -3.7038"></div>
       <div class="modal-err" id="modalDeptErr"></div>
@@ -496,58 +497,73 @@
       } catch(e) { console.error(e); }
     }
 
+    function getQRUrl(id, data) {
+      if (data.lat != null && data.lng != null) {
+        return `https://www.google.com/maps?q=${data.lat},${data.lng}`;
+      } else if (data.direccion) {
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.direccion)}`;
+      } else {
+        return `${location.origin}/index.html?dept=${id}`;
+      }
+    }
+
     function renderQRCard(id, data) {
       const card = document.createElement('div');
       card.className = 'qr-card';
-      const locText = (data.lat != null && data.lng != null) ? `📍 ${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}` : '📍 Sin ubicación configurada';
+      const locText = (data.lat != null && data.lng != null)
+        ? `📍 ${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}`
+        : (data.direccion ? `📍 ${data.direccion}` : '📍 Sin ubicación configurada');
       card.innerHTML = `
         <div class="qr-dept">${data.nombre}</div>
         <div class="qr-empresa">${data.empresa||''}</div>
         <div class="qr-loc">${locText}</div>
         <div class="qr-box" id="qrbox-${id}"></div>
         <div class="qr-actions">
-          <button class="btn-download" onclick="verQR('${id}','${data.nombre}','${data.empresa||''}')">🔍 Ver / Descargar</button>
-          <button class="btn-del-dept" onclick="delDept('${id}','${data.nombre}')">🗑 Eliminar</button>
+          <button class="btn-download">🔍 Ver / Descargar</button>
+          <button class="btn-del-dept">🗑 Eliminar</button>
         </div>`;
+      card.querySelector('.btn-download').addEventListener('click', () => verQR(id, data.nombre, data.empresa||'', data.lat, data.lng, data.direccion||''));
+      card.querySelector('.btn-del-dept').addEventListener('click', () => delDept(id, data.nombre));
       document.getElementById('qrGrid').appendChild(card);
 
-      // Generar QR pequeño — el contenido es la URL completa al login con el deptId
-      const qrUrl = `${location.origin}/index.html?dept=${id}`;
+      const qrUrl = getQRUrl(id, data);
       new QRCode(document.getElementById('qrbox-' + id), {
         text: qrUrl,
         width: 140, height: 140,
         colorDark: '#000000', colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.H
+        correctLevel: QRCode.CorrectLevel.L
       });
     }
 
     // Modal departamento
     document.getElementById('btnNuevoDept').addEventListener('click', () => {
-      document.getElementById('fDeptNombre').value  = '';
-      document.getElementById('fDeptEmpresa').value = me.empresa || '';
-      document.getElementById('fDeptLat').value     = '';
-      document.getElementById('fDeptLng').value     = '';
+      document.getElementById('fDeptNombre').value     = '';
+      document.getElementById('fDeptEmpresa').value    = me.empresa || '';
+      document.getElementById('fDeptDireccion').value  = '';
+      document.getElementById('fDeptLat').value        = '';
+      document.getElementById('fDeptLng').value        = '';
       document.getElementById('modalDeptErr').classList.remove('show');
       document.getElementById('ovDept').classList.add('show');
     });
     document.getElementById('btnCancelDept').addEventListener('click', () => document.getElementById('ovDept').classList.remove('show'));
 
     document.getElementById('btnGuardarDept').addEventListener('click', async () => {
-      const nombre  = document.getElementById('fDeptNombre').value.trim();
-      const empresa = document.getElementById('fDeptEmpresa').value.trim();
-      const latVal  = document.getElementById('fDeptLat').value;
-      const lngVal  = document.getElementById('fDeptLng').value;
-      const latDept = latVal !== '' ? parseFloat(latVal) : null;
-      const lngDept = lngVal !== '' ? parseFloat(lngVal) : null;
-      const errEl   = document.getElementById('modalDeptErr');
-      const btn     = document.getElementById('btnGuardarDept');
+      const nombre    = document.getElementById('fDeptNombre').value.trim();
+      const empresa   = document.getElementById('fDeptEmpresa').value.trim();
+      const direccion = document.getElementById('fDeptDireccion').value.trim();
+      const latVal    = document.getElementById('fDeptLat').value;
+      const lngVal    = document.getElementById('fDeptLng').value;
+      const latDept   = latVal !== '' ? parseFloat(latVal) : null;
+      const lngDept   = lngVal !== '' ? parseFloat(lngVal) : null;
+      const errEl     = document.getElementById('modalDeptErr');
+      const btn       = document.getElementById('btnGuardarDept');
       errEl.classList.remove('show');
       if (!nombre) { errEl.textContent = 'El nombre es obligatorio'; errEl.classList.add('show'); return; }
       if (latDept !== null && (isNaN(latDept) || latDept < -90 || latDept > 90)) { errEl.textContent = 'Latitud inválida (debe estar entre -90 y 90)'; errEl.classList.add('show'); return; }
       if (lngDept !== null && (isNaN(lngDept) || lngDept < -180 || lngDept > 180)) { errEl.textContent = 'Longitud inválida (debe estar entre -180 y 180)'; errEl.classList.add('show'); return; }
       btn.disabled = true; btn.textContent = 'Creando...';
       try {
-        await db.collection('departamentos').add({ nombre, empresa, lat: latDept, lng: lngDept, creadoEn: firebase.firestore.FieldValue.serverTimestamp() });
+        await db.collection('departamentos').add({ nombre, empresa, direccion: direccion || null, lat: latDept, lng: lngDept, creadoEn: firebase.firestore.FieldValue.serverTimestamp() });
         toast('✅ Departamento creado y QR generado');
         document.getElementById('ovDept').classList.remove('show');
         loadDepartamentos(); loadResumen();
@@ -563,8 +579,13 @@
 
     // Ver QR grande + descargar
     let currentQRData = null;
-    function verQR(id, nombre, empresa) {
-      const qrUrl = `${location.origin}/index.html?dept=${id}`;
+    function verQR(id, nombre, empresa, lat, lng, direccion) {
+      const data = {
+        lat: (lat != null && lat !== '') ? parseFloat(lat) : null,
+        lng: (lng != null && lng !== '') ? parseFloat(lng) : null,
+        direccion: direccion || null
+      };
+      const qrUrl = getQRUrl(id, data);
       document.getElementById('qrModalTitle').textContent = nombre;
       document.getElementById('qrModalInfo').textContent  = qrUrl;
       document.getElementById('qrModalCanvas').innerHTML  = '';
@@ -572,7 +593,7 @@
       new QRCode(document.getElementById('qrModalCanvas'), {
         text: qrUrl, width: 280, height: 280,
         colorDark: '#000000', colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.H
+        correctLevel: QRCode.CorrectLevel.L
       });
       document.getElementById('ovQR').classList.add('show');
     }
