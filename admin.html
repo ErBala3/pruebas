@@ -288,6 +288,62 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
 .drawer-table-wrap td { padding:11px 20px; border-bottom:1px solid rgba(42,47,69,.5); }
 .drawer-table-wrap tr:last-child td { border-bottom:none; }
 .drawer-footer { padding:20px 28px; border-top:1px solid var(--border); display:flex; gap:10px; }
+
+/* ══ Tree view de usuarios ══════════════════════════════════════════════ */
+.view-toggle { display:flex; gap:8px; margin-bottom:16px; }
+.btn-view { padding:6px 14px; border-radius:7px; border:1px solid var(--border2); background:transparent; color:var(--text-secondary); font-size:12px; font-family:'Inter',sans-serif; cursor:pointer; transition:all .15s; }
+.btn-view.active { background:rgba(226,226,226,.1); color:var(--text); border-color:#555; }
+.tree-view { padding:4px 0; }
+.tree-empresa-block { margin-bottom:28px; }
+.tree-empresa-header { display:flex; align-items:center; gap:10px; padding:10px 16px; background:rgba(226,226,226,.05); border:1px solid var(--border2); border-radius:9px; margin-bottom:12px; }
+.tree-empresa-icon { font-size:18px; }
+.tree-empresa-name { font-size:14px; font-weight:700; color:var(--text); }
+.tree-empresa-count { font-size:11px; color:var(--muted); margin-left:auto; }
+.tree-branch { padding-left:24px; border-left:2px solid var(--border2); margin-left:20px; }
+.tree-jefe-block { margin-bottom:14px; }
+.tree-jefe-header { display:inline-flex; align-items:center; gap:8px; padding:6px 12px; background:rgba(100,149,237,.07); border:1px solid rgba(100,149,237,.22); border-radius:7px; margin-bottom:8px; cursor:pointer; }
+.tree-jefe-name { font-size:12px; font-weight:600; color:#7ba7e8; }
+.tree-jefe-badge { font-size:10px; background:rgba(100,149,237,.15); padding:2px 7px; border-radius:4px; color:#7ba7e8; }
+.tree-empleados-row { display:flex; flex-wrap:wrap; gap:8px; padding-left:20px; border-left:2px solid rgba(226,226,226,.08); margin-left:10px; padding-bottom:4px; }
+.tree-emp-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 11px; background:var(--surface2); border:1px solid var(--border); border-radius:20px; font-size:12px; color:var(--text-secondary); cursor:pointer; transition:all .15s; }
+.tree-emp-chip:hover { border-color:#555; color:var(--text); }
+.tree-dot { width:7px; height:7px; border-radius:50%; background:#5aad7e; flex-shrink:0; }
+.tree-dot.off { background:#444; }
+.tree-sin-jefe { margin-bottom:14px; }
+.tree-sin-jefe-label { font-size:11px; color:var(--muted); margin-bottom:8px; padding-left:4px; }
+/* ══ Resumen mejorado ══════════════════════════════════════════════════ */
+.extra-stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(130px,1fr)); gap:10px; margin-bottom:20px; }
+.extra-stat { background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:14px 16px; animation:fadeUp .4s ease both; }
+.extra-stat-label { font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
+.extra-stat-value { font-size:22px; font-weight:700; color:var(--text); }
+.extra-stat-value.green { color:#5aad7e; }
+.extra-stat-value.gray { color:#888; }
+.extra-stat-value.red { color:#c0392b; }
+.extra-stat-value.blue { color:#7ba7e8; }
+.charts-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:20px; }
+@media(max-width:900px){ .charts-row{grid-template-columns:1fr;} }
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:18px 20px; }
+.chart-card-title { font-size:11px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:14px; }
+.bar-chart { display:flex; flex-direction:column; gap:9px; }
+.bar-row { display:flex; align-items:center; gap:10px; }
+.bar-lbl { width:90px; font-size:11px; color:var(--text-secondary); text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.bar-track { flex:1; height:8px; background:rgba(255,255,255,.06); border-radius:4px; overflow:hidden; }
+.bar-fill { height:100%; border-radius:4px; transition:width .5s ease; }
+.bar-fill.dept { background:#4a7fd4; }
+.bar-num { width:24px; font-size:11px; font-weight:600; color:var(--text); text-align:right; }
+.donut-wrap { display:flex; align-items:center; justify-content:center; gap:24px; padding:8px 0; }
+.donut-legend { display:flex; flex-direction:column; gap:10px; }
+.donut-leg-item { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-secondary); }
+.donut-leg-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.donut-leg-val { font-weight:700; color:var(--text); margin-left:auto; min-width:24px; text-align:right; }
+/* ══ Exportar CSV ══════════════════════════════════════════════════════ */
+.export-wrap { position:relative; }
+.btn-export { padding:8px 16px; background:transparent; border:1px solid rgba(45,122,79,.5); color:#5aad7e; border-radius:7px; font-family:'Inter',sans-serif; font-size:13px; font-weight:500; cursor:pointer; transition:background .2s; display:flex; align-items:center; gap:6px; white-space:nowrap; }
+.btn-export:hover { background:rgba(45,122,79,.1); }
+.export-dropdown { position:absolute; right:0; top:calc(100% + 6px); background:var(--surface2); border:1px solid var(--border2); border-radius:8px; min-width:200px; z-index:50; box-shadow:0 8px 24px rgba(0,0,0,.5); display:none; overflow:hidden; }
+.export-dropdown.show { display:block; }
+.export-opt { padding:11px 16px; font-size:13px; color:var(--text-secondary); cursor:pointer; transition:background .15s; display:flex; align-items:center; gap:9px; }
+.export-opt:hover { background:rgba(255,255,255,.05); color:var(--text); }
 </style>
 </head>
 <body>
@@ -317,12 +373,41 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
       <div class="page-header">
         <div><div class="page-title">Resumen</div><div class="page-sub">Vista general en tiempo real</div></div>
       </div>
+      <!-- Tarjetas principales -->
       <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">Usuarios</div><div class="stat-value c-accent" id="stUsuarios">—</div></div>
+        <div class="stat-card"><div class="stat-label">Usuarios totales</div><div class="stat-value c-accent" id="stUsuarios">—</div></div>
         <div class="stat-card"><div class="stat-label">Departamentos</div><div class="stat-value c-accent" id="stDepts">—</div></div>
         <div class="stat-card"><div class="stat-label">Fichajes hoy</div><div class="stat-value c-success" id="stHoy">—</div></div>
         <div class="stat-card"><div class="stat-label">Dentro ahora</div><div class="stat-value c-warn" id="stActivos">—</div></div>
       </div>
+      <!-- Estadísticas extra -->
+      <div class="extra-stats">
+        <div class="extra-stat"><div class="extra-stat-label">Entradas hoy</div><div class="extra-stat-value green" id="stEntradasHoy">—</div></div>
+        <div class="extra-stat"><div class="extra-stat-label">Salidas hoy</div><div class="extra-stat-value gray" id="stSalidasHoy">—</div></div>
+        <div class="extra-stat"><div class="extra-stat-label">Fallidos hoy</div><div class="extra-stat-value red" id="stFallidosHoy">—</div></div>
+        <div class="extra-stat"><div class="extra-stat-label">Esta semana</div><div class="extra-stat-value blue" id="stSemana">—</div></div>
+        <div class="extra-stat"><div class="extra-stat-label">Usuarios activos</div><div class="extra-stat-value" id="stUsActivos">—</div></div>
+        <div class="extra-stat"><div class="extra-stat-label">Pico horario</div><div class="extra-stat-value" id="stPico" style="font-size:16px">—</div></div>
+      </div>
+      <!-- Gráficas -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-card-title">Fichajes por departamento (hoy)</div>
+          <div class="bar-chart" id="chartDepts"><div style="color:var(--muted);font-size:12px;padding:8px 0">Sin datos aún</div></div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-card-title">Distribución de tipos (hoy)</div>
+          <div class="donut-wrap">
+            <canvas id="chartDonut" width="110" height="110"></canvas>
+            <div class="donut-legend">
+              <div class="donut-leg-item"><div class="donut-leg-dot" style="background:#2d7a4f"></div>Entradas<span class="donut-leg-val" id="dLegEntrada">0</span></div>
+              <div class="donut-leg-item"><div class="donut-leg-dot" style="background:#555"></div>Salidas<span class="donut-leg-val" id="dLegSalida">0</span></div>
+              <div class="donut-leg-item"><div class="donut-leg-dot" style="background:#c0392b"></div>Fallidos<span class="donut-leg-val" id="dLegFallido">0</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- Tabla últimos fichajes -->
       <div class="tcard">
         <div class="tcard-head">
           <div class="tcard-title"><span class="live-dot"></span>Últimos fichajes</div>
@@ -340,7 +425,13 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
         <div><div class="page-title">Usuarios</div><div class="page-sub">Gestión de cuentas</div></div>
         <button class="btn-primary" id="btnNuevoUsuario">+ Nuevo usuario</button>
       </div>
-      <div class="tcard"><div id="tablaUsuarios"><div class="loading"><span class="spinner"></span>Cargando...</div></div></div>
+      <!-- Toggle vista tabla / árbol -->
+      <div class="view-toggle">
+        <button class="btn-view active" id="btnVistaTabla" onclick="setVistaUsuarios('tabla')">📋 Tabla</button>
+        <button class="btn-view" id="btnVistaArbol" onclick="setVistaUsuarios('arbol')">🌳 Árbol</button>
+      </div>
+      <div class="tcard" id="usuariosTablaWrap"><div id="tablaUsuarios"><div class="loading"><span class="spinner"></span>Cargando...</div></div></div>
+      <div id="usuariosArbolWrap" style="display:none"><div id="arbolUsuarios"><div class="loading"><span class="spinner"></span>Cargando...</div></div></div>
     </div>
     <!-- DEPARTAMENTOS & QR -->
     <div class="section" id="sec-departamentos">
@@ -354,6 +445,14 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
     <div class="section" id="sec-fichajes">
       <div class="page-header">
         <div><div class="page-title">Fichajes</div><div class="page-sub">Registro completo con hora exacta</div></div>
+        <div class="export-wrap">
+          <button class="btn-export" id="btnExport" onclick="toggleExportMenu()">⬇ Exportar ▾</button>
+          <div class="export-dropdown" id="exportDropdown">
+            <div class="export-opt" onclick="exportCSV('visible')">📄 CSV — datos visibles</div>
+            <div class="export-opt" onclick="exportCSV('todo')">📦 CSV — histórico completo</div>
+            <div class="export-opt" onclick="exportCSV('hoy')">📅 CSV — solo hoy</div>
+          </div>
+        </div>
       </div>
       <div class="tcard">
         <div class="filter-bar">
@@ -648,28 +747,21 @@ function loadResumen() {
   resumenUnsub = db.collection('fichajes').orderBy('timestamp','desc').limit(500).onSnapshot(async fSnap => {
     try {
       let misUserIds;
+      // ── Obtener usuarios según rol ────────────────────────────────────
       if (me.rol === 'admin') {
-        // Admin: ve sus propios usuarios + los de sus jefes
+        const empresaId = me.empresaId || me.id;
         const [uSnap, dSnap, jefesSnap] = await Promise.all([
-          db.collection('usuarios').where('creadoPor','==',me.id).get(),
+          db.collection('usuarios').where('empresaId','==',empresaId).get(),
           db.collection('departamentos').where('creadoPor','==',me.id).get(),
-          db.collection('usuarios').where('creadoPor','==',me.id).where('rol','==','jefe').get()
+          db.collection('usuarios').where('empresaId','==',empresaId).where('rol','==','jefe').get()
         ]);
         misUserIds = new Set(uSnap.docs.map(d => d.id));
-        // Añadir también los empleados creados por los jefes de este admin
-        const jefesIds = jefesSnap.docs.map(d => d.id);
-        if (jefesIds.length > 0) {
-          const empleadosDeJefes = await Promise.all(
-            jefesIds.map(jId => db.collection('usuarios').where('creadoPor','==',jId).get())
-          );
-          empleadosDeJefes.forEach(s => s.docs.forEach(d => misUserIds.add(d.id)));
-        }
         document.getElementById('stUsuarios').textContent = uSnap.size;
         document.getElementById('stDepts').textContent = dSnap.size;
       } else {
-        // Jefe: solo ve sus empleados
+        const empresaId = me.empresaId || me.creadoPor || me.id;
         const [uSnap, dSnap] = await Promise.all([
-          db.collection('usuarios').where('creadoPor','==',me.id).get(),
+          db.collection('usuarios').where('empresaId','==',empresaId).get(),
           db.collection('departamentos').where('creadoPor','==',me.id).get()
         ]);
         misUserIds = new Set(uSnap.docs.map(d => d.id));
@@ -677,17 +769,139 @@ function loadResumen() {
         document.getElementById('stDepts').textContent = dSnap.size;
       }
 
-      // Filtrar fichajes: del empleado propio O registros espejo de departamento invadido
+      // ── Filtrar fichajes ──────────────────────────────────────────────
       const misFichajes = fSnap.docs.filter(d => {
         const f = d.data();
         return misUserIds.has(f.userId) || f.jefeAfectadoId === me.id;
       });
+
+      // ── Fechas de referencia ──────────────────────────────────────────
+      const ahora = new Date();
       const hoy = new Date(); hoy.setHours(0,0,0,0);
-      const hoyN = misFichajes.filter(d => { const ts = d.data().timestamp; return ts && ts.toDate && ts.toDate() >= hoy; }).length;
-      document.getElementById('stHoy').textContent = hoyN;
+      const semanaAtras = new Date(ahora); semanaAtras.setDate(ahora.getDate() - 7); semanaAtras.setHours(0,0,0,0);
+
+      // ── Fichajes de hoy ───────────────────────────────────────────────
+      const fichajesHoy = misFichajes.filter(d => {
+        const ts = d.data().timestamp;
+        return ts && ts.toDate && ts.toDate() >= hoy;
+      });
+
+      // ── Estadísticas principales ──────────────────────────────────────
+      document.getElementById('stHoy').textContent = fichajesHoy.length;
+
+      // Último estado por usuario → "dentro ahora"
       const last = {};
-      misFichajes.slice().reverse().forEach(d => { const f = d.data(); if(!last[f.userId]) last[f.userId] = f.tipo; });
-      document.getElementById('stActivos').textContent = Object.values(last).filter(t=>t==='entrada').length;
+      misFichajes.slice().reverse().forEach(d => {
+        const f = d.data();
+        if (!last[f.userId]) last[f.userId] = f.tipo;
+      });
+      const dentroAhora = Object.values(last).filter(t => t === 'entrada').length;
+      document.getElementById('stActivos').textContent = dentroAhora;
+
+      // ── Estadísticas extra ────────────────────────────────────────────
+      const entradasHoy = fichajesHoy.filter(d => d.data().tipo === 'entrada').length;
+      const salidasHoy  = fichajesHoy.filter(d => d.data().tipo === 'salida').length;
+      const fallidosHoy = fichajesHoy.filter(d => d.data().tipo === 'fallido').length;
+      document.getElementById('stEntradasHoy').textContent = entradasHoy;
+      document.getElementById('stSalidasHoy').textContent  = salidasHoy;
+      document.getElementById('stFallidosHoy').textContent = fallidosHoy;
+
+      // Fichajes esta semana
+      const semana = misFichajes.filter(d => {
+        const ts = d.data().timestamp;
+        return ts && ts.toDate && ts.toDate() >= semanaAtras;
+      }).length;
+      document.getElementById('stSemana').textContent = semana;
+
+      // Usuarios distintos que ficharon hoy
+      const usHoy = new Set(fichajesHoy.map(d => d.data().userId));
+      document.getElementById('stUsActivos').textContent = usHoy.size;
+
+      // Pico horario (hora con más fichajes en total)
+      const horas = {};
+      misFichajes.forEach(d => {
+        const ts = d.data().timestamp;
+        if (ts && ts.toDate) {
+          const h = ts.toDate().getHours();
+          horas[h] = (horas[h] || 0) + 1;
+        }
+      });
+      if (Object.keys(horas).length) {
+        const picoH = Object.entries(horas).sort((a,b) => b[1]-a[1])[0][0];
+        document.getElementById('stPico').textContent = picoH + ':00h';
+      } else {
+        document.getElementById('stPico').textContent = '—';
+      }
+
+      // ── Gráfica barras: fichajes hoy por departamento ─────────────────
+      const deptCount = {};
+      fichajesHoy.forEach(d => {
+        const dept = d.data().departamento || 'Sin dept.';
+        deptCount[dept] = (deptCount[dept] || 0) + 1;
+      });
+      const deptEntries = Object.entries(deptCount).sort((a,b) => b[1]-a[1]).slice(0,6);
+      const maxDept = deptEntries.length ? deptEntries[0][1] : 1;
+      const chartDeptsEl = document.getElementById('chartDepts');
+      if (deptEntries.length) {
+        chartDeptsEl.innerHTML = deptEntries.map(([dept, n]) =>
+          `<div class="bar-row">
+            <div class="bar-lbl" title="${dept}">${dept}</div>
+            <div class="bar-track"><div class="bar-fill dept" style="width:${Math.round(n/maxDept*100)}%"></div></div>
+            <div class="bar-num">${n}</div>
+          </div>`
+        ).join('');
+      } else {
+        chartDeptsEl.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0">Sin fichajes hoy</div>';
+      }
+
+      // ── Gráfica donut: tipos (hoy) ────────────────────────────────────
+      document.getElementById('dLegEntrada').textContent = entradasHoy;
+      document.getElementById('dLegSalida').textContent  = salidasHoy;
+      document.getElementById('dLegFallido').textContent = fallidosHoy;
+      const canvas = document.getElementById('chartDonut');
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const total = entradasHoy + salidasHoy + fallidosHoy;
+      if (total > 0) {
+        const segments = [
+          { value: entradasHoy, color: '#2d7a4f' },
+          { value: salidasHoy,  color: '#555555' },
+          { value: fallidosHoy, color: '#c0392b' }
+        ];
+        let startAngle = -Math.PI / 2;
+        const cx = canvas.width / 2, cy = canvas.height / 2, r = 44, inner = 26;
+        segments.forEach(seg => {
+          if (!seg.value) return;
+          const angle = (seg.value / total) * 2 * Math.PI;
+          ctx.beginPath();
+          ctx.moveTo(cx, cy);
+          ctx.arc(cx, cy, r, startAngle, startAngle + angle);
+          ctx.closePath();
+          ctx.fillStyle = seg.color;
+          ctx.fill();
+          startAngle += angle;
+        });
+        // hole
+        ctx.beginPath();
+        ctx.arc(cx, cy, inner, 0, 2 * Math.PI);
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--surface').trim() || '#161616';
+        ctx.fill();
+        // texto central
+        ctx.fillStyle = '#f0f0f0';
+        ctx.font = 'bold 14px Inter, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(total, cx, cy);
+      } else {
+        ctx.beginPath();
+        ctx.arc(canvas.width/2, canvas.height/2, 44, 0, 2*Math.PI);
+        ctx.fillStyle = '#2a2a2a';
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(canvas.width/2, canvas.height/2, 26, 0, 2*Math.PI);
+        ctx.fillStyle = '#161616';
+        ctx.fill();
+      }
 
       resumenAllDocs = misFichajes;
       resumenPage = 1;
@@ -702,9 +916,9 @@ function loadResumen() {
 async function loadUsuarios() {
   document.getElementById('tablaUsuarios').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
   try {
-    // Admin ve a todos los que creó (jefes + empleados)
-    // Jefe ve solo a los empleados que él creó
-    const snap = await db.collection('usuarios').where('creadoPor','==',me.id).get();
+    // Los usuarios se vinculan a la empresa, no al jefe que los creó
+    const empresaId = me.empresaId || me.id;
+    const snap = await db.collection('usuarios').where('empresaId','==',empresaId).get();
     if (snap.empty) { document.getElementById('tablaUsuarios').innerHTML = '<div class="empty">Sin usuarios</div>'; return; }
     document.getElementById('tablaUsuarios').innerHTML = `<table><thead><tr>
       <th>Nombre</th><th>Email</th><th>Empresa</th><th>Departamento</th><th>Rol</th><th>Acciones</th>
@@ -778,6 +992,7 @@ document.getElementById('btnGuardarUser').addEventListener('click', async () => 
       const check = await db.collection('usuarios').where('email','==',email).get();
       if (!check.empty) { errEl.textContent = 'Ya existe ese email'; errEl.classList.add('show'); btn.disabled=false; btn.textContent='Guardar'; return; }
       datos.creadoPor = me.id;
+      datos.empresaId = me.empresaId || me.id;  // Vinculado a la empresa, no al jefe
       await db.collection('usuarios').add(datos);
       toast('Usuario creado');
     }
@@ -1032,21 +1247,12 @@ async function loadFichajes() {
   document.getElementById('tablaFichajesContent').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
   if (fichajesUnsub) fichajesUnsub();
 
-  // Obtener userIds según rol
+  // Obtener userIds según rol — vinculados a la empresa
   let misUserIds;
+  const empresaId = me.empresaId || me.id;
   if (me.rol === 'admin') {
-    const [misSnap, jefesSnap] = await Promise.all([
-      db.collection('usuarios').where('creadoPor','==',me.id).get(),
-      db.collection('usuarios').where('creadoPor','==',me.id).where('rol','==','jefe').get()
-    ]);
+    const misSnap = await db.collection('usuarios').where('empresaId','==',empresaId).get();
     misUserIds = new Set(misSnap.docs.map(d => d.id));
-    const jefesIds = jefesSnap.docs.map(d => d.id);
-    if (jefesIds.length > 0) {
-      const empleadosDeJefes = await Promise.all(
-        jefesIds.map(jId => db.collection('usuarios').where('creadoPor','==',jId).get())
-      );
-      empleadosDeJefes.forEach(s => s.docs.forEach(d => misUserIds.add(d.id)));
-    }
   } else {
     const misSnap = await db.collection('usuarios').where('creadoPor','==',me.id).get();
     misUserIds = new Set(misSnap.docs.map(d => d.id));
@@ -1163,25 +1369,11 @@ async function loadFichajesFiltered(filters) {
   if (fichajesUnsub) { fichajesUnsub(); fichajesUnsub = null; }
 
   try {
-    // Construir misUserIds según rol
+    // Construir misUserIds según rol — vinculados a la empresa
     let misUserIds2;
-    if (me.rol === 'admin') {
-      const [misSnap2, jefesSnap2] = await Promise.all([
-        db.collection('usuarios').where('creadoPor','==',me.id).get(),
-        db.collection('usuarios').where('creadoPor','==',me.id).where('rol','==','jefe').get()
-      ]);
-      misUserIds2 = new Set(misSnap2.docs.map(d => d.id));
-      const jefesIds2 = jefesSnap2.docs.map(d => d.id);
-      if (jefesIds2.length > 0) {
-        const empleadosDeJefes2 = await Promise.all(
-          jefesIds2.map(jId => db.collection('usuarios').where('creadoPor','==',jId).get())
-        );
-        empleadosDeJefes2.forEach(s => s.docs.forEach(d => misUserIds2.add(d.id)));
-      }
-    } else {
-      const misSnap2 = await db.collection('usuarios').where('creadoPor','==',me.id).get();
-      misUserIds2 = new Set(misSnap2.docs.map(d => d.id));
-    }
+    const empresaId2 = me.empresaId || me.id;
+    const misSnap2 = await db.collection('usuarios').where('empresaId','==',empresaId2).get();
+    misUserIds2 = new Set(misSnap2.docs.map(d => d.id));
 
     let query;
     if (filters.userId) {
@@ -1229,6 +1421,176 @@ function esc(str) {
 }
 function escAttr(str) {
   return String(str).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+// ─────────────────────────────────────────────────────────────────────
+// VISTA ÁRBOL DE USUARIOS
+// ─────────────────────────────────────────────────────────────────────
+let vistaUsuariosActual = 'tabla';
+
+function setVistaUsuarios(vista) {
+  vistaUsuariosActual = vista;
+  document.getElementById('btnVistaTabla').classList.toggle('active', vista === 'tabla');
+  document.getElementById('btnVistaArbol').classList.toggle('active', vista === 'arbol');
+  document.getElementById('usuariosTablaWrap').style.display = vista === 'tabla' ? '' : 'none';
+  document.getElementById('usuariosArbolWrap').style.display = vista === 'arbol' ? '' : 'none';
+  if (vista === 'arbol') renderArbolUsuarios();
+}
+
+async function renderArbolUsuarios() {
+  const wrap = document.getElementById('arbolUsuarios');
+  wrap.innerHTML = '<div class="loading"><span class="spinner"></span>Construyendo árbol...</div>';
+  try {
+    const empresaId = me.empresaId || me.id;
+    const snap = await db.collection('usuarios').where('empresaId','==',empresaId).get();
+    const todos = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const empresas = {};
+    todos.forEach(u => {
+      const emp = u.empresa || 'Sin empresa';
+      if (!empresas[emp]) empresas[emp] = { jefes: {}, sinJefe: [] };
+      if (u.rol === 'jefe' || u.rol === 'admin') {
+        empresas[emp].jefes[u.id] = { ...u, empleados: [] };
+      }
+    });
+    todos.forEach(u => {
+      if (u.rol === 'jefe' || u.rol === 'admin') return;
+      const emp = u.empresa || 'Sin empresa';
+      if (!empresas[emp]) empresas[emp] = { jefes: {}, sinJefe: [] };
+      const jefe = empresas[emp].jefes[u.creadoPor];
+      if (jefe) {
+        jefe.empleados.push(u);
+      } else {
+        empresas[emp].sinJefe.push(u);
+      }
+    });
+
+    if (!Object.keys(empresas).length) {
+      wrap.innerHTML = '<div class="empty">Sin usuarios</div>';
+      return;
+    }
+
+    let html = '<div class="tree-view">';
+    Object.entries(empresas).forEach(([empNombre, empData]) => {
+      const totalEmp = todos.filter(u => (u.empresa || 'Sin empresa') === empNombre).length;
+      html += `<div class="tree-empresa-block">
+        <div class="tree-empresa-header">
+          <span class="tree-empresa-icon">&#127970;</span>
+          <span class="tree-empresa-name">${empNombre}</span>
+          <span class="tree-empresa-count">${totalEmp} usuario${totalEmp !== 1 ? 's' : ''}</span>
+        </div>
+        <div class="tree-branch">`;
+
+      Object.values(empData.jefes).forEach(jefe => {
+        html += `<div class="tree-jefe-block">
+          <div class="tree-jefe-header" onclick="openUserDrawerById('${jefe.id}')">
+            <span class="tree-jefe-name">&#128100; ${jefe.nombre || jefe.email}</span>
+            <span class="tree-jefe-badge">${jefe.rol}</span>
+            <span class="tree-jefe-badge">${jefe.empleados.length} emp.</span>
+          </div>`;
+        if (jefe.empleados.length) {
+          html += '<div class="tree-empleados-row">';
+          jefe.empleados.forEach(emp => {
+            html += `<div class="tree-emp-chip" onclick="openUserDrawerById('${emp.id}')">
+              <div class="tree-dot${emp.status === 'inactive' ? ' off' : ''}"></div>
+              ${emp.nombre || emp.email}
+            </div>`;
+          });
+          html += '</div>';
+        }
+        html += '</div>';
+      });
+
+      if (empData.sinJefe.length) {
+        html += `<div class="tree-sin-jefe">
+          <div class="tree-sin-jefe-label">Sin jefe asignado</div>
+          <div class="tree-empleados-row">`;
+        empData.sinJefe.forEach(emp => {
+          html += `<div class="tree-emp-chip" onclick="openUserDrawerById('${emp.id}')">
+            <div class="tree-dot${emp.status === 'inactive' ? ' off' : ''}"></div>
+            ${emp.nombre || emp.email}
+          </div>`;
+        });
+        html += '</div></div>';
+      }
+      html += '</div></div>';
+    });
+    html += '</div>';
+    wrap.innerHTML = html;
+  } catch(e) {
+    wrap.innerHTML = '<div class="empty">Error al cargar el árbol</div>';
+    console.error(e);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// EXPORTAR CSV
+// ─────────────────────────────────────────────────────────────────────
+function toggleExportMenu() {
+  document.getElementById('exportDropdown').classList.toggle('show');
+}
+document.addEventListener('click', function(e) {
+  const wrap = document.querySelector('.export-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    const dd = document.getElementById('exportDropdown');
+    if (dd) dd.classList.remove('show');
+  }
+});
+
+async function exportCSV(modo) {
+  const dd = document.getElementById('exportDropdown');
+  if (dd) dd.classList.remove('show');
+  let docs = [];
+
+  if (modo === 'visible') {
+    docs = fichajesAllDocs.map(d => d.data ? d.data() : d);
+  } else if (modo === 'hoy') {
+    const hoy = new Date(); hoy.setHours(0,0,0,0);
+    docs = fichajesAllDocsOriginal
+      .filter(d => { const ts = (d.data ? d.data() : d).timestamp; return ts && ts.toDate && ts.toDate() >= hoy; })
+      .map(d => d.data ? d.data() : d);
+  } else {
+    toast('Descargando histórico completo…', 'ok');
+    try {
+      const empresaId = me.empresaId || me.id;
+      const uSnap = await db.collection('usuarios').where('empresaId','==',empresaId).get();
+      const misUserIds = new Set(uSnap.docs.map(d => d.id));
+      const snap = await db.collection('fichajes').orderBy('timestamp','desc').get();
+      docs = snap.docs
+        .filter(d => misUserIds.has(d.data().userId) || d.data().jefeAfectadoId === me.id)
+        .map(d => d.data());
+    } catch(e) {
+      toast('Error al descargar: ' + e.message, 'err');
+      return;
+    }
+  }
+
+  if (!docs.length) { toast('No hay datos para exportar', 'warn'); return; }
+
+  const cols = ['nombre','email','departamento','tipo','timestamp','duracionMin','horasNormales','horasExtra','lat','lng','motivo'];
+  const headers = ['Nombre','Email','Departamento','Tipo','Fecha y hora','Duracion (min)','H.Normales','H.Extra','Latitud','Longitud','Motivo'];
+  const esc = v => {
+    if (v == null) return '';
+    const s = String(v).replace(/"/g,'""');
+    return (s.includes(',') || s.includes('"') || s.includes('\n')) ? `"${s}"` : s;
+  };
+  const rows = docs.map(f => cols.map(c => {
+    if (c === 'timestamp') {
+      const ts = f.timestamp;
+      return esc(ts && ts.toDate ? ts.toDate().toLocaleString('es-ES') : (ts || ''));
+    }
+    return esc(f[c]);
+  }).join(','));
+
+  const csv = [headers.join(','), ...rows].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `fichajes_${modo}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`CSV exportado (${docs.length} registros)`, 'ok');
+}
+
 }
 
 // ─────────────────────────────────────────────────────────────────────────
