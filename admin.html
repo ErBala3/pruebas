@@ -419,13 +419,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 
-  // ── Guard admin ───────────────────────────────────────────
-  (async () => {
-    const res = await fetch('/api/auth/me');
-    if (!res.ok) { window.location.href = '/login'; return; }
-    const data = await res.json();
-    if (data.rol !== 'admin') { window.location.href = '/'; }
-  })();
+  // ── Guard admin (desactivado: el backend Flask no tiene sistema de auth) ──
 
   // ── Tabs ──────────────────────────────────────────────────
   document.querySelectorAll('.tab').forEach(tab => {
@@ -449,9 +443,8 @@
   }
 
   // ── Logout ────────────────────────────────────────────────
-  document.getElementById('logoutBtn').addEventListener('click', async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/login';
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    window.location.href = '/';
   });
 
   // ── EMPLEADOS ─────────────────────────────────────────────
