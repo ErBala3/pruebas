@@ -18,6 +18,7 @@
       min-height: 100vh; display: flex; flex-direction: column; align-items: center;
       justify-content: center; padding: 80px 20px 20px;
     }
+    .main-wrap { width: 100%; max-width: 420px; display: flex; flex-direction: column; gap: 16px; }
     body::before {
       content: ''; position: fixed; inset: 0;
       background-image: linear-gradient(var(--border) 1px, transparent 1px),
@@ -40,6 +41,39 @@
       text-transform: uppercase; cursor: pointer; transition: background .2s;
     }
     .btn-logout:hover { background: rgba(244,63,94,.1); border-color: var(--danger); }
+    /* ── Panel horas ── */
+    .horas-panel {
+      position: relative;
+      width: 100%; max-width: 420px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+      padding: 24px 28px; margin-bottom: 16px;
+      box-shadow: 0 0 40px rgba(0,229,255,.04), 0 16px 48px rgba(0,0,0,.5);
+      animation: fadeUp .4s ease both;
+    }
+    .horas-panel::before {
+      content: ''; position: absolute; top: 0; left: 40px; right: 40px; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+    .horas-panel-title { font-size: 10px; font-weight: 500; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 16px; }
+    .horas-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .hstat { background: rgba(0,0,0,.3); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; }
+    .hstat-label { font-size: 9px; color: var(--muted); font-weight: 500; margin-bottom: 4px; letter-spacing: .5px; text-transform: uppercase; }
+    .hstat-value { font-size: 15px; font-weight: 700; color: var(--text); }
+    .hstat-value.c-ok   { color: #10b981; }
+    .hstat-value.c-warn { color: #f59e0b; }
+    .hstat-value.c-err  { color: #f43f5e; }
+    .progress-wrap { margin-bottom: 14px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+    .progress-bar { height: 4px; background: rgba(255,255,255,.06); border-radius: 2px; overflow: hidden; }
+    .progress-fill { height: 100%; border-radius: 2px; transition: width .8s ease; background: #10b981; }
+    .progress-fill.p-warn { background: #f59e0b; }
+    .progress-fill.p-over { background: #f43f5e; }
+    .balance-msg { padding: 12px 14px; border-radius: 10px; font-size: 11px; line-height: 1.6; border-left: 3px solid; }
+    .balance-msg.s-ok   { background: rgba(16,185,129,.08);  border-color: #10b981; color: #10b981; }
+    .balance-msg.s-warn { background: rgba(245,158,11,.08);  border-color: #f59e0b; color: #f59e0b; }
+    .balance-msg.s-err  { background: rgba(244,63,94,.08);   border-color: #f43f5e; color: #f43f5e; }
+    .balance-msg.s-info { background: rgba(0,229,255,.04);   border-color: var(--border); color: var(--muted); }
+    .bm-title { font-weight: 600; margin-bottom: 2px; font-size: 11px; }
     .card {
       position: relative; width: 100%; max-width: 420px;
       background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
@@ -76,15 +110,52 @@
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">Escáner de Fichaje</div>
-    <div class="card-sub">Apunta la cámara al código QR del puesto</div>
-    <div id="reader"></div>
-    <div class="status-box" id="statusBox">
-      <div id="statusMsg"></div>
-      <div class="fichaje-hora" id="fichajeHora"></div>
+  <div class="main-wrap">
+    <!-- Panel de horas -->
+    <div class="horas-panel" id="horasPanel">
+      <div class="horas-panel-title">Mis horas · <span id="hpAnio">—</span></div>
+      <div class="horas-grid">
+        <div class="hstat">
+          <div class="hstat-label">Trabajadas</div>
+          <div class="hstat-value" id="hpTrabajadas">—</div>
+        </div>
+        <div class="hstat">
+          <div class="hstat-label">Teóricas acum.</div>
+          <div class="hstat-value" id="hpTeoricas">—</div>
+        </div>
+        <div class="hstat">
+          <div class="hstat-label">Balance</div>
+          <div class="hstat-value" id="hpBalance">—</div>
+        </div>
+        <div class="hstat">
+          <div class="hstat-label">Jornada diaria</div>
+          <div class="hstat-value">8h</div>
+        </div>
+      </div>
+      <div class="progress-wrap">
+        <div class="progress-label">
+          <span>Progreso anual (<span id="hpAnualTotal">1792</span>h)</span>
+          <span id="hpPct">—</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="hpBar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="balance-msg s-info" id="hpMsg">
+        <div class="bm-title">Cargando datos...</div>
+      </div>
     </div>
-    <button class="btn-rescan" id="btnRescan">Escanear de nuevo</button>
+
+    <div class="card">
+      <div class="card-title">Escáner de Fichaje</div>
+      <div class="card-sub">Apunta la cámara al código QR del puesto</div>
+      <div id="reader"></div>
+      <div class="status-box" id="statusBox">
+        <div id="statusMsg"></div>
+        <div class="fichaje-hora" id="fichajeHora"></div>
+      </div>
+      <button class="btn-rescan" id="btnRescan">Escanear de nuevo</button>
+    </div>
   </div>
 
   <script>
@@ -94,6 +165,176 @@
 
     document.getElementById('userLabel').textContent =
       localStorage.getItem('qraccess_nombre') || localStorage.getItem('qraccess_username') || '—';
+
+    // ── Constantes ─────────────────────────────────────────────────────────────
+    const HORAS_JORNADA_NORMAL   = 8;
+    const HORAS_ANUALES_CONVENIO = 1792;
+
+    function diasLaborablesHastaHoy(anio) {
+      const hoy    = new Date();
+      const inicio = new Date(anio, 0, 1);
+      let dias = 0;
+      const c = new Date(inicio);
+      const limite = new Date(Math.min(hoy.getTime(), new Date(anio, 11, 31).getTime()));
+      while (c <= limite) {
+        const dow = c.getDay();
+        if (dow !== 0 && dow !== 6) dias++;
+        c.setDate(c.getDate() + 1);
+      }
+      return dias;
+    }
+
+    function diasLaborablesAnio(anio) {
+      const inicio = new Date(anio, 0, 1);
+      const fin    = new Date(anio, 11, 31);
+      let dias = 0;
+      const c = new Date(inicio);
+      while (c <= fin) {
+        const dow = c.getDay();
+        if (dow !== 0 && dow !== 6) dias++;
+        c.setDate(c.getDate() + 1);
+      }
+      return dias;
+    }
+
+    function diasLaborablesRestantes(anio) {
+      const hoy     = new Date(); hoy.setHours(0,0,0,0);
+      const fin     = new Date(anio, 11, 31);
+      let dias = 0;
+      const c = new Date(hoy); c.setDate(c.getDate() + 1);
+      while (c <= fin) {
+        const dow = c.getDay();
+        if (dow !== 0 && dow !== 6) dias++;
+        c.setDate(c.getDate() + 1);
+      }
+      return dias;
+    }
+
+    function calcularHorasDesdeFichajes(fichajes, anio) {
+      const inicio = new Date(anio, 0, 1);
+      const fin    = new Date(anio + 1, 0, 1);
+      let total = 0;
+      let entradaPendiente = null;
+      const ordenados = (Array.isArray(fichajes) ? fichajes : []).slice().sort((a, b) => {
+        const ta = new Date(a.timestamp || a.timestampCliente || a.ts || 0).getTime();
+        const tb = new Date(b.timestamp || b.timestampCliente || b.ts || 0).getTime();
+        return ta - tb;
+      });
+
+      ordenados.forEach(function(f) {
+        const fecha = new Date(f.timestamp || f.timestampCliente || f.ts);
+        if (isNaN(fecha) || fecha < inicio || fecha >= fin) return;
+        const tipo = f.tipo || (f.direction === 'OUT' ? 'salida' : (f.direction === 'IN' ? 'entrada' : ''));
+        if (tipo === 'salida' || tipo === 'OUT') {
+          const horas = (f.horasNormales || 0) + (f.horasExtra || 0);
+          if (horas > 0) {
+            total += horas;
+            entradaPendiente = null;
+            return;
+          }
+          if (f.duracionMin) {
+            total += f.duracionMin / 60;
+            entradaPendiente = null;
+            return;
+          }
+          if (entradaPendiente && fecha > entradaPendiente) {
+            total += (fecha - entradaPendiente) / 3600000;
+            entradaPendiente = null;
+          }
+          return;
+        }
+        if (tipo === 'entrada' || tipo === 'IN') entradaPendiente = fecha;
+      });
+      return total;
+    }
+
+    async function cargarPanelHoras() {
+      try {
+        const anio   = new Date().getFullYear();
+        document.getElementById('hpAnio').textContent       = anio;
+        document.getElementById('hpAnualTotal').textContent = HORAS_ANUALES_CONVENIO;
+
+        let horasTrabajadas = 0;
+        const resumenRes = await fetch('/api/fichajes/resumen-anual?anio=' + anio, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (resumenRes.ok) {
+          const resumen = await resumenRes.json();
+          if (typeof resumen.horasTrabajadas === 'number') horasTrabajadas = resumen.horasTrabajadas;
+          else if (Array.isArray(resumen.fichajes)) horasTrabajadas = calcularHorasDesdeFichajes(resumen.fichajes, anio);
+        } else {
+          const res = await fetch('/api/fichajes?tipo=salida&anio=' + anio, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (res.ok) {
+            const fichajes = await res.json();
+            horasTrabajadas = calcularHorasDesdeFichajes(fichajes, anio);
+          }
+        }
+
+        const diasLab       = diasLaborablesHastaHoy(anio);
+        const diasLabAnio   = diasLaborablesAnio(anio);
+        const horasPorDia   = HORAS_ANUALES_CONVENIO / diasLabAnio;
+        const horasTeoricas = diasLab * horasPorDia;
+        const balance       = horasTrabajadas - horasTeoricas;
+        const pctReal       = (horasTrabajadas / HORAS_ANUALES_CONVENIO) * 100;
+        const pctBar        = Math.min(pctReal, 100);
+        const faltanAnual   = HORAS_ANUALES_CONVENIO - horasTrabajadas;
+        const diasRestantes = diasLaborablesRestantes(anio);
+        const ritmoNecesario = diasRestantes > 0 ? (faltanAnual / diasRestantes) : 0;
+
+        document.getElementById('hpTrabajadas').textContent = horasTrabajadas.toFixed(1) + 'h';
+        document.getElementById('hpTeoricas').textContent   = horasTeoricas.toFixed(1) + 'h';
+
+        const balEl = document.getElementById('hpBalance');
+        balEl.textContent = (balance >= 0 ? '+' : '') + balance.toFixed(1) + 'h';
+        balEl.className   = 'hstat-value ' + (balance >= 0 ? 'c-ok' : (balance > -10 ? 'c-warn' : 'c-err'));
+
+        document.getElementById('hpPct').textContent = pctReal.toFixed(1) + '%';
+        const barEl = document.getElementById('hpBar');
+        barEl.style.width = pctBar + '%';
+        if (pctReal >= 100)     barEl.className = 'progress-fill p-over';
+        else if (balance < -10) barEl.className = 'progress-fill p-warn';
+        else                    barEl.className = 'progress-fill';
+
+        const msgEl = document.getElementById('hpMsg');
+        let cls, titulo, detalle;
+
+        if (horasTrabajadas === 0) {
+          cls     = 's-info';
+          titulo  = 'Sin fichajes registrados aún en ' + anio + '.';
+          detalle = 'A estas alturas del año deberías llevar aproximadamente ' + horasTeoricas.toFixed(0) + 'h según el convenio (' + HORAS_ANUALES_CONVENIO + 'h anuales).';
+        } else if (pctReal >= 100) {
+          cls     = 's-ok';
+          titulo  = '¡Has completado las ' + HORAS_ANUALES_CONVENIO + 'h anuales!';
+          detalle = 'Llevas ' + horasTrabajadas.toFixed(1) + 'h trabajadas. Tienes ' + (horasTrabajadas - HORAS_ANUALES_CONVENIO).toFixed(1) + 'h extra acumuladas.';
+        } else if (balance >= 20) {
+          cls     = 's-ok';
+          titulo  = '¡Llevas ' + balance.toFixed(1) + 'h de ventaja sobre el objetivo!';
+          detalle = 'Vas por delante del ritmo anual (' + pctReal.toFixed(1) + '% completado). Te restan ' + faltanAnual.toFixed(1) + 'h para terminar el año. Con tu ritmo actual lo completarás antes de tiempo.';
+        } else if (balance >= 0) {
+          cls     = 's-ok';
+          titulo  = 'Al día · ' + balance.toFixed(1) + 'h por encima del objetivo.';
+          detalle = 'Llevas ' + horasTrabajadas.toFixed(1) + 'h de ' + HORAS_ANUALES_CONVENIO + 'h (' + pctReal.toFixed(1) + '%). Te restan ' + faltanAnual.toFixed(1) + 'h y ' + diasRestantes + ' días laborables para terminar el año.';
+        } else if (balance > -10) {
+          cls     = 's-warn';
+          titulo  = 'Pequeño retraso · te faltan ' + Math.abs(balance).toFixed(1) + 'h para estar al día.';
+          detalle = 'Deberías tener ' + horasTeoricas.toFixed(1) + 'h y llevas ' + horasTrabajadas.toFixed(1) + 'h. Para completar el año necesitas trabajar aprox. ' + ritmoNecesario.toFixed(1) + 'h/día durante los ' + diasRestantes + ' días laborables restantes.';
+        } else {
+          cls     = 's-err';
+          titulo  = 'Déficit de ' + Math.abs(balance).toFixed(1) + 'h respecto al objetivo anual.';
+          detalle = 'Deberías llevar ' + horasTeoricas.toFixed(1) + 'h y tienes ' + horasTrabajadas.toFixed(1) + 'h (' + pctReal.toFixed(1) + '%). Para completar las ' + HORAS_ANUALES_CONVENIO + 'h anuales necesitas trabajar aprox. ' + ritmoNecesario.toFixed(1) + 'h/día durante los ' + diasRestantes + ' días laborables restantes.';
+        }
+
+        msgEl.className = 'balance-msg ' + cls;
+        msgEl.innerHTML = '<div class="bm-title">' + titulo + '</div>' + detalle;
+
+      } catch(e) {
+        console.error('Panel horas:', e);
+        document.getElementById('hpMsg').innerHTML = '<div class="bm-title">No se pudieron cargar las horas.</div>';
+      }
+    }
 
     // ── Logout ─────────────────────────────────────────────────────────────────
     document.getElementById('btnLogout').addEventListener('click', async () => {
@@ -159,6 +400,7 @@
           statusBox.className = 'status-box ok';
           statusMsg.textContent = `✅ Fichaje de ${data.tipo} registrado correctamente`;
           fichajeHora.textContent = hora;
+          cargarPanelHoras();
         } else if (res.status === 401) {
           // Token expirado → redirigir al login
           localStorage.removeItem('qraccess_token');
@@ -181,6 +423,7 @@
     document.getElementById('btnRescan').addEventListener('click', initScanner);
 
     // Arrancar escáner al cargar
+    cargarPanelHoras();
     initScanner();
   </script>
 </body>
