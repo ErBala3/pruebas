@@ -30,6 +30,9 @@ def client(tmp_path, monkeypatch):
     application.app.config["TESTING"] = True
 
     with application.app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["username"] = "admin"
+            sess["rol"] = "admin"
         yield c
 
 
@@ -162,3 +165,42 @@ def test_filtro_fecha(client):
 
     res2 = client.get("/api/checkins?date=2000-01-01")
     assert len(res2.get_json()) == 0
+
+
+def test_crear_empleado_con_jornada_personalizada(client):
+    res = client.post("/api/employees", json={"name": "Laura", "weekly_hours": 37.5})
+    assert res.status_code == 201
+    assert res.get_json()["employee"]["weekly_hours"] == 37.5
+
+    lista = client.get("/api/employees")
+    assert lista.status_code == 200
+    empleado = next(e for e in lista.get_json() if e["name"] == "Laura")
+    assert empleado["weekly_hours"] == 37.5
+
+
+def test_checkin_devuelve_hours_summary(client):
+    token = get_token(client, "Resumen User")
+    res = client.post("/api/checkin", json={"qr_token": token})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert "hours_summary" in data
+    assert {"hours_worked", "hours_expected", "difference", "message"} <= set(data["hours_summary"].keys())
+
+
+def test_hours_summary_endpoints(client):
+    token = get_token(client, "Horas User")
+    client.post("/api/checkin", json={"qr_token": token})
+
+    empleados = client.get("/api/employees").get_json()
+    emp = next(e for e in empleados if e["name"] == "Horas User")
+
+    res_single = client.get(f"/api/employees/{emp['id']}/hours")
+    assert res_single.status_code == 200
+    data_single = res_single.get_json()
+    assert data_single["employee_id"] == emp["id"]
+    assert "message" in data_single
+
+    res_all = client.get("/api/employees/hours-summary")
+    assert res_all.status_code == 200
+    data_all = res_all.get_json()
+    assert any(e["employee_id"] == emp["id"] for e in data_all)

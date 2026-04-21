@@ -8,7 +8,7 @@ from flask import Flask, request, jsonify, render_template, send_file, session, 
 import sqlite3
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, date, timedelta
 import qrcode
 import io
 from functools import wraps
@@ -85,6 +85,14 @@ def init_db():
                 (generate_password_hash(existing["password"]),)
             )
 
+        try:
+            conn.execute(
+                "ALTER TABLE employees ADD COLUMN weekly_hours REAL NOT NULL DEFAULT 40.0"
+            )
+        except sqlite3.OperationalError as exc:
+            if "duplicate column name" not in str(exc).lower():
+                raise
+
     os.makedirs(QR_FOLDER, exist_ok=True)
 
 
@@ -108,6 +116,73 @@ def generate_qr_image(token: str) -> str:
         img = qrcode.make(token)
         img.save(path)
     return path
+
+
+def compute_hours_summary(conn, employee_id, weekly_hours):
+    """Calcula horas trabajadas vs horas esperadas en el año actual."""
+    current_year = date.today().year
+    rows = conn.execute(
+        """
+        SELECT direction, ts
+        FROM checkins
+        WHERE employee_id = ?
+          AND strftime('%Y', ts) = ?
+        ORDER BY ts ASC
+        """,
+        (employee_id, str(current_year))
+    ).fetchall()
+
+    open_in = None
+    worked_seconds = 0.0
+    for row in rows:
+        try:
+            ts = datetime.fromisoformat(row["ts"])
+        except (TypeError, ValueError):
+            continue
+        if row["direction"] == "IN":
+            open_in = ts
+        elif row["direction"] == "OUT" and open_in is not None:
+            delta = (ts - open_in).total_seconds()
+            if delta > 0:
+                worked_seconds += delta
+            open_in = None
+
+    hours_worked = worked_seconds / 3600.0
+
+    today = date.today()
+    jan_1 = date(current_year, 1, 1)
+    total_days = (today - jan_1).days + 1
+    weeks, rem = divmod(total_days, 7)
+    business_days = weeks * 5
+    rem_start = jan_1 + timedelta(days=weeks * 7)
+    for i in range(rem):
+        if (rem_start + timedelta(days=i)).weekday() < 5:
+            business_days += 1
+    hours_expected = business_days * (float(weekly_hours) / 5.0)
+    difference = hours_worked - hours_expected
+
+    if difference >= 0:
+        message = (
+            f"✅ Vas bien. Llevas {hours_worked:.1f}h trabajadas y deberías llevar "
+            f"{hours_expected:.1f}h. ¡Vas {difference:.1f}h por delante!"
+        )
+    elif difference > -10:
+        message = (
+            f"⚠️ Casi al día. Llevas {hours_worked:.1f}h y deberías llevar "
+            f"{hours_expected:.1f}h. Te faltan {abs(difference):.1f}h."
+        )
+    else:
+        message = (
+            f"🔴 Atención. Llevas {hours_worked:.1f}h y deberías llevar "
+            f"{hours_expected:.1f}h. Tienes {abs(difference):.1f}h pendientes."
+        )
+
+    return {
+        "hours_worked": float(hours_worked),
+        "hours_expected": float(hours_expected),
+        "difference": float(difference),
+        "message": message
+    }
 
 
 def require_login(f):
@@ -201,18 +276,25 @@ def create_employee():
     """Crea un empleado y genera su QR."""
     data = request.get_json(silent=True) or {}
     name = (data.get("name") or "").strip()
+    weekly_hours_raw = data.get("weekly_hours", 40.0)
 
     if not name:
         return jsonify({"error": "El campo 'name' es obligatorio"}), 400
     if len(name) > 100:
         return jsonify({"error": "Nombre demasiado largo (máx. 100 caracteres)"}), 400
+    try:
+        weekly_hours = float(weekly_hours_raw)
+    except (TypeError, ValueError):
+        return jsonify({"error": "weekly_hours debe ser un número entre 1 y 80"}), 400
+    if weekly_hours < 1 or weekly_hours > 80:
+        return jsonify({"error": "weekly_hours debe estar entre 1 y 80"}), 400
 
     token = uuid.uuid4().hex
     try:
         with get_db() as conn:
             conn.execute(
-                "INSERT INTO employees (name, qr_token) VALUES (?, ?)",
-                (name, token)
+                "INSERT INTO employees (name, qr_token, weekly_hours) VALUES (?, ?, ?)",
+                (name, token, weekly_hours)
             )
     except sqlite3.IntegrityError:
         return jsonify({"error": "Ya existe un empleado con ese token"}), 409
@@ -220,7 +302,7 @@ def create_employee():
     generate_qr_image(token)
     return jsonify({
         "message": "Empleado creado",
-        "employee": {"name": name, "qr_token": token}
+        "employee": {"name": name, "qr_token": token, "weekly_hours": weekly_hours}
     }), 201
 
 
@@ -230,9 +312,30 @@ def list_employees():
     """Lista todos los empleados."""
     with get_db() as conn:
         rows = conn.execute(
-            "SELECT id, name, qr_token, created_at FROM employees ORDER BY name"
+            "SELECT id, name, qr_token, created_at, weekly_hours FROM employees ORDER BY name"
         ).fetchall()
     return jsonify([dict(r) for r in rows])
+
+
+@app.route("/api/employees/hours-summary", methods=["GET"])
+@require_admin
+def list_employees_hours_summary():
+    current_year = date.today().year
+    with get_db() as conn:
+        employees = conn.execute(
+            "SELECT id, name, weekly_hours FROM employees ORDER BY name"
+        ).fetchall()
+        data = []
+        for employee in employees:
+            summary = compute_hours_summary(conn, employee["id"], employee["weekly_hours"])
+            data.append({
+                "employee_id": employee["id"],
+                "name": employee["name"],
+                "weekly_hours": employee["weekly_hours"],
+                "year": current_year,
+                **summary
+            })
+    return jsonify(data)
 
 
 @app.route("/api/employees/<int:employee_id>", methods=["DELETE"])
@@ -272,6 +375,28 @@ def download_qr(employee_id):
                      download_name=f"qr_{emp['name'].replace(' ','_')}.png")
 
 
+@app.route("/api/employees/<int:employee_id>/hours", methods=["GET"])
+@require_admin
+def employee_hours_summary(employee_id):
+    current_year = date.today().year
+    with get_db() as conn:
+        employee = conn.execute(
+            "SELECT id, name, weekly_hours FROM employees WHERE id=?",
+            (employee_id,)
+        ).fetchone()
+        if not employee:
+            return jsonify({"error": "Empleado no encontrado"}), 404
+        summary = compute_hours_summary(conn, employee["id"], employee["weekly_hours"])
+
+    return jsonify({
+        "employee_id": employee["id"],
+        "name": employee["name"],
+        "weekly_hours": employee["weekly_hours"],
+        "year": current_year,
+        **summary
+    })
+
+
 # ─────────────────────────────────────────────
 # RUTAS – FICHAJES
 # ─────────────────────────────────────────────
@@ -295,7 +420,7 @@ def checkin():
 
     with get_db() as conn:
         emp = conn.execute(
-            "SELECT id, name FROM employees WHERE qr_token=?", (token,)
+            "SELECT id, name, weekly_hours FROM employees WHERE qr_token=?", (token,)
         ).fetchone()
 
         if not emp:
@@ -322,11 +447,13 @@ def checkin():
             "INSERT INTO checkins (employee_id, direction, ts, lat, lng, store) VALUES (?,?,?,?,?,?)",
             (emp["id"], direction, now_str, lat, lng, store)
         )
+        summary = compute_hours_summary(conn, emp["id"], emp["weekly_hours"])
 
     return jsonify({
         "employee":  emp["name"],
         "direction": direction,
-        "timestamp": now_str
+        "timestamp": now_str,
+        "hours_summary": summary
     })
 
 
