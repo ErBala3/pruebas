@@ -38,7 +38,7 @@ body {
   padding: 20px 22px; animation: fadeUp .4s ease both;
 }
 .horas-panel-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 14px; }
-.horas-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.horas-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
 .hstat { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
 .hstat-label { font-size: 10px; color: var(--text-secondary); font-weight: 500; margin-bottom: 4px; }
 .hstat-value { font-size: 16px; font-weight: 700; color: var(--text); }
@@ -104,12 +104,16 @@ body {
         <div class="hstat-value" id="hpTrabajadas">—</div>
       </div>
       <div class="hstat">
-        <div class="hstat-label">Objetivo hoy</div>
+        <div class="hstat-label">Teóricas acum.</div>
         <div class="hstat-value" id="hpTeoricas">—</div>
       </div>
       <div class="hstat">
         <div class="hstat-label">Balance</div>
         <div class="hstat-value" id="hpBalance">—</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-label">Jornada diaria</div>
+        <div class="hstat-value">8h</div>
       </div>
     </div>
     <div class="progress-wrap">
@@ -202,6 +206,19 @@ function diasLaborablesAnio(anio) {
   return dias;
 }
 
+function diasLaborablesRestantes(anio) {
+  const hoy = new Date(); hoy.setHours(0,0,0,0);
+  const fin = new Date(anio, 11, 31);
+  let dias = 0;
+  const c = new Date(hoy); c.setDate(c.getDate() + 1);
+  while (c <= fin) {
+    const dow = c.getDay();
+    if (dow !== 0 && dow !== 6) dias++;
+    c.setDate(c.getDate() + 1);
+  }
+  return dias;
+}
+
 // ── Panel de horas ────────────────────────────────────────────────────────
 async function cargarPanelHoras() {
   try {
@@ -252,6 +269,8 @@ async function cargarPanelHoras() {
     const msgEl = document.getElementById('hpMsg');
     let cls, titulo, detalle;
     const faltanAnual = HORAS_ANUALES_CONVENIO - horasTrabajadas;
+    const diasRestantes = diasLaborablesRestantes(anio);
+    const ritmoNecesario = diasRestantes > 0 ? (faltanAnual / diasRestantes) : 0;
 
     if (horasTrabajadas === 0) {
       cls     = 's-info';
@@ -272,11 +291,11 @@ async function cargarPanelHoras() {
     } else if (balance > -10) {
       cls     = 's-warn';
       titulo  = 'Pequeño retraso · te faltan ' + Math.abs(balance).toFixed(1) + 'h para estar al día.';
-      detalle = 'Deberías tener ' + horasTeoricas.toFixed(1) + 'h y llevas ' + horasTrabajadas.toFixed(1) + 'h. Podrías recuperarlo en pocos días.';
+      detalle = 'Deberías tener ' + horasTeoricas.toFixed(1) + 'h y llevas ' + horasTrabajadas.toFixed(1) + 'h. Para completar el año necesitas trabajar aprox. ' + ritmoNecesario.toFixed(1) + 'h/día durante los ' + diasRestantes + ' días laborables restantes.';
     } else {
       cls     = 's-err';
       titulo  = 'Déficit de ' + Math.abs(balance).toFixed(1) + 'h respecto al objetivo anual.';
-      detalle = 'Deberías llevar ' + horasTeoricas.toFixed(1) + 'h y tienes ' + horasTrabajadas.toFixed(1) + 'h (' + pctReal.toFixed(1) + '%). Aún te restan ' + faltanAnual.toFixed(1) + 'h para completar el año.';
+      detalle = 'Deberías llevar ' + horasTeoricas.toFixed(1) + 'h y tienes ' + horasTrabajadas.toFixed(1) + 'h (' + pctReal.toFixed(1) + '%). Aún te restan ' + faltanAnual.toFixed(1) + 'h para completar el año. Necesitas trabajar aprox. ' + ritmoNecesario.toFixed(1) + 'h/día durante los ' + diasRestantes + ' días laborables restantes para completar el convenio.';
     }
 
     msgEl.className = 'balance-msg ' + cls;
