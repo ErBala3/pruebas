@@ -492,7 +492,7 @@
         status.textContent = `${isIn ? '✅ ENTRADA' : '🚪 SALIDA'} · ${data.employee} · ${data.timestamp}`;
         if (data.hours_summary) {
           msgBox.textContent = data.hours_summary.message;
-          msgBox.style.display = 'flex';
+          msgBox.style.display = 'block';
           if (data.hours_summary.difference >= 0) {
             msgBox.style.borderColor = 'var(--green)';
             msgBox.style.color = 'var(--green)';

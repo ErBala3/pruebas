@@ -151,11 +151,13 @@ def compute_hours_summary(conn, employee_id, weekly_hours):
 
     today = date.today()
     jan_1 = date(current_year, 1, 1)
-    business_days = sum(
-        1
-        for i in range((today - jan_1).days + 1)
-        if (jan_1 + timedelta(days=i)).weekday() < 5
-    )
+    total_days = (today - jan_1).days + 1
+    weeks, rem = divmod(total_days, 7)
+    business_days = weeks * 5
+    rem_start = jan_1 + timedelta(days=weeks * 7)
+    for i in range(rem):
+        if (rem_start + timedelta(days=i)).weekday() < 5:
+            business_days += 1
     hours_expected = business_days * (float(weekly_hours) / 5.0)
     difference = hours_worked - hours_expected
 
