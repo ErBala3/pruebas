@@ -295,6 +295,7 @@
 <div class="tabs">
   <div class="tab active" data-tab="empleados">👤 Empleados</div>
   <div class="tab" data-tab="fichajes">📋 Fichajes</div>
+  <div class="tab" data-tab="horas">📊 Horas anuales</div>
   <div class="tab" data-tab="usuarios">🔐 Usuarios</div>
   <div class="tab" data-tab="qr">🔗 Generar QR tienda</div>
 </div>
@@ -310,6 +311,10 @@
         <div class="form-field">
           <label>Nombre completo</label>
           <input id="empNombre" placeholder="Ana García" maxlength="100">
+        </div>
+        <div class="form-field" style="max-width:120px;">
+          <label>Jornada (h/sem)</label>
+          <input id="empJornada" type="number" placeholder="40" min="1" max="80" value="40">
         </div>
         <button class="btn-add" onclick="crearEmpleado()">+ Crear</button>
       </div>
@@ -337,6 +342,27 @@
       <table>
         <thead><tr><th>Empleado</th><th>Dirección</th><th>Fecha/Hora</th><th>Tienda</th><th>Ubicación</th><th></th></tr></thead>
         <tbody id="tbFichajes"><tr class="empty-row"><td colspan="6">Cargando...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="section" id="tab-horas">
+    <div class="section-title">Resumen de Horas Anuales</div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Empleado</th>
+            <th>Jornada</th>
+            <th>Horas trabajadas</th>
+            <th>Horas esperadas</th>
+            <th>Diferencia</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="tbHoras">
+          <tr class="empty-row"><td colspan="6">Cargando...</td></tr>
+        </tbody>
       </table>
     </div>
   </div>
@@ -416,6 +442,7 @@
       document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
       if (tab.dataset.tab === 'empleados') cargarEmpleados();
       if (tab.dataset.tab === 'fichajes')  cargarFichajes();
+      if (tab.dataset.tab === 'horas')     cargarHoras();
       if (tab.dataset.tab === 'usuarios')  cargarUsuarios();
     });
   });
@@ -475,17 +502,20 @@
 
   async function crearEmpleado() {
     const nombre = document.getElementById('empNombre').value.trim();
+    const weekly_hours = parseFloat(document.getElementById('empJornada').value) || 40;
     if (!nombre) { toast('Escribe un nombre', 'err'); return; }
     const res  = await fetch('/api/employees', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: nombre })
+      body: JSON.stringify({ name: nombre, weekly_hours })
     });
     const data = await res.json();
     if (res.ok) {
       document.getElementById('empNombre').value = '';
+      document.getElementById('empJornada').value = '40';
       toast(`Empleado "${data.employee.name}" creado`);
       cargarEmpleados();
+      cargarHoras();
     } else {
       toast(data.error || 'Error al crear', 'err');
     }
@@ -494,8 +524,38 @@
   async function eliminarEmpleado(id, nombre) {
     if (!confirm(`¿Eliminar a "${nombre}" y todos sus fichajes?`)) return;
     const res = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
-    if (res.ok) { toast('Empleado eliminado'); cargarEmpleados(); cargarFichajes(); }
+    if (res.ok) { toast('Empleado eliminado'); cargarEmpleados(); cargarFichajes(); cargarHoras(); }
     else toast('Error al eliminar', 'err');
+  }
+
+  async function cargarHoras() {
+    const tbody = document.getElementById('tbHoras');
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Cargando...</td></tr>';
+    try {
+      const res  = await fetch('/api/employees/hours-summary');
+      const data = await res.json();
+      if (!data.length) {
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Sin empleados</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(e => {
+        const diff = e.difference;
+        const color = diff >= 0 ? 'var(--green)' : diff > -10 ? '#fbbf24' : 'var(--red)';
+        const sign  = diff >= 0 ? '+' : '';
+        return `
+          <tr>
+            <td><strong>${esc(e.name)}</strong></td>
+            <td style="color:var(--muted)">${e.weekly_hours}h/sem</td>
+            <td>${e.hours_worked.toFixed(1)}h</td>
+            <td style="color:var(--muted)">${e.hours_expected.toFixed(1)}h</td>
+            <td style="color:${color};font-weight:500">${sign}${diff.toFixed(1)}h</td>
+            <td style="font-size:12px;">${esc(e.message)}</td>
+          </tr>
+        `;
+      }).join('');
+    } catch(err) {
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Error: ${esc(err.message)}</td></tr>`;
+    }
   }
 
   // ── FICHAJES ──────────────────────────────────────────────
@@ -628,9 +688,11 @@
   // ── Init ──────────────────────────────────────────────────
   cargarEmpleados();
   cargarFichajes();
+  cargarHoras();
   setInterval(() => {
     cargarEmpleados();
     cargarFichajes();
+    cargarHoras();
   }, 20000);
 </script>
 </body>
