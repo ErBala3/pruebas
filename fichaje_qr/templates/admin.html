@@ -295,9 +295,9 @@
 <div class="tabs">
   <div class="tab active" data-tab="empleados">👤 Empleados</div>
   <div class="tab" data-tab="fichajes">📋 Fichajes</div>
-  <div class="tab" data-tab="horas">📊 Horas anuales</div>
   <div class="tab" data-tab="usuarios">🔐 Usuarios</div>
   <div class="tab" data-tab="qr">🔗 Generar QR tienda</div>
+  <div class="tab" data-tab="horas">📊 Horas anuales</div>
 </div>
 
 <div class="content">
@@ -313,7 +313,7 @@
           <input id="empNombre" placeholder="Ana García" maxlength="100">
         </div>
         <div class="form-field" style="max-width:120px;">
-          <label>Jornada (h/sem)</label>
+          <label>Jornada h/sem</label>
           <input id="empJornada" type="number" placeholder="40" min="1" max="80" value="40">
         </div>
         <button class="btn-add" onclick="crearEmpleado()">+ Crear</button>
@@ -321,8 +321,8 @@
     </div>
     <div class="card">
       <table>
-        <thead><tr><th>Nombre</th><th>Token QR</th><th>Alta</th><th>QR</th><th></th></tr></thead>
-        <tbody id="tbEmpleados"><tr class="empty-row"><td colspan="5">Cargando...</td></tr></tbody>
+        <thead><tr><th>Nombre</th><th>Jornada</th><th>Token QR</th><th>Alta</th><th>QR</th><th></th></tr></thead>
+        <tbody id="tbEmpleados"><tr class="empty-row"><td colspan="6">Cargando...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -346,9 +346,11 @@
     </div>
   </div>
 
+  <!-- ── HORAS ANUALES ── -->
   <div class="section" id="tab-horas">
     <div class="section-title">Resumen de Horas Anuales</div>
     <div class="card">
+      <div class="card-header">Comparativa horas trabajadas vs horas esperadas en el año actual</div>
       <table>
         <thead>
           <tr>
@@ -466,7 +468,7 @@
 
   async function cargarEmpleados() {
     const tbody = document.getElementById('tbEmpleados');
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Cargando...</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Cargando...</td></tr>';
     try {
       const res  = await fetch('/api/employees');
       empleadosCache = await res.json();
@@ -483,12 +485,13 @@
       sel.value = prev;
 
       if (!empleadosCache.length) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="5">Sin empleados</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Sin empleados</td></tr>';
         return;
       }
       tbody.innerHTML = empleadosCache.map(e => `
         <tr>
           <td><strong>${esc(e.name)}</strong></td>
+          <td style="color:var(--muted)">${e.weekly_hours}h/sem</td>
           <td><span class="token-mono">${esc(e.qr_token)}</span></td>
           <td style="color:var(--muted)">${esc(e.created_at)}</td>
           <td><a class="qr-link" href="/api/employees/${e.id}/qr" target="_blank">↓ QR</a></td>
@@ -496,22 +499,22 @@
         </tr>
       `).join('');
     } catch(err) {
-      tbody.innerHTML = `<tr class="empty-row"><td colspan="5">Error: ${esc(err.message)}</td></tr>`;
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="6">Error: ${esc(err.message)}</td></tr>`;
     }
   }
 
   async function crearEmpleado() {
-    const nombre = document.getElementById('empNombre').value.trim();
-    const weekly_hours = parseFloat(document.getElementById('empJornada').value) || 40;
+    const nombre  = document.getElementById('empNombre').value.trim();
+    const jornada = parseFloat(document.getElementById('empJornada').value) || 40;
     if (!nombre) { toast('Escribe un nombre', 'err'); return; }
     const res  = await fetch('/api/employees', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: nombre, weekly_hours })
+      body: JSON.stringify({ name: nombre, weekly_hours: jornada })
     });
     const data = await res.json();
     if (res.ok) {
-      document.getElementById('empNombre').value = '';
+      document.getElementById('empNombre').value  = '';
       document.getElementById('empJornada').value = '40';
       toast(`Empleado "${data.employee.name}" creado`);
       cargarEmpleados();
@@ -539,7 +542,7 @@
         return;
       }
       tbody.innerHTML = data.map(e => {
-        const diff = e.difference;
+        const diff  = e.difference;
         const color = diff >= 0 ? 'var(--green)' : diff > -10 ? '#fbbf24' : 'var(--red)';
         const sign  = diff >= 0 ? '+' : '';
         return `
@@ -549,7 +552,7 @@
             <td>${e.hours_worked.toFixed(1)}h</td>
             <td style="color:var(--muted)">${e.hours_expected.toFixed(1)}h</td>
             <td style="color:${color};font-weight:500">${sign}${diff.toFixed(1)}h</td>
-            <td style="font-size:12px;">${esc(e.message)}</td>
+            <td style="font-size:11px;">${esc(e.message)}</td>
           </tr>
         `;
       }).join('');

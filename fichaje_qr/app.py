@@ -8,7 +8,7 @@ from flask import Flask, request, jsonify, render_template, send_file, session, 
 import sqlite3
 import os
 import uuid
-from datetime import datetime, date, timedelta
+from datetime import datetime, timedelta
 import qrcode
 import io
 from functools import wraps
@@ -36,10 +36,11 @@ def init_db():
     with get_db() as conn:
         conn.executescript("""
             CREATE TABLE IF NOT EXISTS employees (
-                id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                name       TEXT    NOT NULL,
-                qr_token   TEXT    NOT NULL UNIQUE,
-                created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime'))
+                id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                name         TEXT    NOT NULL,
+                qr_token     TEXT    NOT NULL UNIQUE,
+                created_at   TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+                weekly_hours REAL    NOT NULL DEFAULT 40.0
             );
 
             CREATE TABLE IF NOT EXISTS checkins (
@@ -69,6 +70,12 @@ def init_db():
             );
         """)
 
+        # Migración: añadir weekly_hours si no existe (para BDs existentes)
+        try:
+            conn.execute("ALTER TABLE employees ADD COLUMN weekly_hours REAL NOT NULL DEFAULT 40.0")
+        except sqlite3.OperationalError:
+            pass  # La columna ya existe
+
         # Insertar/actualizar admin por defecto con contraseña hasheada
         existing = conn.execute(
             "SELECT id, password FROM users WHERE username='admin'"
@@ -79,19 +86,10 @@ def init_db():
                 ("admin", generate_password_hash("admin123"), "admin")
             )
         elif not existing["password"].startswith("pbkdf2:"):
-            # Migrar contraseña antigua (plaintext) a hash seguro conservando la clave actual
             conn.execute(
                 "UPDATE users SET password=? WHERE username='admin'",
                 (generate_password_hash(existing["password"]),)
             )
-
-        try:
-            conn.execute(
-                "ALTER TABLE employees ADD COLUMN weekly_hours REAL NOT NULL DEFAULT 40.0"
-            )
-        except sqlite3.OperationalError as exc:
-            if "duplicate column name" not in str(exc).lower():
-                raise
 
     os.makedirs(QR_FOLDER, exist_ok=True)
 
@@ -109,6 +107,61 @@ def last_direction(conn, employee_id):
     return row["direction"] if row else None
 
 
+def compute_hours_summary(conn, employee_id, weekly_hours):
+    """Calcula horas trabajadas este año vs horas esperadas y genera un mensaje."""
+    year = datetime.now().year
+
+    rows = conn.execute("""
+        SELECT direction, ts FROM checkins
+        WHERE employee_id=? AND strftime('%Y', ts)=?
+        ORDER BY ts ASC
+    """, (employee_id, str(year))).fetchall()
+
+    # Emparejar IN→OUT para calcular horas trabajadas
+    total_seconds = 0
+    last_in = None
+    for row in rows:
+        if row["direction"] == "IN":
+            last_in = datetime.fromisoformat(row["ts"])
+        elif row["direction"] == "OUT" and last_in is not None:
+            out_ts = datetime.fromisoformat(row["ts"])
+            total_seconds += (out_ts - last_in).total_seconds()
+            last_in = None
+
+    hours_worked = total_seconds / 3600.0
+
+    # Calcular días laborables (lun-vie) desde el 1 de enero hasta hoy
+    today = datetime.now().date()
+    start_of_year = today.replace(month=1, day=1)
+    business_days = 0
+    d = start_of_year
+    while d <= today:
+        if d.weekday() < 5:
+            business_days += 1
+        d += timedelta(days=1)
+
+    hours_per_day = weekly_hours / 5.0
+    hours_expected = business_days * hours_per_day
+    difference = hours_worked - hours_expected
+
+    if difference >= 0:
+        message = (f"✅ Vas bien. Llevas {hours_worked:.1f}h trabajadas y deberías llevar "
+                   f"{hours_expected:.1f}h. ¡Vas {difference:.1f}h por delante!")
+    elif difference > -10:
+        message = (f"⚠️ Casi al día. Llevas {hours_worked:.1f}h y deberías llevar "
+                   f"{hours_expected:.1f}h. Te faltan {abs(difference):.1f}h.")
+    else:
+        message = (f"🔴 Atención. Llevas {hours_worked:.1f}h y deberías llevar "
+                   f"{hours_expected:.1f}h. Tienes {abs(difference):.1f}h pendientes.")
+
+    return {
+        "hours_worked":   round(hours_worked, 2),
+        "hours_expected": round(hours_expected, 2),
+        "difference":     round(difference, 2),
+        "message":        message
+    }
+
+
 def generate_qr_image(token: str) -> str:
     """Genera imagen QR y la guarda. Devuelve la ruta relativa."""
     path = os.path.join(QR_FOLDER, f"{token}.png")
@@ -116,73 +169,6 @@ def generate_qr_image(token: str) -> str:
         img = qrcode.make(token)
         img.save(path)
     return path
-
-
-def compute_hours_summary(conn, employee_id, weekly_hours):
-    """Calcula horas trabajadas vs horas esperadas en el año actual."""
-    current_year = date.today().year
-    rows = conn.execute(
-        """
-        SELECT direction, ts
-        FROM checkins
-        WHERE employee_id = ?
-          AND strftime('%Y', ts) = ?
-        ORDER BY ts ASC
-        """,
-        (employee_id, str(current_year))
-    ).fetchall()
-
-    open_in = None
-    worked_seconds = 0.0
-    for row in rows:
-        try:
-            ts = datetime.fromisoformat(row["ts"])
-        except (TypeError, ValueError):
-            continue
-        if row["direction"] == "IN":
-            open_in = ts
-        elif row["direction"] == "OUT" and open_in is not None:
-            delta = (ts - open_in).total_seconds()
-            if delta > 0:
-                worked_seconds += delta
-            open_in = None
-
-    hours_worked = worked_seconds / 3600.0
-
-    today = date.today()
-    jan_1 = date(current_year, 1, 1)
-    total_days = (today - jan_1).days + 1
-    weeks, rem = divmod(total_days, 7)
-    business_days = weeks * 5
-    rem_start = jan_1 + timedelta(days=weeks * 7)
-    for i in range(rem):
-        if (rem_start + timedelta(days=i)).weekday() < 5:
-            business_days += 1
-    hours_expected = business_days * (float(weekly_hours) / 5.0)
-    difference = hours_worked - hours_expected
-
-    if difference >= 0:
-        message = (
-            f"✅ Vas bien. Llevas {hours_worked:.1f}h trabajadas y deberías llevar "
-            f"{hours_expected:.1f}h. ¡Vas {difference:.1f}h por delante!"
-        )
-    elif difference > -10:
-        message = (
-            f"⚠️ Casi al día. Llevas {hours_worked:.1f}h y deberías llevar "
-            f"{hours_expected:.1f}h. Te faltan {abs(difference):.1f}h."
-        )
-    else:
-        message = (
-            f"🔴 Atención. Llevas {hours_worked:.1f}h y deberías llevar "
-            f"{hours_expected:.1f}h. Tienes {abs(difference):.1f}h pendientes."
-        )
-
-    return {
-        "hours_worked": float(hours_worked),
-        "hours_expected": float(hours_expected),
-        "difference": float(difference),
-        "message": message
-    }
 
 
 def require_login(f):
@@ -270,24 +256,40 @@ def api_me():
 # RUTAS – EMPLEADOS  (solo admin)
 # ─────────────────────────────────────────────
 
+@app.route("/api/employees/hours-summary", methods=["GET"])
+@require_admin
+def employees_hours_summary():
+    """Devuelve resumen de horas anuales de todos los empleados."""
+    with get_db() as conn:
+        employees = conn.execute(
+            "SELECT id, name, weekly_hours FROM employees ORDER BY name"
+        ).fetchall()
+        result = []
+        for emp in employees:
+            summary = compute_hours_summary(conn, emp["id"], emp["weekly_hours"])
+            result.append({
+                "employee_id":  emp["id"],
+                "name":         emp["name"],
+                "weekly_hours": emp["weekly_hours"],
+                "year":         datetime.now().year,
+                **summary
+            })
+    return jsonify(result)
+
+
 @app.route("/api/employees", methods=["POST"])
 @require_admin
 def create_employee():
     """Crea un empleado y genera su QR."""
-    data = request.get_json(silent=True) or {}
-    name = (data.get("name") or "").strip()
-    weekly_hours_raw = data.get("weekly_hours", 40.0)
+    data         = request.get_json(silent=True) or {}
+    name         = (data.get("name") or "").strip()
+    weekly_hours = float(data.get("weekly_hours") or 40.0)
+    weekly_hours = max(1.0, min(80.0, weekly_hours))
 
     if not name:
         return jsonify({"error": "El campo 'name' es obligatorio"}), 400
     if len(name) > 100:
         return jsonify({"error": "Nombre demasiado largo (máx. 100 caracteres)"}), 400
-    try:
-        weekly_hours = float(weekly_hours_raw)
-    except (TypeError, ValueError):
-        return jsonify({"error": "weekly_hours debe ser un número entre 1 y 80"}), 400
-    if weekly_hours < 1 or weekly_hours > 80:
-        return jsonify({"error": "weekly_hours debe estar entre 1 y 80"}), 400
 
     token = uuid.uuid4().hex
     try:
@@ -301,7 +303,7 @@ def create_employee():
 
     generate_qr_image(token)
     return jsonify({
-        "message": "Empleado creado",
+        "message":  "Empleado creado",
         "employee": {"name": name, "qr_token": token, "weekly_hours": weekly_hours}
     }), 201
 
@@ -317,25 +319,24 @@ def list_employees():
     return jsonify([dict(r) for r in rows])
 
 
-@app.route("/api/employees/hours-summary", methods=["GET"])
+@app.route("/api/employees/<int:employee_id>/hours", methods=["GET"])
 @require_admin
-def list_employees_hours_summary():
-    current_year = date.today().year
+def employee_hours(employee_id):
+    """Devuelve resumen de horas anuales de un empleado."""
     with get_db() as conn:
-        employees = conn.execute(
-            "SELECT id, name, weekly_hours FROM employees ORDER BY name"
-        ).fetchall()
-        data = []
-        for employee in employees:
-            summary = compute_hours_summary(conn, employee["id"], employee["weekly_hours"])
-            data.append({
-                "employee_id": employee["id"],
-                "name": employee["name"],
-                "weekly_hours": employee["weekly_hours"],
-                "year": current_year,
-                **summary
-            })
-    return jsonify(data)
+        emp = conn.execute(
+            "SELECT id, name, weekly_hours FROM employees WHERE id=?", (employee_id,)
+        ).fetchone()
+        if not emp:
+            return jsonify({"error": "Empleado no encontrado"}), 404
+        summary = compute_hours_summary(conn, emp["id"], emp["weekly_hours"])
+    return jsonify({
+        "employee_id":  emp["id"],
+        "name":         emp["name"],
+        "weekly_hours": emp["weekly_hours"],
+        "year":         datetime.now().year,
+        **summary
+    })
 
 
 @app.route("/api/employees/<int:employee_id>", methods=["DELETE"])
@@ -375,28 +376,6 @@ def download_qr(employee_id):
                      download_name=f"qr_{emp['name'].replace(' ','_')}.png")
 
 
-@app.route("/api/employees/<int:employee_id>/hours", methods=["GET"])
-@require_admin
-def employee_hours_summary(employee_id):
-    current_year = date.today().year
-    with get_db() as conn:
-        employee = conn.execute(
-            "SELECT id, name, weekly_hours FROM employees WHERE id=?",
-            (employee_id,)
-        ).fetchone()
-        if not employee:
-            return jsonify({"error": "Empleado no encontrado"}), 404
-        summary = compute_hours_summary(conn, employee["id"], employee["weekly_hours"])
-
-    return jsonify({
-        "employee_id": employee["id"],
-        "name": employee["name"],
-        "weekly_hours": employee["weekly_hours"],
-        "year": current_year,
-        **summary
-    })
-
-
 # ─────────────────────────────────────────────
 # RUTAS – FICHAJES
 # ─────────────────────────────────────────────
@@ -405,7 +384,7 @@ def employee_hours_summary(employee_id):
 def checkin():
     """
     Recibe un qr_token, decide IN/OUT automáticamente y registra el fichaje.
-    No requiere sesión de usuario (el QR ya identifica al empleado).
+    Incluye resumen de horas anuales en la respuesta.
     """
     data  = request.get_json(silent=True) or {}
     token = (data.get("qr_token") or "").strip()
@@ -447,13 +426,15 @@ def checkin():
             "INSERT INTO checkins (employee_id, direction, ts, lat, lng, store) VALUES (?,?,?,?,?,?)",
             (emp["id"], direction, now_str, lat, lng, store)
         )
-        summary = compute_hours_summary(conn, emp["id"], emp["weekly_hours"])
+
+        # Calcular resumen de horas tras registrar el fichaje
+        hours_summary = compute_hours_summary(conn, emp["id"], emp["weekly_hours"])
 
     return jsonify({
-        "employee":  emp["name"],
-        "direction": direction,
-        "timestamp": now_str,
-        "hours_summary": summary
+        "employee":      emp["name"],
+        "direction":     direction,
+        "timestamp":     now_str,
+        "hours_summary": hours_summary
     })
 
 
