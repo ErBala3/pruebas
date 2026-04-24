@@ -472,40 +472,58 @@ function diasLaborablesAnio(anio) {
   while (c <= fin) { const d = c.getDay(); if (d !== 0 && d !== 6) dias++; c.setDate(c.getDate()+1); }
   return dias;
 }
+function diasLaborablesHastaHoyDelMes(anio, mes) {
+  const hoy    = new Date(); hoy.setHours(0,0,0,0);
+  const inicio = new Date(anio, mes, 1);
+  const limite = new Date(Math.min(hoy.getTime(), new Date(anio, mes + 1, 0).getTime()));
+  let dias = 0, c = new Date(inicio);
+  while (c <= limite) { const d = c.getDay(); if (d !== 0 && d !== 6) dias++; c.setDate(c.getDate()+1); }
+  return dias;
+}
+function diasLaborablesMes(anio, mes) {
+  const inicio = new Date(anio, mes, 1), fin = new Date(anio, mes + 1, 0);
+  let dias = 0, c = new Date(inicio);
+  while (c <= fin) { const d = c.getDay(); if (d !== 0 && d !== 6) dias++; c.setDate(c.getDate()+1); }
+  return dias;
+}
 
-// ── Calcular balance anual para un userId dado sus fichajes ───────────────
-function calcularBalanceAnual(fichajesDelAnio) {
-  const anio     = new Date().getFullYear();
+// ── Calcular balance mensual para un userId dado sus fichajes ─────────────
+function calcularBalanceMensual(fichajesDelMes) {
+  const hoy  = new Date();
+  const anio = hoy.getFullYear();
+  const mes  = hoy.getMonth();
   let horasTrab  = 0;
-  fichajesDelAnio.forEach(function(f) {
+  fichajesDelMes.forEach(function(f) {
     if (f.tipo !== 'salida') return;
     horasTrab += (f.horasNormales || 0) + (f.horasExtra || 0);
   });
-  const diasLab      = diasLaborablesHastaHoy(anio);
-  const diasLabAnio  = diasLaborablesAnio(anio);
-  const horasTeoHoy  = diasLab * (HORAS_ANUALES_CONVENIO / diasLabAnio);
+  const horasPorDia  = HORAS_ANUALES_CONVENIO / diasLaborablesAnio(anio);
+  const diasLab      = diasLaborablesHastaHoyDelMes(anio, mes);
+  const diasLabMes   = diasLaborablesMes(anio, mes);
+  const horasTeoHoy  = diasLab * horasPorDia;
+  const horasMes     = diasLabMes * horasPorDia;
   const balance      = horasTrab - horasTeoHoy;
-  const pct          = (horasTrab / HORAS_ANUALES_CONVENIO) * 100;
-  return { horasTrab, horasTeoHoy, balance, pct };
+  const pct          = (horasTrab / horasMes) * 100;
+  return { horasTrab, horasTeoHoy, horasMes, balance, pct };
 }
 
 // ── Mensaje de balance ────────────────────────────────────────────────────
 function balanceMsg(bal) {
-  const { horasTrab, horasTeoHoy, balance, pct } = bal;
+  const { horasTrab, horasTeoHoy, horasMes, balance, pct } = bal;
   let cls, titulo, detalle;
-  const faltanAnual = HORAS_ANUALES_CONVENIO - horasTrab;
+  const faltanMes = horasMes - horasTrab;
   if (horasTrab === 0) {
-    cls = 'b-info'; titulo = 'Sin fichajes este año.';
+    cls = 'b-info'; titulo = 'Sin fichajes este mes.';
     detalle = 'Objetivo a estas alturas: ' + horasTeoHoy.toFixed(0) + 'h.';
   } else if (pct >= 100) {
-    cls = 'b-ok'; titulo = 'Año completado · ' + horasTrab.toFixed(1) + 'h.';
-    detalle = 'Horas extra sobre convenio: +' + (horasTrab - HORAS_ANUALES_CONVENIO).toFixed(1) + 'h.';
+    cls = 'b-ok'; titulo = 'Mes completado · ' + horasTrab.toFixed(1) + 'h.';
+    detalle = 'Horas extra sobre convenio mensual: +' + (horasTrab - horasMes).toFixed(1) + 'h.';
   } else if (balance >= 20) {
     cls = 'b-ok'; titulo = '+' + balance.toFixed(1) + 'h de ventaja sobre el objetivo.';
-    detalle = 'Restan ' + faltanAnual.toFixed(1) + 'h para completar el año (' + pct.toFixed(1) + '%).';
+    detalle = 'Restan ' + faltanMes.toFixed(1) + 'h para completar el mes (' + pct.toFixed(1) + '%).';
   } else if (balance >= 0) {
     cls = 'b-ok'; titulo = 'Al día · +' + balance.toFixed(1) + 'h.';
-    detalle = horasTrab.toFixed(1) + 'h de ' + HORAS_ANUALES_CONVENIO + 'h (' + pct.toFixed(1) + '%). Faltan ' + faltanAnual.toFixed(1) + 'h.';
+    detalle = horasTrab.toFixed(1) + 'h de ' + horasMes.toFixed(0) + 'h (' + pct.toFixed(1) + '%). Faltan ' + faltanMes.toFixed(1) + 'h.';
   } else if (balance > -10) {
     cls = 'b-warn'; titulo = 'Pequeño retraso · ' + balance.toFixed(1) + 'h.';
     detalle = 'Debería tener ' + horasTeoHoy.toFixed(1) + 'h, lleva ' + horasTrab.toFixed(1) + 'h.';
@@ -609,7 +627,7 @@ document.getElementById('btnExportFichajes').addEventListener('click', function(
 // ── Exportar horas por empleado ───────────────────────────────────────────
 document.getElementById('btnExportHoras').addEventListener('click', function() {
   if (!_horasCache.length) { toast('No hay datos para exportar', 'warn'); return; }
-  const cabeceras = ['Nombre','Email','Empresa','H. Trabajadas','H. Teóricas hoy','Balance','% Anual','Horas extra','Estado'];
+  const cabeceras = ['Nombre','Email','Empresa','H. Trabajadas','H. Teóricas hoy','Balance','% Mensual','Horas extra','Estado'];
   const filas = _horasCache.map(function(r) {
     const estado = r.balance >= 0 ? 'Al día' : (r.balance > -10 ? 'Leve retraso' : 'Déficit');
     return [
@@ -634,16 +652,18 @@ async function loadHorasEmpleados() {
   document.getElementById('tablaHoras').innerHTML = '<div class="loading"><span class="spinner"></span>Calculando horas...</div>';
   _horasCache = [];
   try {
-    const anio   = new Date().getFullYear();
-    const inicio = new Date(anio, 0, 1);
-    const fin    = new Date(anio + 1, 0, 1);
+    const hoy    = new Date();
+    const anio   = hoy.getFullYear();
+    const mes    = hoy.getMonth();
+    const inicio = new Date(anio, mes, 1);
+    const fin    = new Date(anio, mes + 1, 1);
 
     const [uSnap, fSnap] = await Promise.all([
       db.collection('usuarios').get(),
       db.collection('fichajes').get()
     ]);
 
-    // Agrupar fichajes por userId y filtrar por año
+    // Agrupar fichajes por userId y filtrar por mes actual
     const fichajesPorUser = {};
     fSnap.docs.forEach(function(d) {
       const f  = d.data();
@@ -659,7 +679,7 @@ async function loadHorasEmpleados() {
     uSnap.docs.forEach(function(d) {
       const u        = d.data();
       const fich     = fichajesPorUser[d.id] || [];
-      const bal      = calcularBalanceAnual(fich);
+      const bal      = calcularBalanceMensual(fich);
       const horasExtra = fich.reduce(function(s, f) { return s + (f.tipo === 'salida' ? (f.horasExtra || 0) : 0); }, 0);
       filas.push({
         id: d.id,
@@ -710,7 +730,7 @@ async function loadHorasEmpleados() {
 
     document.getElementById('tablaHoras').innerHTML =
       '<table><thead><tr>' +
-      '<th>Empleado</th><th>Empresa</th><th>Trabajadas</th><th>Objetivo hoy</th><th>Balance</th><th>Progreso anual</th><th>H. Extra</th>' +
+      '<th>Empleado</th><th>Empresa</th><th>Trabajadas</th><th>Objetivo hoy</th><th>Balance</th><th>Progreso mensual</th><th>H. Extra</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
 
   } catch(e) {
@@ -1511,8 +1531,9 @@ async function openUserDrawer(userId, userData) {
   document.getElementById('userDrawer').classList.add('show');
   try {
     const anio   = new Date().getFullYear();
-    const inicio = new Date(anio, 0, 1);
-    const fin    = new Date(anio + 1, 0, 1);
+    const mes    = new Date().getMonth();
+    const inicio = new Date(anio, mes, 1);
+    const fin    = new Date(anio, mes + 1, 1);
 
     const snap     = await db.collection('fichajes').where('userId','==',userId).orderBy('timestamp','desc').limit(200).get();
     const fichajes = snap.docs.map(function(d){ return d.data(); });
@@ -1522,21 +1543,21 @@ async function openUserDrawer(userId, userData) {
     const total     = fichajes.length;
     const esteMes   = fichajes.filter(function(f){ return f.timestamp && f.timestamp.toDate && f.timestamp.toDate() >= mesInicio; }).length;
 
-    // Fichajes del año actual para balance
-    const fichajesAnio = fichajes.filter(function(f) {
+    // Fichajes del mes actual para balance
+    const fichajesMes = fichajes.filter(function(f) {
       if (!f.timestamp || !f.timestamp.toDate) return false;
       const d = f.timestamp.toDate(); return d >= inicio && d < fin;
     });
 
-    const bal        = calcularBalanceAnual(fichajesAnio);
-    const hNormAnio  = fichajesAnio.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasNormales||0):0); },0);
-    const hExtraAnio = fichajesAnio.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasExtra||0):0);    },0);
+    const bal        = calcularBalanceMensual(fichajesMes);
+    const hNormMes   = fichajesMes.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasNormales||0):0); },0);
+    const hExtraMes  = fichajesMes.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasExtra||0):0);    },0);
 
     document.getElementById('drawerStats').innerHTML =
       '<div class="dstat"><div class="dstat-label">Total fichajes</div><div class="dstat-value c-accent">'+total+'</div></div>' +
       '<div class="dstat"><div class="dstat-label">Este mes</div><div class="dstat-value c-accent">'+esteMes+'</div></div>' +
-      '<div class="dstat"><div class="dstat-label">H. normales '+anio+'</div><div class="dstat-value c-success">'+hNormAnio.toFixed(1)+'h</div></div>' +
-      '<div class="dstat"><div class="dstat-label">H. extra '+anio+'</div><div class="dstat-value c-warn">'+hExtraAnio.toFixed(1)+'h</div></div>';
+      '<div class="dstat"><div class="dstat-label">H. normales este mes</div><div class="dstat-value c-success">'+hNormMes.toFixed(1)+'h</div></div>' +
+      '<div class="dstat"><div class="dstat-label">H. extra este mes</div><div class="dstat-value c-warn">'+hExtraMes.toFixed(1)+'h</div></div>';
 
     // Barra de progreso anual
     const pctBar = Math.min(bal.pct, 100);
