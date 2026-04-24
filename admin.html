@@ -136,6 +136,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .chart-wrap canvas { width:100% !important; }
 /* barras clicables */
 .chart-wrap canvas { cursor:pointer; }
+/* ── Paginación ── */
+.pagination { display:flex; align-items:center; justify-content:space-between; padding:12px 22px; border-top:1px solid var(--border); font-size:12px; color:var(--text-secondary); flex-wrap:wrap; gap:8px; }
+.pag-info { font-size:11px; }
+.pag-btns { display:flex; gap:4px; align-items:center; }
+.pag-btn { padding:5px 10px; background:transparent; border:1px solid var(--border); border-radius:6px; color:var(--text-secondary); font-family:'Inter',sans-serif; font-size:12px; cursor:pointer; transition:background .15s,border-color .15s,color .15s; min-width:32px; text-align:center; }
+.pag-btn:hover:not(:disabled) { background:rgba(255,255,255,.04); border-color:#555; color:var(--text); }
+.pag-btn.active { background:rgba(226,226,226,.1); border-color:#666; color:var(--text); font-weight:600; }
+.pag-btn:disabled { opacity:.3; cursor:not-allowed; }
+.pag-ellipsis { padding:5px 6px; color:var(--muted); font-size:12px; }
 /* ── Cabeceras ordenables ── */
 th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
 th.sortable:hover { color:var(--text); }
@@ -251,6 +260,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
       <div class="tcard">
         <div class="tcard-head"><div class="tcard-title"><span class="live-dot"></span>Últimos fichajes</div></div>
         <div id="recentFichajes"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+        <div class="pagination" id="recentPag" style="display:none"></div>
       </div>
     </div>
 
@@ -308,6 +318,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
           <button class="btn-filter-clear" id="btnFltClear">✕ Limpiar</button>
         </div>
         <div id="tablaFichajes"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+        <div class="pagination" id="fichajesPag" style="display:none"></div>
       </div>
     </div>
   </main>
@@ -709,6 +720,60 @@ async function loadHorasEmpleados() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// PAGINACIÓN
+// ─────────────────────────────────────────────────────────────────────────
+var PAG_SIZE_RESUMEN  = 10;  // filas por página en Resumen
+var PAG_SIZE_FICHAJES = 10;  // filas por página en Fichajes
+var _pagResumen  = 1;
+var _pagFichajes = 1;
+var _resumenDocs = []; // todos los docs del resumen para paginar
+
+function buildPagHTML(pagId, paginaActual, total, porPagina, onPageFn) {
+  var totalPages = Math.ceil(total / porPagina) || 1;
+  var desde = (paginaActual - 1) * porPagina + 1;
+  var hasta = Math.min(paginaActual * porPagina, total);
+  var el = document.getElementById(pagId);
+  if (!el) return;
+  if (total === 0) { el.style.display = 'none'; return; }
+  el.style.display = 'flex';
+
+  // Info
+  var html = '<span class="pag-info">Mostrando ' + desde + '–' + hasta + ' de ' + total + '</span>';
+  html += '<div class="pag-btns">';
+
+  // Anterior
+  html += '<button class="pag-btn" ' + (paginaActual === 1 ? 'disabled' : '') +
+          ' onclick="(' + onPageFn.toString() + ')(' + (paginaActual-1) + ')">‹</button>';
+
+  // Páginas
+  var pages = [];
+  if (totalPages <= 7) {
+    for (var i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (paginaActual > 3) pages.push('…');
+    for (var i = Math.max(2, paginaActual-1); i <= Math.min(totalPages-1, paginaActual+1); i++) pages.push(i);
+    if (paginaActual < totalPages-2) pages.push('…');
+    pages.push(totalPages);
+  }
+  pages.forEach(function(p) {
+    if (p === '…') {
+      html += '<span class="pag-ellipsis">…</span>';
+    } else {
+      html += '<button class="pag-btn' + (p === paginaActual ? ' active' : '') + '" ' +
+              (p === paginaActual ? 'disabled' : 'onclick="(' + onPageFn.toString() + ')(' + p + ')"') +
+              '>' + p + '</button>';
+    }
+  });
+
+  // Siguiente
+  html += '<button class="pag-btn" ' + (paginaActual === totalPages ? 'disabled' : '') +
+          ' onclick="(' + onPageFn.toString() + ')(' + (paginaActual+1) + ')">›</button>';
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // GRÁFICAS DEL RESUMEN
 // ─────────────────────────────────────────────────────────────────────────
 var _chartInstances = {};
@@ -841,20 +906,9 @@ function renderCharts(allDocs) {
     options: (function(){
       var o = baseChartOpts(function(evt, elements) {
         if (!elements.length) return;
-        var idx   = elements[0].index;
-        var key   = Object.keys(diasMap)[idx]; // 'YYYY-MM-DD'
-        document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
-        document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
-        document.querySelector('.nav-item[data-sec="fichajes"]').classList.add('active');
-        document.getElementById('sec-fichajes').classList.add('active');
-        if (resumenUnsub){ resumenUnsub(); resumenUnsub=null; }
-        document.getElementById('fltNombre').value     = '';
-        document.getElementById('fltDept').value       = '';
-        document.getElementById('fltTipo').value       = '';
-        document.getElementById('fltFechaDesde').value = key;
-        document.getElementById('fltFechaHasta').value = key;
-        if (!_fichajesCache.length) loadFichajes();
-        else applyFichajesFilters();
+        var idx = elements[0].index;
+        var key = Object.keys(diasMap)[idx]; // 'YYYY-MM-DD'
+        navToFichajes({ desde: key, hasta: key });
       });
       o.plugins.tooltip.callbacks = {
         title: function(items){ return diasLabels[items[0].dataIndex]; },
@@ -883,20 +937,10 @@ function renderCharts(allDocs) {
       var o = baseChartOpts(function(evt, elements) {
         if (!elements.length) return;
         var tipo = elements[0].index === 0 ? 'entrada' : 'salida';
-        document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
-        document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
-        document.querySelector('.nav-item[data-sec="fichajes"]').classList.add('active');
-        document.getElementById('sec-fichajes').classList.add('active');
-        if (resumenUnsub){ resumenUnsub(); resumenUnsub=null; }
-        var mesStr = new Date().toISOString().slice(0,7); // 'YYYY-MM'
-        var d = new Date(); var lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0);
-        document.getElementById('fltNombre').value     = '';
-        document.getElementById('fltDept').value       = '';
-        document.getElementById('fltTipo').value       = tipo;
-        document.getElementById('fltFechaDesde').value = mesStr + '-01';
-        document.getElementById('fltFechaHasta').value = lastDay.toISOString().slice(0,10);
-        if (!_fichajesCache.length) loadFichajes();
-        else applyFichajesFilters();
+        var d = new Date();
+        var desde = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01';
+        var hasta = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+        navToFichajes({ tipo: tipo, desde: desde, hasta: hasta });
       });
       o.scales = {}; // sin ejes en dona
       o.plugins.legend = { display: true, position:'bottom', labels:{ color:PALETTE.tick, font:{size:11}, padding:16 } };
@@ -927,19 +971,10 @@ function renderCharts(allDocs) {
       var o = baseChartOpts(function(evt, elements) {
         if (!elements.length) return;
         var dept = deptLabels[elements[0].index];
-        document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
-        document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
-        document.querySelector('.nav-item[data-sec="fichajes"]').classList.add('active');
-        document.getElementById('sec-fichajes').classList.add('active');
-        if (resumenUnsub){ resumenUnsub(); resumenUnsub=null; }
-        var d = new Date(); var lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0);
-        document.getElementById('fltNombre').value     = '';
-        document.getElementById('fltDept').value       = dept === '(sin dept)' ? '' : dept;
-        document.getElementById('fltTipo').value       = '';
-        document.getElementById('fltFechaDesde').value = new Date().toISOString().slice(0,7) + '-01';
-        document.getElementById('fltFechaHasta').value = lastDay.toISOString().slice(0,10);
-        if (!_fichajesCache.length) loadFichajes();
-        else applyFichajesFilters();
+        var d = new Date();
+        var desde = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01';
+        var hasta = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+        navToFichajes({ dept: dept === '(sin dept)' ? '' : dept, desde: desde, hasta: hasta });
       });
       o.plugins.tooltip.callbacks = {
         label: function(item){ return item.raw + ' fichajes'; }
@@ -969,20 +1004,10 @@ function renderCharts(allDocs) {
         if (!elements.length) return;
         var idx    = elements[0].index;
         var nombre = empNombres[idx];
-        var uid    = empUIDs[idx];
-        document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
-        document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
-        document.querySelector('.nav-item[data-sec="fichajes"]').classList.add('active');
-        document.getElementById('sec-fichajes').classList.add('active');
-        if (resumenUnsub){ resumenUnsub(); resumenUnsub=null; }
-        var d = new Date(); var lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0);
-        document.getElementById('fltNombre').value     = nombre;
-        document.getElementById('fltDept').value       = '';
-        document.getElementById('fltTipo').value       = '';
-        document.getElementById('fltFechaDesde').value = new Date().toISOString().slice(0,7) + '-01';
-        document.getElementById('fltFechaHasta').value = lastDay.toISOString().slice(0,10);
-        if (!_fichajesCache.length) loadFichajes();
-        else applyFichajesFilters();
+        var d = new Date();
+        var desde = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01';
+        var hasta = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
+        navToFichajes({ nombre: nombre, desde: desde, hasta: hasta });
       });
       o.indexAxis = 'y';
       o.plugins.tooltip.callbacks = {
@@ -1054,30 +1079,42 @@ function loadResumen() {
       document.getElementById('stHNorm').textContent  = hNormHoy.toFixed(1)  + 'h';
       document.getElementById('stHExtra').textContent = hExtraHoy.toFixed(1) + 'h';
 
-      // ── Tabla: últimos 10 fichajes ─────────────────────────────────────
-      const recientes = fSnap.docs.slice(0, 10);
-      if (!recientes.length) {
-        document.getElementById('recentFichajes').innerHTML = '<div class="empty">No hay fichajes aún</div>';
-        return;
+      // ── Tabla recientes con paginación ────────────────────────────────
+      _resumenDocs = fSnap.docs; // guardar para paginar
+      _pagResumen  = 1;
+
+      function renderResumenPagina(pagina) {
+        _pagResumen = pagina;
+        var total   = _resumenDocs.length;
+        if (!total) {
+          document.getElementById('recentFichajes').innerHTML = '<div class="empty">No hay fichajes aún</div>';
+          document.getElementById('recentPag').style.display = 'none';
+          return;
+        }
+        var desde = (pagina - 1) * PAG_SIZE_RESUMEN;
+        var hasta = Math.min(desde + PAG_SIZE_RESUMEN, total);
+        var pagDocs = _resumenDocs.slice(desde, hasta);
+        var tbody = pagDocs.map(function(d) {
+          var f = d.data();
+          var nombre  = f.nombre || f.email || '—';
+          var dept    = f.departamento || '—';
+          var tipo    = f.tipo || '';
+          var userId  = f.userId || '';
+          var jornada = (f.tipo === 'salida' && f.duracionMin != null)
+            ? Math.floor(f.duracionMin/60) + 'h ' + (f.duracionMin%60) + 'm' : '—';
+          return '<tr>' +
+            '<td><span class="resumen-link" data-filter-type="user" data-nombre="' + escAttr(nombre) + '" data-userid="' + escAttr(userId) + '" style="cursor:pointer;color:var(--accent);text-decoration:underline dotted">' + esc(nombre) + '</span></td>' +
+            '<td><span class="resumen-link" data-filter-type="dept" data-departamento="' + escAttr(dept) + '" style="cursor:pointer;color:var(--muted);text-decoration:underline dotted">' + esc(dept) + '</span></td>' +
+            '<td><span class="resumen-link pill pill-' + esc(tipo) + '" data-filter-type="tipo" data-tipo="' + escAttr(tipo) + '" style="cursor:pointer">' + esc(tipo) + '</span></td>' +
+            '<td style="color:var(--muted)">' + jornada + '</td>' +
+            '<td style="color:var(--accent);font-weight:500">' + fmt(f.timestamp) + '</td>' +
+            '</tr>';
+        }).join('');
+        document.getElementById('recentFichajes').innerHTML =
+          '<table><thead><tr><th>Nombre</th><th>Departamento</th><th>Tipo</th><th>Jornada</th><th>Hora exacta</th></tr></thead><tbody>' + tbody + '</tbody></table>';
+        buildPagHTML('recentPag', pagina, total, PAG_SIZE_RESUMEN, renderResumenPagina);
       }
-      const tbody = recientes.map(function(d) {
-        const f = d.data();
-        const nombre = f.nombre || f.email || '—';
-        const dept   = f.departamento || '—';
-        const tipo   = f.tipo || '';
-        const userId = f.userId || '';
-        const jornada = (f.tipo === 'salida' && f.duracionMin != null)
-          ? Math.floor(f.duracionMin/60) + 'h ' + (f.duracionMin%60) + 'm' : '—';
-        return '<tr>' +
-          '<td><span class="resumen-link" data-filter-type="user" data-nombre="' + escAttr(nombre) + '" data-userid="' + escAttr(userId) + '" style="cursor:pointer;color:var(--accent);text-decoration:underline dotted">' + esc(nombre) + '</span></td>' +
-          '<td><span class="resumen-link" data-filter-type="dept" data-departamento="' + escAttr(dept) + '" style="cursor:pointer;color:var(--muted);text-decoration:underline dotted">' + esc(dept) + '</span></td>' +
-          '<td><span class="resumen-link pill pill-' + esc(tipo) + '" data-filter-type="tipo" data-tipo="' + escAttr(tipo) + '" style="cursor:pointer">' + esc(tipo) + '</span></td>' +
-          '<td style="color:var(--muted)">' + jornada + '</td>' +
-          '<td style="color:var(--accent);font-weight:500">' + fmt(f.timestamp) + '</td>' +
-          '</tr>';
-      }).join('');
-      document.getElementById('recentFichajes').innerHTML =
-        '<table><thead><tr><th>Nombre</th><th>Departamento</th><th>Tipo</th><th>Jornada</th><th>Hora exacta</th></tr></thead><tbody>' + tbody + '</tbody></table>';
+      renderResumenPagina(1);
 
       // Renderizar gráficas con todos los docs disponibles
       renderCharts(fSnap.docs);
@@ -1313,8 +1350,30 @@ function thHtml(label, col) {
   return '<th class="'+cls+'" data-col="'+col+'">'+label+'</th>';
 }
 
+var _fichajesDatosFiltrados = []; // resultado filtrado completo para paginar
+
 function renderTablaFichajes(datos) {
-  if (!datos.length) { document.getElementById('tablaFichajes').innerHTML = '<div class="empty">No hay fichajes que coincidan</div>'; return; }
+  _fichajesDatosFiltrados = datos;
+  _pagFichajes = 1;
+  _renderFichajesPagina(1);
+}
+
+function _renderFichajesPagina(pagina) {
+  _pagFichajes = pagina;
+  var total = _fichajesDatosFiltrados.length;
+  var container = document.getElementById('tablaFichajes');
+  var pagEl     = document.getElementById('fichajesPag');
+
+  if (!total) {
+    container.innerHTML = '<div class="empty">No hay fichajes que coincidan</div>';
+    if (pagEl) pagEl.style.display = 'none';
+    return;
+  }
+
+  var desde  = (pagina - 1) * PAG_SIZE_FICHAJES;
+  var hasta  = Math.min(desde + PAG_SIZE_FICHAJES, total);
+  var pagData = _fichajesDatosFiltrados.slice(desde, hasta);
+
   var thead =
     '<thead><tr>' +
     thHtml('Nombre','nombre') +
@@ -1327,8 +1386,25 @@ function renderTablaFichajes(datos) {
     thHtml('H. Extra','horasExtra') +
     '<th>Ubicación</th>' +
     '</tr></thead>';
-  document.getElementById('tablaFichajes').innerHTML =
-    '<table>' + thead + '<tbody>' + datos.map(fichajeRowHtml).join('') + '</tbody></table>';
+
+  container.innerHTML =
+    '<table>' + thead + '<tbody>' + pagData.map(fichajeRowHtml).join('') + '</tbody></table>';
+
+  // Reasignar listeners de ordenación
+  document.querySelectorAll('#tablaFichajes th.sortable').forEach(function(th) {
+    th.addEventListener('click', function() {
+      var col = th.dataset.col;
+      if (_fltState.col === col) {
+        _fltState.dir = _fltState.dir === 'asc' ? 'desc' : 'asc';
+      } else {
+        _fltState.col = col;
+        _fltState.dir = col === 'timestamp' ? 'desc' : 'asc';
+      }
+      applyFichajesFilters();
+    });
+  });
+
+  buildPagHTML('fichajesPag', pagina, total, PAG_SIZE_FICHAJES, _renderFichajesPagina);
 }
 
 function applyFichajesFilters() {
@@ -1361,20 +1437,6 @@ function applyFichajesFilters() {
   if (_fltState.dir === 'desc') datos.reverse();
 
   renderTablaFichajes(datos);
-
-  // Reasignar listeners de ordenación a las cabeceras recién renderizadas
-  document.querySelectorAll('#tablaFichajes th.sortable').forEach(function(th) {
-    th.addEventListener('click', function() {
-      var col = th.dataset.col;
-      if (_fltState.col === col) {
-        _fltState.dir = _fltState.dir === 'asc' ? 'desc' : 'asc';
-      } else {
-        _fltState.col = col;
-        _fltState.dir = col === 'timestamp' ? 'desc' : 'asc';
-      }
-      applyFichajesFilters();
-    });
-  });
 }
 
 function loadFichajes() {
@@ -1512,6 +1574,32 @@ document.getElementById('drawerBtnClose').addEventListener('click', closeUserDra
 document.getElementById('drawerOverlay').addEventListener('click', closeUserDrawer);
 
 // ─────────────────────────────────────────────────────────────────────────
+// NAVEGACIÓN A FICHAJES (desde gráficas o tabla resumen)
+// ─────────────────────────────────────────────────────────────────────────
+function navToFichajes(opts) {
+  // opts: { nombre, dept, tipo, desde, hasta }
+  opts = opts || {};
+  document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
+  document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelector('.nav-item[data-sec="fichajes"]').classList.add('active');
+  document.getElementById('sec-fichajes').classList.add('active');
+  if (resumenUnsub){ resumenUnsub(); resumenUnsub = null; }
+
+  document.getElementById('fltNombre').value     = opts.nombre || '';
+  document.getElementById('fltDept').value       = opts.dept   || '';
+  document.getElementById('fltTipo').value       = opts.tipo   || '';
+  document.getElementById('fltFechaDesde').value = opts.desde  || '';
+  document.getElementById('fltFechaHasta').value = opts.hasta  || '';
+
+  if (_fichajesCache.length) {
+    applyFichajesFilters();
+  } else {
+    // loadFichajes cargará datos y llamará applyFichajesFilters
+    loadFichajes();
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // NAVEGACIÓN DESDE RESUMEN → FICHAJES (filtro por userId/dept/tipo)
 // ─────────────────────────────────────────────────────────────────────────
 document.getElementById('recentFichajes').addEventListener('click', function(e) {
@@ -1530,27 +1618,13 @@ document.getElementById('recentFichajes').addEventListener('click', function(e) 
   }
 });
 
-// Navegar a fichajes y pre-rellenar los filtros desde el Resumen
-async function goToFichajesFiltered(filters) {
-  // Cambiar sección
-  document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
-  document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
-  document.querySelector('.nav-item[data-sec="fichajes"]').classList.add('active');
-  document.getElementById('sec-fichajes').classList.add('active');
-  if (resumenUnsub)  { resumenUnsub();  resumenUnsub  = null; }
-
-  // Pre-rellenar barra de filtros
-  document.getElementById('fltNombre').value = filters.nombre       || '';
-  document.getElementById('fltDept').value   = filters.departamento || '';
-  document.getElementById('fltTipo').value   = filters.tipo         || '';
-
-  // Si ya tenemos caché, aplicar filtros directamente; si no, cargar primero
-  if (_fichajesCache.length) {
-    applyFichajesFilters();
-  } else {
-    // loadFichajes cargará los datos y llamará applyFichajesFilters al final
-    loadFichajes();
-  }
+// Navegar a fichajes y pre-rellenar los filtros desde la tabla Resumen
+function goToFichajesFiltered(filters) {
+  navToFichajes({
+    nombre: filters.nombre       || '',
+    dept:   filters.departamento || '',
+    tipo:   filters.tipo         || ''
+  });
 }
 
 // ── Inicio ────────────────────────────────────────────────────────────────
