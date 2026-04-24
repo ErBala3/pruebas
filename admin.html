@@ -743,7 +743,7 @@ function buildPagHTML(pagId, paginaActual, total, porPagina, onPageFn) {
 
   // Anterior
   html += '<button class="pag-btn" ' + (paginaActual === 1 ? 'disabled' : '') +
-          ' onclick="(' + onPageFn.toString() + ')(' + (paginaActual-1) + ')">‹</button>';
+          ' onclick="' + onPageFn.name + '(' + (paginaActual-1) + ')">‹</button>';
 
   // Páginas
   var pages = [];
@@ -761,14 +761,14 @@ function buildPagHTML(pagId, paginaActual, total, porPagina, onPageFn) {
       html += '<span class="pag-ellipsis">…</span>';
     } else {
       html += '<button class="pag-btn' + (p === paginaActual ? ' active' : '') + '" ' +
-              (p === paginaActual ? 'disabled' : 'onclick="(' + onPageFn.toString() + ')(' + p + ')"') +
+              (p === paginaActual ? 'disabled' : 'onclick="' + onPageFn.name + '(' + p + ')"') +
               '>' + p + '</button>';
     }
   });
 
   // Siguiente
   html += '<button class="pag-btn" ' + (paginaActual === totalPages ? 'disabled' : '') +
-          ' onclick="(' + onPageFn.toString() + ')(' + (paginaActual+1) + ')">›</button>';
+          ' onclick="' + onPageFn.name + '(' + (paginaActual+1) + ')">›</button>';
   html += '</div>';
   el.innerHTML = html;
 }
@@ -1020,6 +1020,41 @@ function renderCharts(allDocs) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// RESUMEN – renderizado paginado de la tabla reciente
+// ─────────────────────────────────────────────────────────────────────────
+function renderResumenPagina(pagina) {
+  _pagResumen = pagina;
+  var total   = _resumenDocs.length;
+  if (!total) {
+    document.getElementById('recentFichajes').innerHTML = '<div class="empty">No hay fichajes aún</div>';
+    document.getElementById('recentPag').style.display = 'none';
+    return;
+  }
+  var desde = (pagina - 1) * PAG_SIZE_RESUMEN;
+  var hasta = Math.min(desde + PAG_SIZE_RESUMEN, total);
+  var pagDocs = _resumenDocs.slice(desde, hasta);
+  var tbody = pagDocs.map(function(d) {
+    var f = d.data();
+    var nombre  = f.nombre || f.email || '—';
+    var dept    = f.departamento || '—';
+    var tipo    = f.tipo || '';
+    var userId  = f.userId || '';
+    var jornada = (f.tipo === 'salida' && f.duracionMin != null)
+      ? Math.floor(f.duracionMin/60) + 'h ' + (f.duracionMin%60) + 'm' : '—';
+    return '<tr>' +
+      '<td><span class="resumen-link" data-filter-type="user" data-nombre="' + escAttr(nombre) + '" data-userid="' + escAttr(userId) + '" style="cursor:pointer;color:var(--accent);text-decoration:underline dotted">' + esc(nombre) + '</span></td>' +
+      '<td><span class="resumen-link" data-filter-type="dept" data-departamento="' + escAttr(dept) + '" style="cursor:pointer;color:var(--muted);text-decoration:underline dotted">' + esc(dept) + '</span></td>' +
+      '<td><span class="resumen-link pill pill-' + esc(tipo) + '" data-filter-type="tipo" data-tipo="' + escAttr(tipo) + '" style="cursor:pointer">' + esc(tipo) + '</span></td>' +
+      '<td style="color:var(--muted)">' + jornada + '</td>' +
+      '<td style="color:var(--accent);font-weight:500">' + fmt(f.timestamp) + '</td>' +
+      '</tr>';
+  }).join('');
+  document.getElementById('recentFichajes').innerHTML =
+    '<table><thead><tr><th>Nombre</th><th>Departamento</th><th>Tipo</th><th>Jornada</th><th>Hora exacta</th></tr></thead><tbody>' + tbody + '</tbody></table>';
+  buildPagHTML('recentPag', pagina, total, PAG_SIZE_RESUMEN, renderResumenPagina);
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // RESUMEN
 // ─────────────────────────────────────────────────────────────────────────
 function loadResumen() {
@@ -1083,37 +1118,6 @@ function loadResumen() {
       _resumenDocs = fSnap.docs; // guardar para paginar
       _pagResumen  = 1;
 
-      function renderResumenPagina(pagina) {
-        _pagResumen = pagina;
-        var total   = _resumenDocs.length;
-        if (!total) {
-          document.getElementById('recentFichajes').innerHTML = '<div class="empty">No hay fichajes aún</div>';
-          document.getElementById('recentPag').style.display = 'none';
-          return;
-        }
-        var desde = (pagina - 1) * PAG_SIZE_RESUMEN;
-        var hasta = Math.min(desde + PAG_SIZE_RESUMEN, total);
-        var pagDocs = _resumenDocs.slice(desde, hasta);
-        var tbody = pagDocs.map(function(d) {
-          var f = d.data();
-          var nombre  = f.nombre || f.email || '—';
-          var dept    = f.departamento || '—';
-          var tipo    = f.tipo || '';
-          var userId  = f.userId || '';
-          var jornada = (f.tipo === 'salida' && f.duracionMin != null)
-            ? Math.floor(f.duracionMin/60) + 'h ' + (f.duracionMin%60) + 'm' : '—';
-          return '<tr>' +
-            '<td><span class="resumen-link" data-filter-type="user" data-nombre="' + escAttr(nombre) + '" data-userid="' + escAttr(userId) + '" style="cursor:pointer;color:var(--accent);text-decoration:underline dotted">' + esc(nombre) + '</span></td>' +
-            '<td><span class="resumen-link" data-filter-type="dept" data-departamento="' + escAttr(dept) + '" style="cursor:pointer;color:var(--muted);text-decoration:underline dotted">' + esc(dept) + '</span></td>' +
-            '<td><span class="resumen-link pill pill-' + esc(tipo) + '" data-filter-type="tipo" data-tipo="' + escAttr(tipo) + '" style="cursor:pointer">' + esc(tipo) + '</span></td>' +
-            '<td style="color:var(--muted)">' + jornada + '</td>' +
-            '<td style="color:var(--accent);font-weight:500">' + fmt(f.timestamp) + '</td>' +
-            '</tr>';
-        }).join('');
-        document.getElementById('recentFichajes').innerHTML =
-          '<table><thead><tr><th>Nombre</th><th>Departamento</th><th>Tipo</th><th>Jornada</th><th>Hora exacta</th></tr></thead><tbody>' + tbody + '</tbody></table>';
-        buildPagHTML('recentPag', pagina, total, PAG_SIZE_RESUMEN, renderResumenPagina);
-      }
       renderResumenPagina(1);
 
       // Renderizar gráficas con todos los docs disponibles
