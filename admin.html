@@ -127,7 +127,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .filter-date { max-width:130px; color-scheme:dark; }
 .filter-date::-webkit-calendar-picker-indicator { filter:invert(.6); cursor:pointer; }
 /* ── Gráficas resumen ── */
-.charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px; }
+.charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
 @media(max-width:900px){ .charts-grid { grid-template-columns:1fr; } }
 .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:18px 20px; animation:fadeUp .5s ease both; }
 .chart-card:nth-child(2){animation-delay:.07s} .chart-card:nth-child(3){animation-delay:.14s} .chart-card:nth-child(4){animation-delay:.21s}
@@ -209,21 +209,6 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
       <div class="page-header">
         <div><div class="page-title">Resumen</div><div class="page-sub">Vista general en tiempo real</div></div>
       </div>
-      <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">Usuarios</div><div class="stat-value c-accent" id="stUsuarios">—</div></div>
-        <div class="stat-card"><div class="stat-label">Departamentos</div><div class="stat-value c-accent" id="stDepts">—</div></div>
-        <div class="stat-card"><div class="stat-label">Fichajes hoy</div><div class="stat-value c-success" id="stHoy">—</div></div>
-        <div class="stat-card"><div class="stat-label">Dentro ahora</div><div class="stat-value c-warn" id="stActivos">—</div></div>
-        <div class="stat-card"><div class="stat-label">Fichajes este mes</div><div class="stat-value c-accent" id="stMes">—</div></div>
-        <div class="stat-card"><div class="stat-label">H. normales hoy</div><div class="stat-value c-success" id="stHNorm">—</div></div>
-        <div class="stat-card"><div class="stat-label">H. extra hoy</div><div class="stat-value c-warn" id="stHExtra">—</div></div>
-        <div class="stat-card"><div class="stat-label">Empleados activos</div><div class="stat-value c-accent" id="stEmpleados">—</div></div>
-      </div>
-      <div class="tcard">
-        <div class="tcard-head"><div class="tcard-title"><span class="live-dot"></span>Últimos fichajes</div></div>
-        <div id="recentFichajes"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
-      </div>
-
       <!-- ── Gráficas ── -->
       <div class="charts-grid">
 
@@ -251,6 +236,21 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
           <div class="chart-wrap" style="height:200px"><canvas id="chartEmpleados"></canvas></div>
         </div>
 
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Usuarios</div><div class="stat-value c-accent" id="stUsuarios">—</div></div>
+        <div class="stat-card"><div class="stat-label">Departamentos</div><div class="stat-value c-accent" id="stDepts">—</div></div>
+        <div class="stat-card"><div class="stat-label">Fichajes hoy</div><div class="stat-value c-success" id="stHoy">—</div></div>
+        <div class="stat-card"><div class="stat-label">Dentro ahora</div><div class="stat-value c-warn" id="stActivos">—</div></div>
+        <div class="stat-card"><div class="stat-label">Fichajes este mes</div><div class="stat-value c-accent" id="stMes">—</div></div>
+        <div class="stat-card"><div class="stat-label">H. normales hoy</div><div class="stat-value c-success" id="stHNorm">—</div></div>
+        <div class="stat-card"><div class="stat-label">H. extra hoy</div><div class="stat-value c-warn" id="stHExtra">—</div></div>
+        <div class="stat-card"><div class="stat-label">Empleados activos</div><div class="stat-value c-accent" id="stEmpleados">—</div></div>
+      </div>
+      <div class="tcard">
+        <div class="tcard-head"><div class="tcard-title"><span class="live-dot"></span>Últimos fichajes</div></div>
+        <div id="recentFichajes"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
       </div>
     </div>
 
