@@ -1443,14 +1443,16 @@ function applyFichajesFilters() {
   renderTablaFichajes(datos);
 }
 
-function loadFichajes() {
+function loadFichajes(skipReset) {
   document.getElementById('tablaFichajes').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
   // Resetear filtros visuales pero mantener estado de ordenación
-  document.getElementById('fltNombre').value     = '';
-  document.getElementById('fltDept').value       = '';
-  document.getElementById('fltTipo').value       = '';
-  document.getElementById('fltFechaDesde').value = '';
-  document.getElementById('fltFechaHasta').value = '';
+  if (!skipReset) {
+    document.getElementById('fltNombre').value     = '';
+    document.getElementById('fltDept').value       = '';
+    document.getElementById('fltTipo').value       = '';
+    document.getElementById('fltFechaDesde').value = '';
+    document.getElementById('fltFechaHasta').value = '';
+  }
 
   if (fichajesUnsub) fichajesUnsub();
   fichajesUnsub = db.collection('fichajes').orderBy('timestamp','desc').limit(500)
@@ -1599,7 +1601,8 @@ function navToFichajes(opts) {
     applyFichajesFilters();
   } else {
     // loadFichajes cargará datos y llamará applyFichajesFilters
-    loadFichajes();
+    // Pasamos true para no borrar los filtros que acabamos de establecer
+    loadFichajes(true);
   }
 }
 
