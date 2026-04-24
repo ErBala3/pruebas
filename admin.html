@@ -6,6 +6,7 @@
 <title>QRAccess – Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -125,6 +126,16 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .btn-filter-clear:hover { border-color:#555; color:var(--text); }
 .filter-date { max-width:130px; color-scheme:dark; }
 .filter-date::-webkit-calendar-picker-indicator { filter:invert(.6); cursor:pointer; }
+/* ── Gráficas resumen ── */
+.charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:20px; }
+@media(max-width:900px){ .charts-grid { grid-template-columns:1fr; } }
+.chart-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:18px 20px; animation:fadeUp .5s ease both; }
+.chart-card:nth-child(2){animation-delay:.07s} .chart-card:nth-child(3){animation-delay:.14s} .chart-card:nth-child(4){animation-delay:.21s}
+.chart-title { font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.7px; margin-bottom:14px; }
+.chart-wrap { position:relative; width:100%; }
+.chart-wrap canvas { width:100% !important; }
+/* barras clicables */
+.chart-wrap canvas { cursor:pointer; }
 /* ── Cabeceras ordenables ── */
 th.sortable { cursor:pointer; user-select:none; white-space:nowrap; }
 th.sortable:hover { color:var(--text); }
@@ -211,6 +222,35 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
       <div class="tcard">
         <div class="tcard-head"><div class="tcard-title"><span class="live-dot"></span>Últimos fichajes</div></div>
         <div id="recentFichajes"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+      </div>
+
+      <!-- ── Gráficas ── -->
+      <div class="charts-grid">
+
+        <!-- Fichajes últimos 14 días -->
+        <div class="chart-card">
+          <div class="chart-title">Fichajes · últimos 14 días</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chartDias"></canvas></div>
+        </div>
+
+        <!-- Entradas vs Salidas del mes -->
+        <div class="chart-card">
+          <div class="chart-title">Entradas vs Salidas · este mes</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chartTipo"></canvas></div>
+        </div>
+
+        <!-- Actividad por departamento (mes) -->
+        <div class="chart-card">
+          <div class="chart-title">Actividad por departamento · este mes</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chartDept"></canvas></div>
+        </div>
+
+        <!-- Horas por empleado (top 8 del mes) -->
+        <div class="chart-card">
+          <div class="chart-title">Top empleados por horas · este mes</div>
+          <div class="chart-wrap" style="height:200px"><canvas id="chartEmpleados"></canvas></div>
+        </div>
+
       </div>
     </div>
 
@@ -669,6 +709,292 @@ async function loadHorasEmpleados() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
+// GRÁFICAS DEL RESUMEN
+// ─────────────────────────────────────────────────────────────────────────
+var _chartInstances = {};
+
+function destroyChart(id) {
+  if (_chartInstances[id]) { _chartInstances[id].destroy(); delete _chartInstances[id]; }
+}
+
+// Paleta oscura consistente
+var PALETTE = {
+  entrada : 'rgba(45,122,79,.75)',
+  salida  : 'rgba(160,160,160,.5)',
+  bars    : ['rgba(226,226,226,.7)','rgba(226,226,226,.5)','rgba(226,226,226,.35)','rgba(226,226,226,.25)',
+             'rgba(90,173,126,.7)', 'rgba(90,173,126,.5)','rgba(90,173,126,.35)','rgba(90,173,126,.25)'],
+  grid    : 'rgba(255,255,255,.05)',
+  tick    : 'rgba(160,160,160,.7)'
+};
+
+function baseChartOpts(clickCb) {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    onClick: clickCb || null,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#1e1e1e',
+        borderColor: '#2a2a2a',
+        borderWidth: 1,
+        titleColor: '#f0f0f0',
+        bodyColor: '#a0a0a0',
+        padding: 10
+      }
+    },
+    scales: {
+      x: { ticks:{ color:PALETTE.tick, font:{size:10} }, grid:{color:PALETTE.grid} },
+      y: { ticks:{ color:PALETTE.tick, font:{size:10} }, grid:{color:PALETTE.grid}, beginAtZero:true }
+    }
+  };
+}
+
+function renderCharts(allDocs) {
+  var ahora   = new Date();
+  var hoy     = new Date(ahora); hoy.setHours(0,0,0,0);
+  var mesIni  = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+  var hace14  = new Date(hoy); hace14.setDate(hace14.getDate() - 13);
+
+  // ── Datos: fichajes últimos 14 días ─────────────────────────────────
+  var diasMap = {};
+  for (var i = 0; i < 14; i++) {
+    var d = new Date(hace14); d.setDate(hace14.getDate() + i);
+    var key = d.toISOString().slice(0,10);
+    diasMap[key] = 0;
+  }
+  allDocs.forEach(function(doc) {
+    var f = doc.data ? doc.data() : doc;
+    var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate() : (f.timestampCliente ? new Date(f.timestampCliente) : null);
+    if (!ts) return;
+    if (ts < hace14 || ts > ahora) return;
+    var key = ts.toISOString().slice(0,10);
+    if (diasMap[key] !== undefined) diasMap[key]++;
+  });
+  var diasLabels = Object.keys(diasMap).map(function(k){
+    var d = new Date(k+'T12:00:00');
+    return d.toLocaleDateString('es-ES',{weekday:'short',day:'numeric'});
+  });
+  var diasData = Object.values(diasMap);
+
+  // ── Datos: entradas vs salidas del mes ──────────────────────────────
+  var nEntradas = 0, nSalidas = 0;
+  allDocs.forEach(function(doc) {
+    var f = doc.data ? doc.data() : doc;
+    var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate() : null;
+    if (!ts || ts < mesIni) return;
+    if (f.tipo === 'entrada') nEntradas++;
+    else if (f.tipo === 'salida') nSalidas++;
+  });
+
+  // ── Datos: actividad por departamento (mes) ──────────────────────────
+  var deptMap = {};
+  allDocs.forEach(function(doc) {
+    var f = doc.data ? doc.data() : doc;
+    var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate() : null;
+    if (!ts || ts < mesIni) return;
+    var dept = f.departamento || '(sin dept)';
+    deptMap[dept] = (deptMap[dept] || 0) + 1;
+  });
+  var deptSorted = Object.entries(deptMap).sort(function(a,b){ return b[1]-a[1]; }).slice(0,8);
+  var deptLabels = deptSorted.map(function(e){ return e[0]; });
+  var deptData   = deptSorted.map(function(e){ return e[1]; });
+
+  // ── Datos: horas por empleado top 8 del mes ──────────────────────────
+  var empHoras = {};
+  var empNombre = {};
+  allDocs.forEach(function(doc) {
+    var f = doc.data ? doc.data() : doc;
+    var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate() : null;
+    if (!ts || ts < mesIni || f.tipo !== 'salida') return;
+    var uid = f.userId || f.email || '?';
+    empHoras[uid]  = (empHoras[uid]  || 0) + (f.horasNormales||0) + (f.horasExtra||0);
+    empNombre[uid] = f.nombre || f.email || uid;
+  });
+  var empSorted = Object.entries(empHoras).sort(function(a,b){ return b[1]-a[1]; }).slice(0,8);
+  var empLabels = empSorted.map(function(e){ return empNombre[e[0]] || e[0]; });
+  var empData   = empSorted.map(function(e){ return parseFloat(e[1].toFixed(1)); });
+  // Guardar UIDs para click
+  var empUIDs   = empSorted.map(function(e){ return e[0]; });
+  var empNombres= empSorted.map(function(e){ return empNombre[e[0]]; });
+
+  // ── Chart 1: línea fichajes por día ────────────────────────────────
+  destroyChart('chartDias');
+  var ctx1 = document.getElementById('chartDias').getContext('2d');
+  _chartInstances['chartDias'] = new Chart(ctx1, {
+    type: 'bar',
+    data: {
+      labels: diasLabels,
+      datasets: [{
+        data: diasData,
+        backgroundColor: diasData.map(function(v,i){
+          // Hoy más brillante
+          return i === diasData.length-1 ? 'rgba(90,173,126,.9)' : 'rgba(226,226,226,.25)';
+        }),
+        borderColor: diasData.map(function(v,i){
+          return i === diasData.length-1 ? 'rgba(90,173,126,1)' : 'rgba(226,226,226,.4)';
+        }),
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: (function(){
+      var o = baseChartOpts(function(evt, elements) {
+        if (!elements.length) return;
+        var idx   = elements[0].index;
+        var key   = Object.keys(diasMap)[idx]; // 'YYYY-MM-DD'
+        document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
+        document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+        document.querySelector('.nav-item[data-sec="fichajes"]').classList.add('active');
+        document.getElementById('sec-fichajes').classList.add('active');
+        if (resumenUnsub){ resumenUnsub(); resumenUnsub=null; }
+        document.getElementById('fltNombre').value     = '';
+        document.getElementById('fltDept').value       = '';
+        document.getElementById('fltTipo').value       = '';
+        document.getElementById('fltFechaDesde').value = key;
+        document.getElementById('fltFechaHasta').value = key;
+        if (!_fichajesCache.length) loadFichajes();
+        else applyFichajesFilters();
+      });
+      o.plugins.tooltip.callbacks = {
+        title: function(items){ return diasLabels[items[0].dataIndex]; },
+        label: function(item){ return item.raw + ' fichajes'; }
+      };
+      return o;
+    })()
+  });
+
+  // ── Chart 2: dona entradas vs salidas ───────────────────────────────
+  destroyChart('chartTipo');
+  var ctx2 = document.getElementById('chartTipo').getContext('2d');
+  _chartInstances['chartTipo'] = new Chart(ctx2, {
+    type: 'doughnut',
+    data: {
+      labels: ['Entradas','Salidas'],
+      datasets: [{
+        data: [nEntradas, nSalidas],
+        backgroundColor: [PALETTE.entrada, PALETTE.salida],
+        borderColor: ['rgba(45,122,79,.9)','rgba(160,160,160,.4)'],
+        borderWidth: 1,
+        hoverOffset: 6
+      }]
+    },
+    options: (function(){
+      var o = baseChartOpts(function(evt, elements) {
+        if (!elements.length) return;
+        var tipo = elements[0].index === 0 ? 'entrada' : 'salida';
+        document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
+        document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+        document.querySelector('.nav-item[data-sec="fichajes"]').classList.add('active');
+        document.getElementById('sec-fichajes').classList.add('active');
+        if (resumenUnsub){ resumenUnsub(); resumenUnsub=null; }
+        var mesStr = new Date().toISOString().slice(0,7); // 'YYYY-MM'
+        var d = new Date(); var lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0);
+        document.getElementById('fltNombre').value     = '';
+        document.getElementById('fltDept').value       = '';
+        document.getElementById('fltTipo').value       = tipo;
+        document.getElementById('fltFechaDesde').value = mesStr + '-01';
+        document.getElementById('fltFechaHasta').value = lastDay.toISOString().slice(0,10);
+        if (!_fichajesCache.length) loadFichajes();
+        else applyFichajesFilters();
+      });
+      o.scales = {}; // sin ejes en dona
+      o.plugins.legend = { display: true, position:'bottom', labels:{ color:PALETTE.tick, font:{size:11}, padding:16 } };
+      o.plugins.tooltip.callbacks = {
+        label: function(item){ return ' ' + item.label + ': ' + item.raw; }
+      };
+      o.cutout = '62%';
+      return o;
+    })()
+  });
+
+  // ── Chart 3: barras departamento ─────────────────────────────────────
+  destroyChart('chartDept');
+  var ctx3 = document.getElementById('chartDept').getContext('2d');
+  _chartInstances['chartDept'] = new Chart(ctx3, {
+    type: 'bar',
+    data: {
+      labels: deptLabels,
+      datasets: [{
+        data: deptData,
+        backgroundColor: deptData.map(function(_,i){ return PALETTE.bars[i % PALETTE.bars.length]; }),
+        borderColor    : deptData.map(function(_,i){ return PALETTE.bars[i % PALETTE.bars.length].replace('.7','1').replace('.5','1').replace('.35','1').replace('.25','1'); }),
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: (function(){
+      var o = baseChartOpts(function(evt, elements) {
+        if (!elements.length) return;
+        var dept = deptLabels[elements[0].index];
+        document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
+        document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+        document.querySelector('.nav-item[data-sec="fichajes"]').classList.add('active');
+        document.getElementById('sec-fichajes').classList.add('active');
+        if (resumenUnsub){ resumenUnsub(); resumenUnsub=null; }
+        var d = new Date(); var lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0);
+        document.getElementById('fltNombre').value     = '';
+        document.getElementById('fltDept').value       = dept === '(sin dept)' ? '' : dept;
+        document.getElementById('fltTipo').value       = '';
+        document.getElementById('fltFechaDesde').value = new Date().toISOString().slice(0,7) + '-01';
+        document.getElementById('fltFechaHasta').value = lastDay.toISOString().slice(0,10);
+        if (!_fichajesCache.length) loadFichajes();
+        else applyFichajesFilters();
+      });
+      o.plugins.tooltip.callbacks = {
+        label: function(item){ return item.raw + ' fichajes'; }
+      };
+      o.scales.x.ticks.maxRotation = 30;
+      return o;
+    })()
+  });
+
+  // ── Chart 4: barras horizontales empleados ───────────────────────────
+  destroyChart('chartEmpleados');
+  var ctx4 = document.getElementById('chartEmpleados').getContext('2d');
+  _chartInstances['chartEmpleados'] = new Chart(ctx4, {
+    type: 'bar',
+    data: {
+      labels: empLabels,
+      datasets: [{
+        data: empData,
+        backgroundColor: empData.map(function(_,i){ return i === 0 ? 'rgba(90,173,126,.85)' : 'rgba(226,226,226,.25)'; }),
+        borderColor    : empData.map(function(_,i){ return i === 0 ? 'rgba(90,173,126,1)'   : 'rgba(226,226,226,.4)'; }),
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: (function(){
+      var o = baseChartOpts(function(evt, elements) {
+        if (!elements.length) return;
+        var idx    = elements[0].index;
+        var nombre = empNombres[idx];
+        var uid    = empUIDs[idx];
+        document.querySelectorAll('.nav-item').forEach(function(i){ i.classList.remove('active'); });
+        document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+        document.querySelector('.nav-item[data-sec="fichajes"]').classList.add('active');
+        document.getElementById('sec-fichajes').classList.add('active');
+        if (resumenUnsub){ resumenUnsub(); resumenUnsub=null; }
+        var d = new Date(); var lastDay = new Date(d.getFullYear(), d.getMonth()+1, 0);
+        document.getElementById('fltNombre').value     = nombre;
+        document.getElementById('fltDept').value       = '';
+        document.getElementById('fltTipo').value       = '';
+        document.getElementById('fltFechaDesde').value = new Date().toISOString().slice(0,7) + '-01';
+        document.getElementById('fltFechaHasta').value = lastDay.toISOString().slice(0,10);
+        if (!_fichajesCache.length) loadFichajes();
+        else applyFichajesFilters();
+      });
+      o.indexAxis = 'y';
+      o.plugins.tooltip.callbacks = {
+        label: function(item){ return ' ' + item.raw + 'h trabajadas'; }
+      };
+      o.scales.x.ticks.callback = function(v){ return v + 'h'; };
+      return o;
+    })()
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // RESUMEN
 // ─────────────────────────────────────────────────────────────────────────
 function loadResumen() {
@@ -752,6 +1078,9 @@ function loadResumen() {
       }).join('');
       document.getElementById('recentFichajes').innerHTML =
         '<table><thead><tr><th>Nombre</th><th>Departamento</th><th>Tipo</th><th>Jornada</th><th>Hora exacta</th></tr></thead><tbody>' + tbody + '</tbody></table>';
+
+      // Renderizar gráficas con todos los docs disponibles
+      renderCharts(fSnap.docs);
     } catch(e) { console.error(e); }
   }, function(err) { console.error(err); });
 }
