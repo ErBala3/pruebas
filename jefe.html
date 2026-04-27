@@ -451,8 +451,8 @@ function sortByTsDesc(docs) {
   return docs.slice().sort(function(a, b) {
     const ta = a.data().timestamp, tb = b.data().timestamp;
     const da = ta && ta.toDate ? ta.toDate() : new Date(0);
-    const db2 = tb && tb.toDate ? tb.toDate() : new Date(0);
-    return db2 - da;
+    const dateB = tb && tb.toDate ? tb.toDate() : new Date(0);
+    return dateB - da;
   });
 }
 

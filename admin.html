@@ -365,7 +365,6 @@ function renderPagination(containerId, infoId, totalItems, currentPage, onPageCh
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
   const container = document.getElementById(containerId);
   const info = document.getElementById(infoId);
-  const paginationWrapper = container.closest ? container.parentElement : document.getElementById(containerId).parentElement;
 
   // show/hide the whole pagination bar
   const bar = containerId === 'paginationResumenBtns'
