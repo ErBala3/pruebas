@@ -17,7 +17,7 @@
 body {
   font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text);
   min-height: 100vh; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; padding: 80px 20px 20px;
+  padding: 76px 20px 40px;
 }
 .topbar {
   position: fixed; top: 0; left: 0; right: 0; height: 56px;
@@ -28,51 +28,59 @@ body {
 .logo { font-size: 18px; font-weight: 700; color: var(--text); }
 .logo span { color: var(--accent); }
 .topbar-right { display: flex; align-items: center; gap: 12px; font-size: 13px; color: var(--text-secondary); }
-.btn-logout { padding: 6px 14px; background: transparent; color: var(--danger); border: 1px solid rgba(192,57,43,.4); border-radius: 7px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: background .2s; }
+.btn-logout { padding: 6px 14px; background: transparent; color: var(--danger); border: 1px solid rgba(192,57,43,.4); border-radius: 7px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: background .15s; }
 .btn-logout:hover { background: rgba(192,57,43,.08); border-color: var(--danger); }
-.card {
-  position: relative; width: 100%; max-width: 420px;
+.main-wrap { width: 100%; max-width: 480px; display: flex; flex-direction: column; gap: 16px; }
+.horas-panel {
   background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-  padding: 36px 32px 32px; box-shadow: 0 8px 32px rgba(0,0,0,.4);
-  animation: fadeUp .5s ease both;
+  padding: 20px 22px; animation: fadeUp .4s ease both;
 }
-@keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
-.card-title { font-size: 16px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
-.card-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 22px; }
-#reader { width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); display: none; }
-.status-box { margin-top: 18px; padding: 16px; border-radius: 8px; font-size: 13px; line-height: 1.6; display: none; }
-.status-box.ok { display: block; background: rgba(45,122,79,.08); border: 1px solid rgba(45,122,79,.2); color: #6ab88a; }
-.status-box.err { display: block; background: rgba(192,57,43,.08); border: 1px solid rgba(192,57,43,.2); color: #c0392b; }
-.status-box.warn { display: block; background: rgba(138,104,0,.08); border: 1px solid rgba(138,104,0,.2); color: #b8960a; }
-.fichaje-hora { font-size: 22px; font-weight: 700; color: var(--accent); margin-top: 6px; letter-spacing: 1px; }
-.fichaje-fecha { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.horas-panel-title { font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 14px; }
+.horas-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.hstat { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.hstat-label { font-size: 10px; color: var(--text-secondary); font-weight: 500; margin-bottom: 4px; }
+.hstat-value { font-size: 16px; font-weight: 700; color: var(--text); }
+.hstat-value.c-ok   { color: #6ab88a; }
+.hstat-value.c-warn { color: #b8960a; }
+.hstat-value.c-err  { color: #c0392b; }
+.progress-wrap { margin-bottom: 12px; }
+.progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-secondary); margin-bottom: 5px; }
+.progress-bar { height: 5px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+.progress-fill { height: 100%; border-radius: 3px; transition: width .7s ease; background: #2d7a4f; }
+.progress-fill.p-warn { background: #8a6800; }
+.progress-fill.p-over { background: #c0392b; }
+.balance-msg { padding: 10px 14px; border-radius: 7px; font-size: 12px; line-height: 1.6; border-left: 3px solid; }
+.balance-msg.s-ok   { background: rgba(45,122,79,.08);   border-color: #2d7a4f; color: #6ab88a; }
+.balance-msg.s-warn { background: rgba(138,104,0,.08);   border-color: #8a6800; color: #b8960a; }
+.balance-msg.s-err  { background: rgba(192,57,43,.08);   border-color: #c0392b; color: #c0392b; }
+.balance-msg.s-info { background: rgba(226,226,226,.04); border-color: #444;   color: var(--text-secondary); }
+.bm-title { font-weight: 600; margin-bottom: 2px; font-size: 12px; }
+.card {
+  width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 28px 24px 24px; box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  animation: fadeUp .5s .1s ease both;
+}
+@keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+.card-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.card-sub   { font-size: 13px; color: var(--text-secondary); margin-bottom: 20px; }
+#reader { width: 100%; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); background: var(--bg); }
+.status-box { margin-top: 16px; padding: 14px; border-radius: 8px; font-size: 13px; line-height: 1.6; display: none; }
+.status-box.ok   { display: block; background: rgba(45,122,79,.08);  border: 1px solid rgba(45,122,79,.2);  color: #6ab88a; }
+.status-box.err  { display: block; background: rgba(192,57,43,.08);  border: 1px solid rgba(192,57,43,.2);  color: #c0392b; }
+.status-box.warn { display: block; background: rgba(138,104,0,.08);  border: 1px solid rgba(138,104,0,.2);  color: #b8960a; }
+.fichaje-hora   { font-size: 22px; font-weight: 700; color: var(--accent); margin-top: 6px; letter-spacing: 1px; }
+.fichaje-fecha  { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
 .fichaje-detail { font-size: 12px; color: var(--text-secondary); margin-top: 6px; line-height: 1.7; }
-.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--text-secondary); border-radius: 50%; animation: spin .7s linear infinite; margin-right: 8px; vertical-align: middle; }
+.spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--border); border-top-color: var(--text-secondary); border-radius: 50%; animation: spin .7s linear infinite; margin-right: 6px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.auto-msg { padding: 28px 16px; text-align: center; font-size: 13px; color: var(--text-secondary); }
-.btn-rescan { width: 100%; margin-top: 14px; padding: 12px; background: transparent; color: #a0a0a0; border: 1px solid #2a2a2a; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s; display: none; }
+.auto-msg { padding: 26px 16px; text-align: center; font-size: 13px; color: var(--text-secondary); }
+.btn-rescan { width: 100%; margin-top: 12px; padding: 11px; background: transparent; color: #a0a0a0; border: 1px solid #2a2a2a; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: background .15s; display: none; }
 .btn-rescan:hover { background: rgba(255,255,255,.04); border-color: #555; }
 .btn-rescan.show { display: block; }
-
-/* ── Botón de inicio de escáner ── */
-.scan-prompt {
-  display: flex; flex-direction: column; align-items: center;
-  gap: 16px; padding: 8px 0 4px; text-align: center;
-}
-.scan-prompt-text {
-  font-size: 13px; color: var(--text-secondary); line-height: 1.6;
-}
-.btn-start-scan {
-  width: 100%; padding: 14px; background: #e2e2e2; color: #0d0d0d;
-  border: none; border-radius: 8px; font-family: 'Inter', sans-serif;
-  font-size: 14px; font-weight: 600; cursor: pointer;
-  transition: background .2s, transform .1s;
-}
-.btn-start-scan:hover { background: #cacaca; }
-.btn-start-scan:active { transform: scale(.98); }
 </style>
 </head>
 <body>
+
 <div class="topbar">
   <div class="logo">QR<span>Access</span></div>
   <div class="topbar-right">
@@ -81,35 +89,68 @@ body {
   </div>
 </div>
 
-<div class="card">
-  <div class="card-title" id="card-title-text">Escáner de Fichaje</div>
-  <div class="card-sub" id="card-sub-text">Apunta la cámara al código QR del departamento</div>
-  <!-- Prompt con botón, se muestra/oculta según estado -->
-  <div id="scanPrompt" class="scan-prompt" style="display:none">
-    <div class="scan-prompt-text">Escanea el código QR de tu departamento para registrar el fichaje.</div>
-    <button class="btn-start-scan" id="btnIniciarScan">Abrir cámara y escanear</button>
+<div class="main-wrap">
+
+  <!-- Panel de horas -->
+  <div class="horas-panel">
+    <div class="horas-panel-title">Mis horas &middot; <span id="hpAnio">—</span></div>
+    <div class="horas-grid">
+      <div class="hstat">
+        <div class="hstat-label">Trabajadas</div>
+        <div class="hstat-value" id="hpTrabajadas">—</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-label">Teóricas acum.</div>
+        <div class="hstat-value" id="hpTeoricas">—</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-label">Balance</div>
+        <div class="hstat-value" id="hpBalance">—</div>
+      </div>
+      <div class="hstat">
+        <div class="hstat-label">Jornada diaria</div>
+        <div class="hstat-value">8h</div>
+      </div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-label">
+        <span>Progreso mensual (<span id="hpAnualTotal">—</span>h)</span>
+        <span id="hpPct">—</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="hpBar" style="width:0%"></div>
+      </div>
+    </div>
+    <div class="balance-msg s-info" id="hpMsg">
+      <div class="bm-title">Cargando datos...</div>
+    </div>
   </div>
-  <!-- El div del scanner, siempre presente pero vacío hasta que se usa -->
-  <div id="reader"></div>
-  <div class="status-box" id="statusBox">
-    <div id="statusMsg"></div>
-    <div class="fichaje-hora" id="fichajeHora"></div>
-    <div class="fichaje-fecha" id="fichajeDate"></div>
-    <div class="fichaje-detail" id="fichajeDetail"></div>
+
+  <!-- Escáner -->
+  <div class="card">
+    <div class="card-title" id="card-title-text">Escáner de Fichaje</div>
+    <div class="card-sub"   id="card-sub-text">Apunta la cámara al código QR del departamento</div>
+    <div id="reader"></div>
+    <div class="status-box" id="statusBox">
+      <div id="statusMsg"></div>
+      <div class="fichaje-hora"   id="fichajeHora"></div>
+      <div class="fichaje-fecha"  id="fichajeDate"></div>
+      <div class="fichaje-detail" id="fichajeDetail"></div>
+    </div>
+    <button class="btn-rescan" id="btnRescan">Escanear de nuevo</button>
   </div>
-  <button class="btn-rescan" id="btnRescan">Escanear de nuevo</button>
+
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
-// ── Auth guard ────────────────────────────────────────────────────────────
 const userRaw = localStorage.getItem('user');
 if (!userRaw) location.href = 'index.html';
 const user = JSON.parse(userRaw);
+if (user.rol === 'admin') location.href = 'admin.html';
 document.getElementById('userLabel').textContent = user.nombre || user.email;
 
-// ── Firebase ──────────────────────────────────────────────────────────────
 if (!firebase.apps.length) {
   firebase.initializeApp({
     apiKey: "AIzaSyDKM2Tp1sosbdAeB6qK8P73cShQ0WP76S4",
@@ -122,34 +163,202 @@ if (!firebase.apps.length) {
 }
 const db = firebase.firestore();
 
-document.getElementById('btnIniciarScan').addEventListener('click', initScanner);
-
-document.getElementById('btnLogout').addEventListener('click', () => {
+document.getElementById('btnLogout').addEventListener('click', function() {
   localStorage.removeItem('user'); location.href = 'index.html';
 });
 
-const MAX_DISTANCIA_METROS = 200;
-const HORAS_JORNADA_NORMAL = 8;
+const MAX_DISTANCIA_METROS   = 200;
+const HORAS_JORNADA_NORMAL   = 8;
+const HORAS_ANUALES_CONVENIO = 1792;
+
+function diasLaborablesHastaHoy(anio) {
+  const hoy    = new Date();
+  const inicio = new Date(anio, 0, 1);
+  let dias = 0;
+  const c = new Date(inicio);
+  const limite = new Date(Math.min(hoy.getTime(), new Date(anio, 11, 31).getTime()));
+  while (c <= limite) {
+    const dow = c.getDay();
+    if (dow !== 0 && dow !== 6) dias++;
+    c.setDate(c.getDate() + 1);
+  }
+  return dias;
+}
+
+function diasLaborablesAnio(anio) {
+  const inicio = new Date(anio, 0, 1);
+  const fin    = new Date(anio, 11, 31);
+  let dias = 0;
+  const c = new Date(inicio);
+  while (c <= fin) {
+    const dow = c.getDay();
+    if (dow !== 0 && dow !== 6) dias++;
+    c.setDate(c.getDate() + 1);
+  }
+  return dias;
+}
+
+function diasLaborablesRestantes(anio) {
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const fin = new Date(anio, 11, 31);
+  let dias = 0;
+  const c = new Date(hoy); c.setDate(c.getDate() + 1);
+  while (c <= fin) {
+    const dow = c.getDay();
+    if (dow !== 0 && dow !== 6) dias++;
+    c.setDate(c.getDate() + 1);
+  }
+  return dias;
+}
+
+function diasLaborablesHastaHoyDelMes(anio, mes) {
+  const hoy    = new Date(); hoy.setHours(0, 0, 0, 0);
+  const inicio = new Date(anio, mes, 1);
+  const limite = new Date(Math.min(hoy.getTime(), new Date(anio, mes + 1, 0).getTime()));
+  let dias = 0;
+  const c = new Date(inicio);
+  while (c <= limite) {
+    const dow = c.getDay();
+    if (dow !== 0 && dow !== 6) dias++;
+    c.setDate(c.getDate() + 1);
+  }
+  return dias;
+}
+
+function diasLaborablesMes(anio, mes) {
+  const inicio = new Date(anio, mes, 1);
+  const fin    = new Date(anio, mes + 1, 0);
+  let dias = 0;
+  const c = new Date(inicio);
+  while (c <= fin) {
+    const dow = c.getDay();
+    if (dow !== 0 && dow !== 6) dias++;
+    c.setDate(c.getDate() + 1);
+  }
+  return dias;
+}
+
+function diasLaborablesRestantesMes(anio, mes) {
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const fin = new Date(anio, mes + 1, 0);
+  let dias = 0;
+  const c = new Date(hoy); c.setDate(c.getDate() + 1);
+  while (c <= fin) {
+    const dow = c.getDay();
+    if (dow !== 0 && dow !== 6) dias++;
+    c.setDate(c.getDate() + 1);
+  }
+  return dias;
+}
+
+async function cargarPanelHoras() {
+  try {
+    const hoy    = new Date();
+    const anio   = hoy.getFullYear();
+    const mes    = hoy.getMonth();
+    const inicio = new Date(anio, mes, 1);
+    const fin    = new Date(anio, mes + 1, 1);
+    const nombreMes = inicio.toLocaleDateString('es-ES', { month: 'long', year: 'numeric' });
+
+    document.getElementById('hpAnio').textContent = nombreMes;
+
+    const horasPorDia   = HORAS_ANUALES_CONVENIO / diasLaborablesAnio(anio);
+    const horasMes      = diasLaborablesMes(anio, mes) * horasPorDia;
+    document.getElementById('hpAnualTotal').textContent = horasMes.toFixed(0);
+
+    const snap = await db.collection('fichajes').where('userId', '==', user.id).get();
+
+    let horasTrabajadas = 0;
+    snap.docs.forEach(function(d) {
+      const f  = d.data();
+      const ts = f.timestamp;
+      if (!ts || !ts.toDate) return;
+      const fecha = ts.toDate();
+      if (fecha < inicio || fecha >= fin) return;
+      if (f.tipo !== 'salida') return;
+      horasTrabajadas += (f.horasNormales || 0) + (f.horasExtra || 0);
+    });
+
+    const diasLab        = diasLaborablesHastaHoyDelMes(anio, mes);
+    const diasRestantes  = diasLaborablesRestantesMes(anio, mes);
+    const horasTeoricas  = diasLab * horasPorDia;
+    const balance        = horasTrabajadas - horasTeoricas;
+    const pctReal        = (horasTrabajadas / horasMes) * 100;
+    const pctBar         = Math.min(pctReal, 100);
+    const faltanMes      = horasMes - horasTrabajadas;
+    const ritmoNecesario = diasRestantes > 0 ? (faltanMes / diasRestantes) : 0;
+
+    document.getElementById('hpTrabajadas').textContent = horasTrabajadas.toFixed(1) + 'h';
+    document.getElementById('hpTeoricas').textContent   = horasTeoricas.toFixed(1) + 'h';
+
+    const balEl = document.getElementById('hpBalance');
+    balEl.textContent = (balance >= 0 ? '+' : '') + balance.toFixed(1) + 'h';
+    balEl.className   = 'hstat-value ' + (balance >= 0 ? 'c-ok' : (balance > -10 ? 'c-warn' : 'c-err'));
+
+    document.getElementById('hpPct').textContent = pctReal.toFixed(1) + '%';
+    const barEl = document.getElementById('hpBar');
+    barEl.style.width = pctBar + '%';
+    if (pctReal >= 100)     barEl.className = 'progress-fill p-over';
+    else if (balance < -10) barEl.className = 'progress-fill p-warn';
+    else                    barEl.className = 'progress-fill';
+
+    const msgEl = document.getElementById('hpMsg');
+    let cls, titulo, detalle;
+
+    if (horasTrabajadas === 0) {
+      cls     = 's-info';
+      titulo  = 'Sin fichajes registrados aún en ' + nombreMes + '.';
+      detalle = 'A estas alturas del mes deberías llevar aproximadamente ' + horasTeoricas.toFixed(0) + 'h según el convenio (' + horasMes.toFixed(0) + 'h este mes).';
+    } else if (pctReal >= 100) {
+      cls     = 's-ok';
+      titulo  = '¡Has completado las ' + horasMes.toFixed(0) + 'h de este mes!';
+      detalle = 'Llevas ' + horasTrabajadas.toFixed(1) + 'h trabajadas este mes. Tienes ' + (horasTrabajadas - horasMes).toFixed(1) + 'h extra acumuladas.';
+    } else if (balance >= 20) {
+      cls     = 's-ok';
+      titulo  = 'Llevas ' + balance.toFixed(1) + 'h de ventaja sobre el objetivo mensual.';
+      detalle = 'Vas por delante del ritmo mensual. Te restan ' + faltanMes.toFixed(1) + 'h para completar el mes (' + pctReal.toFixed(1) + '% completado, ' + diasRestantes + ' días laborables restantes).';
+    } else if (balance >= 0) {
+      cls     = 's-ok';
+      titulo  = 'Al día · ' + balance.toFixed(1) + 'h por encima del objetivo.';
+      detalle = 'Llevas ' + horasTrabajadas.toFixed(1) + 'h de ' + horasMes.toFixed(0) + 'h (' + pctReal.toFixed(1) + '%). Te restan ' + faltanMes.toFixed(1) + 'h para terminar el mes (' + diasRestantes + ' días laborables restantes).';
+    } else if (balance > -10) {
+      cls     = 's-warn';
+      titulo  = 'Pequeño retraso · te faltan ' + Math.abs(balance).toFixed(1) + 'h para estar al día.';
+      detalle = 'Deberías tener ' + horasTeoricas.toFixed(1) + 'h y llevas ' + horasTrabajadas.toFixed(1) + 'h. Para completar el mes necesitas trabajar aprox. ' + ritmoNecesario.toFixed(1) + 'h/día durante los ' + diasRestantes + ' días laborables restantes.';
+    } else {
+      cls     = 's-err';
+      titulo  = 'Déficit de ' + Math.abs(balance).toFixed(1) + 'h respecto al objetivo mensual.';
+      detalle = 'Deberías llevar ' + horasTeoricas.toFixed(1) + 'h y tienes ' + horasTrabajadas.toFixed(1) + 'h (' + pctReal.toFixed(1) + '%). Necesitas trabajar aprox. ' + ritmoNecesario.toFixed(1) + 'h/día durante los ' + diasRestantes + ' días laborables restantes para completar las ' + horasMes.toFixed(0) + 'h de este mes.';
+    }
+
+    msgEl.className = 'balance-msg ' + cls;
+    msgEl.innerHTML = '<div class="bm-title">' + titulo + '</div>' + detalle;
+
+  } catch(e) {
+    console.error('Panel horas:', e);
+    document.getElementById('hpMsg').innerHTML = '<div class="bm-title">No se pudieron cargar las horas.</div>';
+  }
+}
 
 function haversineMetros(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
+  const R  = 6371000;
   const φ1 = lat1 * Math.PI / 180;
   const φ2 = lat2 * Math.PI / 180;
   const Δφ = (lat2 - lat1) * Math.PI / 180;
   const Δλ = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
+  const a  = Math.sin(Δφ/2)**2 + Math.cos(φ1)*Math.cos(φ2)*Math.sin(Δλ/2)**2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
 function getLocation() {
-  return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) { reject(new Error('Geolocalización no disponible en este navegador')); return; }
+  return new Promise(function(resolve, reject) {
+    if (!navigator.geolocation) { reject(new Error('Geolocalización no disponible')); return; }
     navigator.geolocation.getCurrentPosition(
-      pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      err => {
-        if (err.code === err.PERMISSION_DENIED) reject(new Error('Permiso de ubicación denegado'));
+      function(pos) { resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }); },
+      function(err) {
+        if      (err.code === err.PERMISSION_DENIED)    reject(new Error('Permiso de ubicación denegado'));
         else if (err.code === err.POSITION_UNAVAILABLE) reject(new Error('Ubicación no disponible'));
-        else if (err.code === err.TIMEOUT) reject(new Error('Tiempo de espera de ubicación agotado'));
+        else if (err.code === err.TIMEOUT)              reject(new Error('Tiempo de espera agotado'));
         else reject(new Error('Error de geolocalización: ' + err.message));
       },
       { timeout: 10000, maximumAge: 0 }
@@ -158,28 +367,22 @@ function getLocation() {
 }
 
 function showError(msg) {
-  const statusBox = document.getElementById('statusBox');
-  statusBox.className = 'status-box err';
-  document.getElementById('statusMsg').textContent = msg;
-  document.getElementById('fichajeHora').textContent = '';
-  document.getElementById('fichajeDate').textContent = '';
+  const sb = document.getElementById('statusBox');
+  sb.className = 'status-box err';
+  document.getElementById('statusMsg').textContent     = msg;
+  document.getElementById('fichajeHora').textContent   = '';
+  document.getElementById('fichajeDate').textContent   = '';
   document.getElementById('fichajeDetail').textContent = '';
   document.getElementById('btnRescan').classList.add('show');
 }
-
 function setReaderMsg(html) {
-  document.getElementById('reader').innerHTML = `<div class="auto-msg">${html}</div>`;
+  document.getElementById('reader').innerHTML = '<div class="auto-msg">' + html + '</div>';
 }
 
-// ── Fichaje automático (con deptId desde URL/sessionStorage) ──────────────
-async function procesarFichajeAutomatico(deptId) {
-  document.getElementById('card-title-text').textContent = 'Fichaje Automático';
-  document.getElementById('card-sub-text').textContent = 'Validando ubicación y registrando fichaje...';
-  setReaderMsg('<span class="spinner"></span>Obteniendo tu ubicación...');
-
-  const ahora = new Date();
-  const horaStr = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const fechaStr = ahora.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+async function registrarFichaje(deptId, modoAuto) {
+  const ahora    = new Date();
+  const horaStr  = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const fechaStr = ahora.toLocaleDateString('es-ES',  { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
   let empLat = null, empLng = null, locError = null;
   try {
@@ -187,22 +390,21 @@ async function procesarFichajeAutomatico(deptId) {
     empLat = pos.lat; empLng = pos.lng;
   } catch(geoErr) {
     locError = geoErr.message;
-    setReaderMsg('');
-    showError('Debes permitir el acceso a tu ubicación para fichar. ' + geoErr.message);
-    return;
+    if (modoAuto) { setReaderMsg(''); showError('Debes permitir la ubicación para fichar. ' + geoErr.message); return false; }
   }
 
-  setReaderMsg('<span class="spinner"></span>Verificando departamento...');
   try {
     const deptDoc = await db.collection('departamentos').doc(deptId).get();
-    if (!deptDoc.exists) { setReaderMsg(''); showError('QR no válido o departamento eliminado'); return; }
+    if (!deptDoc.exists) { setReaderMsg(''); showError('QR no válido o departamento eliminado'); return false; }
     const dept = deptDoc.data();
 
     let distanciaDept = null;
-    if (dept.lat != null && dept.lng != null) {
+    if (empLat != null && dept.lat != null && dept.lng != null) {
       distanciaDept = Math.round(haversineMetros(empLat, empLng, dept.lat, dept.lng));
       if (distanciaDept > MAX_DISTANCIA_METROS) {
-        setReaderMsg(''); showError(`No estás cerca del departamento (distancia: ${distanciaDept}m, máximo ${MAX_DISTANCIA_METROS}m)`); return;
+        setReaderMsg('');
+        showError('No estás cerca del departamento (' + distanciaDept + 'm, máximo ' + MAX_DISTANCIA_METROS + 'm)');
+        return false;
       }
     }
 
@@ -211,229 +413,106 @@ async function procesarFichajeAutomatico(deptId) {
     const ultimoSnap = await db.collection('fichajes')
       .where('userId', '==', user.id)
       .orderBy('timestamp', 'desc')
-      .limit(1)
-      .get();
+      .limit(1).get();
 
     let tipo = 'entrada';
     let duracionMin = null, horasNormales = null, horasExtra = null;
+
     if (!ultimoSnap.empty && ultimoSnap.docs[0].data().tipo === 'entrada') {
       tipo = 'salida';
-      const ultimoTs = ultimoSnap.docs[0].data().timestamp;
-      if (ultimoTs && ultimoTs.toDate) {
-        duracionMin = Math.round((ahora - ultimoTs.toDate()) / 60000);
-        const durHoras = duracionMin / 60;
-        horasNormales = Math.min(durHoras, HORAS_JORNADA_NORMAL);
-        horasExtra = Math.max(0, durHoras - HORAS_JORNADA_NORMAL);
+      const uts = ultimoSnap.docs[0].data().timestamp;
+      if (uts && uts.toDate) {
+        duracionMin   = Math.round((ahora - uts.toDate()) / 60000);
+        const dh      = duracionMin / 60;
+        horasNormales = Math.min(dh, HORAS_JORNADA_NORMAL);
+        horasExtra    = Math.max(0, dh - HORAS_JORNADA_NORMAL);
       }
     }
 
     await db.collection('fichajes').add({
-      userId: user.id, email: user.email, nombre: user.nombre || '',
-      empresa: user.empresa || '', departamento: dept.nombre, departamentoId: deptId,
-      tipo, timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      timestampCliente: ahora.toISOString(), lat: empLat, lng: empLng,
-      locError, distanciaDept, horasNormales, horasExtra, duracionMin
+      userId: user.id, email: user.email,
+      nombre: user.nombre || '', empresa: user.empresa || '',
+      departamento: dept.nombre, departamentoId: deptId, tipo,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      timestampCliente: ahora.toISOString(),
+      lat: empLat, lng: empLng, locError,
+      distanciaDept, horasNormales, horasExtra, duracionMin
     });
 
-    sessionStorage.removeItem('pendingDept');
-    history.replaceState(null, '', 'dashboard.html');
+    if (modoAuto) {
+      sessionStorage.removeItem('pendingDept');
+      history.replaceState(null, '', 'dashboard.html');
+    }
 
     setReaderMsg('');
-    const statusBox = document.getElementById('statusBox');
+    const sb         = document.getElementById('statusBox');
     const isNoCoords = dept.lat == null || dept.lng == null;
-    statusBox.className = isNoCoords ? 'status-box warn' : 'status-box ok';
-    let msgParts = [`Fichaje de ${tipo} registrado · ${dept.nombre}`];
-    if (isNoCoords) msgParts = [`Fichaje de ${tipo} registrado sin validación de proximidad · ${dept.nombre}`];
-    document.getElementById('statusMsg').textContent = msgParts[0];
+    sb.className = isNoCoords ? 'status-box warn' : 'status-box ok';
+
+    document.getElementById('statusMsg').textContent   = (isNoCoords ? 'Fichaje de ' + tipo + ' (sin validación de proximidad) · ' : 'Fichaje de ' + tipo + ' registrado · ') + dept.nombre;
     document.getElementById('fichajeHora').textContent = horaStr;
     document.getElementById('fichajeDate').textContent = fechaStr;
+
     let details = [];
-    if (distanciaDept != null) details.push(`a ${distanciaDept}m del departamento`);
+    if (distanciaDept != null) details.push('a ' + distanciaDept + 'm del departamento');
     if (tipo === 'salida' && duracionMin != null) {
-      const hh = Math.floor(duracionMin / 60), mm = duracionMin % 60;
-      details.push(`Jornada: ${hh}h ${mm}m`);
-      if (horasNormales != null) details.push(`Normales: ${horasNormales.toFixed(2)}h`);
-      if (horasExtra != null && horasExtra > 0) details.push(`Extra: ${horasExtra.toFixed(2)}h`);
+      details.push('Jornada: ' + Math.floor(duracionMin/60) + 'h ' + (duracionMin%60) + 'm');
+      if (horasNormales != null) details.push('Normales: ' + horasNormales.toFixed(2) + 'h');
+      if (horasExtra != null && horasExtra > 0) details.push('Extra: ' + horasExtra.toFixed(2) + 'h');
     }
     document.getElementById('fichajeDetail').innerHTML = details.join('<br>');
+
+    if (tipo === 'salida') cargarPanelHoras();
+    return true;
+
   } catch(err) {
-    console.error(err);
-    setReaderMsg(''); showError('Error al guardar el fichaje: ' + err.message);
+    console.error(err); setReaderMsg(''); showError('Error al guardar: ' + err.message); return false;
   }
+}
+
+async function procesarFichajeAutomatico(deptId) {
+  document.getElementById('card-title-text').textContent = 'Fichaje Automático';
+  document.getElementById('card-sub-text').textContent   = 'Validando ubicación y registrando fichaje...';
+  setReaderMsg('<span class="spinner"></span>Obteniendo tu ubicación...');
+  await registrarFichaje(deptId, true);
   document.getElementById('btnRescan').classList.add('show');
 }
 
-// ── Escáner manual ────────────────────────────────────────────────────────
 let scanner = null;
-
-function showScanButton() {
-  document.getElementById('card-title-text').textContent = 'Escáner de Fichaje';
-  document.getElementById('card-sub-text').textContent = 'Pulsa el botón para escanear el código QR';
-  document.getElementById('scanPrompt').style.display = 'flex';
-  document.getElementById('reader').style.display = 'none';
-}
-
-async function initScanner() {
-  document.getElementById('scanPrompt').style.display = 'none';
-  document.getElementById('reader').style.display = 'block';
-  document.getElementById('reader').innerHTML = '<div class="auto-msg"><span class="spinner"></span>Abriendo cámara...</div>';
-  document.getElementById('card-sub-text').textContent = 'Apunta la cámara al código QR del departamento';
-  document.getElementById('statusBox').className = 'status-box';
-  document.getElementById('statusMsg').textContent = '';
-  document.getElementById('fichajeHora').textContent = '';
-  document.getElementById('fichajeDate').textContent = '';
+function initScanner() {
+  document.getElementById('statusBox').className       = 'status-box';
+  document.getElementById('statusMsg').textContent     = '';
+  document.getElementById('fichajeHora').textContent   = '';
+  document.getElementById('fichajeDate').textContent   = '';
   document.getElementById('fichajeDetail').textContent = '';
   document.getElementById('btnRescan').classList.remove('show');
-
-  if (scanner) { try { await scanner.stop(); } catch(_){} scanner = null; }
-
-  // Primero pedimos permiso de cámara explícitamente
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-    stream.getTracks().forEach(t => t.stop()); // solo pedimos permiso, luego lo maneja Html5Qrcode
-  } catch(permErr) {
-    document.getElementById('reader').innerHTML = '';
-    document.getElementById('reader').style.display = 'none';
-    document.getElementById('scanPrompt').style.display = 'flex';
-    showError('Permiso de cámara denegado: ' + permErr.message);
-    return;
-  }
-
-  document.getElementById('reader').innerHTML = '';
-  scanner = new Html5Qrcode('reader');
-  try {
-    await scanner.start(
-      { facingMode: 'environment' },
-      { fps: 10, qrbox: { width: 240, height: 240 } },
-      onScanSuccess,
-      () => {}
-    );
-  } catch(err) {
-    try {
-      await scanner.start(
-        { facingMode: 'user' },
-        { fps: 10, qrbox: { width: 240, height: 240 } },
-        onScanSuccess,
-        () => {}
-      );
-    } catch(err2) {
-      document.getElementById('reader').style.display = 'none';
-      document.getElementById('scanPrompt').style.display = 'flex';
-      showError('Error al iniciar cámara: ' + err2.message + ' | ' + err2.name);
-    }
-  }
+  if (scanner) { try { scanner.clear(); } catch(_){} }
+  scanner = new Html5QrcodeScanner('reader', { fps: 10, qrbox: { width: 240, height: 240 }, rememberLastUsedCamera: true, showTorchButtonIfSupported: true }, false);
+  scanner.render(onScanSuccess, function(){});
 }
 
 async function onScanSuccess(scannedText) {
-  try { await scanner.stop(); } catch(_) {}
-
+  try { await scanner.clear(); } catch(_) {}
   let deptId = scannedText;
-  try {
-    const u = new URL(scannedText);
-    const d = u.searchParams.get('dept');
-    if (d) deptId = d;
-  } catch(_) {}
-
-  await procesarFichajeConId(deptId);
+  try { const u = new URL(scannedText); const d = u.searchParams.get('dept'); if (d) deptId = d; } catch(_) {}
+  setReaderMsg('<span class="spinner"></span>Verificando...');
+  await registrarFichaje(deptId, false);
   document.getElementById('btnRescan').classList.add('show');
 }
 
-async function procesarFichajeConId(deptId) {
-  const ahora = new Date();
-  const horaStr = ahora.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-  const fechaStr = ahora.toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-
-  let empLat = null, empLng = null, locError = null;
-  try {
-    const pos = await getLocation();
-    empLat = pos.lat; empLng = pos.lng;
-  } catch(geoErr) {
-    locError = geoErr.message;
-  }
-
-  try {
-    const deptDoc = await db.collection('departamentos').doc(deptId).get();
-    if (!deptDoc.exists) { showError('QR no válido o departamento eliminado'); return; }
-    const dept = deptDoc.data();
-
-    let distanciaDept = null;
-    if (empLat != null && dept.lat != null && dept.lng != null) {
-      distanciaDept = Math.round(haversineMetros(empLat, empLng, dept.lat, dept.lng));
-      if (distanciaDept > MAX_DISTANCIA_METROS) {
-        showError(`No estás cerca del departamento (distancia: ${distanciaDept}m, máximo ${MAX_DISTANCIA_METROS}m)`); return;
-      }
-    }
-
-    const ultimoSnap = await db.collection('fichajes')
-      .where('userId', '==', user.id)
-      .orderBy('timestamp', 'desc')
-      .limit(1)
-      .get();
-
-    let tipo = 'entrada';
-    let duracionMin = null, horasNormales = null, horasExtra = null;
-    if (!ultimoSnap.empty && ultimoSnap.docs[0].data().tipo === 'entrada') {
-      tipo = 'salida';
-      const ultimoTs = ultimoSnap.docs[0].data().timestamp;
-      if (ultimoTs && ultimoTs.toDate) {
-        duracionMin = Math.round((ahora - ultimoTs.toDate()) / 60000);
-        const durHoras = duracionMin / 60;
-        horasNormales = Math.min(durHoras, HORAS_JORNADA_NORMAL);
-        horasExtra = Math.max(0, durHoras - HORAS_JORNADA_NORMAL);
-      }
-    }
-
-    await db.collection('fichajes').add({
-      userId: user.id, email: user.email, nombre: user.nombre || '',
-      empresa: user.empresa || '', departamento: dept.nombre, departamentoId: deptId,
-      tipo, timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-      timestampCliente: ahora.toISOString(), lat: empLat, lng: empLng,
-      locError, distanciaDept, horasNormales, horasExtra, duracionMin
-    });
-
-    const statusBox = document.getElementById('statusBox');
-    statusBox.className = 'status-box ok';
-    document.getElementById('statusMsg').textContent = `Fichaje de ${tipo} registrado · ${dept.nombre}`;
-    document.getElementById('fichajeHora').textContent = horaStr;
-    document.getElementById('fichajeDate').textContent = fechaStr;
-    let details = [];
-    if (distanciaDept != null) details.push(`a ${distanciaDept}m del departamento`);
-    if (tipo === 'salida' && duracionMin != null) {
-      const hh = Math.floor(duracionMin / 60), mm = duracionMin % 60;
-      details.push(`Jornada: ${hh}h ${mm}m`);
-      if (horasNormales != null) details.push(`Normales: ${horasNormales.toFixed(2)}h`);
-      if (horasExtra != null && horasExtra > 0) details.push(`Extra: ${horasExtra.toFixed(2)}h`);
-    }
-    document.getElementById('fichajeDetail').innerHTML = details.join('<br>');
-  } catch(err) {
-    console.error(err); showError('Error al guardar el fichaje: ' + err.message);
-  }
-}
-
-// ── Botón "Escanear de nuevo" ─────────────────────────────────────────────
-document.getElementById('btnRescan').addEventListener('click', async () => {
+document.getElementById('btnRescan').addEventListener('click', function() {
   const urlParams = new URLSearchParams(window.location.search);
-  const deptId = urlParams.get('dept') || sessionStorage.getItem('pendingDept');
-  if (deptId) {
-    document.getElementById('btnRescan').classList.remove('show');
-    procesarFichajeAutomatico(deptId);
-  } else {
-    document.getElementById('statusBox').className = 'status-box';
-    document.getElementById('btnRescan').classList.remove('show');
-    if (scanner) { try { await scanner.stop(); } catch(_){} scanner = null; }
-    showScanButton();
-  }
+  const deptId    = urlParams.get('dept') || sessionStorage.getItem('pendingDept');
+  if (deptId) { document.getElementById('btnRescan').classList.remove('show'); procesarFichajeAutomatico(deptId); }
+  else initScanner();
 });
 
-// ── Inicio ────────────────────────────────────────────────────────────────
 (function init() {
+  cargarPanelHoras();
   const urlParams = new URLSearchParams(window.location.search);
-  const deptId = urlParams.get('dept') || sessionStorage.getItem('pendingDept');
-  if (deptId) {
-    procesarFichajeAutomatico(deptId);
-  } else {
-    showScanButton();
-  }
+  const deptId    = urlParams.get('dept') || sessionStorage.getItem('pendingDept');
+  if (deptId) procesarFichajeAutomatico(deptId);
+  else        initScanner();
 })();
 </script>
 </body>
