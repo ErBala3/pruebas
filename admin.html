@@ -1177,6 +1177,26 @@ async function loadUsuarios() {
 
 // ── Modal usuario ─────────────────────────────────────────────────────────
 let editingUserId = null;
+var allDeptDocs = [];
+
+function filterDepts(empresa, selectedDept) {
+  const sel = document.getElementById('fDept');
+  sel.innerHTML = '<option value="">— Sin departamento —</option>';
+  allDeptDocs.forEach(function(d) {
+    const data = d.data();
+    // Only show departments that belong to the selected company (or all if no company selected)
+    if (empresa && data.empresa !== empresa) return;
+    const opt = document.createElement('option');
+    opt.value = data.nombre; opt.textContent = data.nombre;
+    if (selectedDept === data.nombre) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+document.getElementById('fEmpresa').addEventListener('change', function() {
+  filterDepts(this.value, '');
+});
+
 async function openUserModal(title, data) {
   data = data || {};
   document.getElementById('modalUserTitle').textContent = title;
@@ -1187,6 +1207,7 @@ async function openUserModal(title, data) {
   document.getElementById('fEmail').disabled = !!editingUserId;
   document.getElementById('modalUserErr').classList.remove('show');
   const dSnap = await db.collection('departamentos').get();
+  allDeptDocs = dSnap.docs;
   // Populate empresa dropdown with unique companies from departments
   const empresaSet = new Set();
   dSnap.docs.forEach(function(d) { if (d.data().empresa) empresaSet.add(d.data().empresa); });
@@ -1205,15 +1226,8 @@ async function openUserModal(title, data) {
     opt.selected = true;
     empSel.appendChild(opt);
   }
-  // Populate department dropdown
-  const sel   = document.getElementById('fDept');
-  sel.innerHTML = '<option value="">— Sin departamento —</option>';
-  dSnap.docs.forEach(function(d) {
-    const opt = document.createElement('option');
-    opt.value = d.data().nombre; opt.textContent = d.data().nombre;
-    if (data.departamento === d.data().nombre) opt.selected = true;
-    sel.appendChild(opt);
-  });
+  // Populate department dropdown filtered by the selected company
+  filterDepts(data.empresa || '', data.departamento || '');
   document.getElementById('ovUsuario').classList.add('show');
 }
 document.getElementById('btnNuevoUsuario').addEventListener('click', function() { editingUserId = null; openUserModal('Nuevo usuario'); });
@@ -1230,6 +1244,15 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
   errEl.classList.remove('show');
   if (!nombre || !email) { errEl.textContent = 'Nombre y email son obligatorios'; errEl.classList.add('show'); return; }
   if (!editingUserId && !password) { errEl.textContent = 'La contraseña es obligatoria'; errEl.classList.add('show'); return; }
+  // Validate that the selected department belongs to the selected company
+  if (empresa && dept) {
+    const deptDoc = allDeptDocs.find(function(d) { return d.data().nombre === dept; });
+    if (deptDoc && deptDoc.data().empresa !== empresa) {
+      errEl.textContent = 'El departamento seleccionado no pertenece a la empresa indicada';
+      errEl.classList.add('show');
+      return;
+    }
+  }
   btn.disabled = true; btn.textContent = 'Guardando...';
   try {
     const datos = { nombre, email, rol, empresa, departamento: dept };
