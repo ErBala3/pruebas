@@ -132,10 +132,12 @@ async function doLogin() {
     }));
 
     const stored = sessionStorage.getItem('pendingDept');
-    if (stored && u.rol !== 'admin') {
+    if (stored && u.rol !== 'admin' && u.rol !== 'jefe') {
       window.location.href = `dashboard.html?dept=${stored}`;
     } else if (u.rol === 'admin') {
       window.location.href = 'admin.html';
+    } else if (u.rol === 'jefe') {
+      window.location.href = 'jefe.html';
     } else {
       window.location.href = 'dashboard.html';
     }
