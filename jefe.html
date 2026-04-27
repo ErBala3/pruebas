@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>QRAccess – Admin</title>
+<title>QRAccess – Panel Jefe</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!-- QR generator -->
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
@@ -14,6 +14,7 @@
 --border2: #333333; --accent: #e2e2e2; --text: #f0f0f0;
 --text-secondary: #a0a0a0; --muted: #666666;
 --danger: #c0392b; --success: #2d7a4f; --warn: #8a6800;
+--jefe: #fbbf24;
 }
 body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
 /* ── Topbar ── */
@@ -28,6 +29,8 @@ justify-content: space-between; padding: 0 28px; z-index: 100;
 .logo small { font-size: 12px; color: var(--text-secondary); margin-left: 10px; font-weight: 400; }
 .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--text-secondary); }
 .badge { padding: 3px 10px; background: rgba(226,226,226,.08); border: 1px solid #333; border-radius: 20px; color: #a0a0a0; font-size: 11px; font-weight: 500; }
+.badge-jefe { background: rgba(251,191,36,.12); border-color: rgba(251,191,36,.3); color: var(--jefe); }
+.badge-empresa { background: rgba(251,191,36,.06); border-color: rgba(251,191,36,.2); color: #d4a017; max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .btn-logout { padding: 6px 14px; background: transparent; color: var(--danger); border: 1px solid rgba(192,57,43,.4); border-radius: 7px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: background .2s; }
 .btn-logout:hover { background: rgba(192,57,43,.08); border-color: var(--danger); }
 /* ── Layout ── */
@@ -37,7 +40,7 @@ justify-content: space-between; padding: 0 28px; z-index: 100;
 .nav-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); padding: 14px 20px 6px; font-weight: 500; }
 .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 20px; font-size: 13px; font-weight: 500; color: var(--text-secondary); cursor: pointer; transition: background .15s, color .15s; border-left: 3px solid transparent; }
 .nav-item:hover { background: rgba(255,255,255,.04); color: var(--text); }
-.nav-item.active { border-left: 2px solid #e2e2e2; color: #f0f0f0; background: rgba(255,255,255,.04); }
+.nav-item.active { border-left: 2px solid var(--jefe); color: #f0f0f0; background: rgba(255,255,255,.04); }
 .nav-icon { font-size: 15px; width: 20px; text-align: center; }
 /* ── Main ── */
 .main { margin-left: 220px; flex: 1; padding: 32px; }
@@ -45,6 +48,14 @@ justify-content: space-between; padding: 0 28px; z-index: 100;
 .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; flex-wrap: wrap; gap: 12px; }
 .page-title { font-size: 22px; font-weight: 700; color: var(--text); }
 .page-sub { font-size: 13px; color: var(--text-secondary); margin-top: 3px; }
+/* ── Empresa banner ── */
+.empresa-banner {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-radius: 8px;
+  background: rgba(251,191,36,.05); border: 1px solid rgba(251,191,36,.15);
+  font-size: 12px; color: #d4a017; margin-bottom: 20px;
+}
+.empresa-banner strong { color: var(--jefe); }
 /* ── Stat cards ── */
 .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; margin-bottom: 26px; }
 .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; animation: fadeUp .4s ease both; }
@@ -76,8 +87,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .btn-edit:hover { background: rgba(226,226,226,.06); }
 .btn-del { background: transparent; border-color: rgba(192,57,43,.4); color: var(--danger); }
 .btn-del:hover { background: rgba(192,57,43,.08); }
-.btn-qr { background: transparent; border-color: rgba(226,226,226,.15); color: #a0a0a0; margin-right: 5px; }
-.btn-qr:hover { background: rgba(226,226,226,.04); }
 /* ── Primary btn ── */
 .btn-primary { padding: 9px 18px; background: #e2e2e2; color: #0d0d0d; border: none; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s, transform .1s; white-space: nowrap; }
 .btn-primary:hover { background: #cacaca; } .btn-primary:active { transform: scale(.97); }
@@ -91,7 +100,6 @@ animation: fadeUp .4s ease both; transition: border-color .2s;
 .qr-card:hover { border-color: #333333; }
 .qr-dept { font-size: 15px; font-weight: 600; color: var(--text); text-align: center; }
 .qr-empresa { font-size: 11px; color: var(--text-secondary); }
-.qr-loc { font-size: 11px; color: var(--text-secondary); }
 .qr-box { background: white; padding: 12px; border-radius: 8px; }
 .qr-box canvas, .qr-box img { display: block; }
 .qr-actions { display: flex; gap: 8px; width: 100%; }
@@ -128,6 +136,7 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
 .field label { display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
 .field input, .field select { width: 100%; padding: 11px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; outline: none; transition: border-color .2s; }
 .field input:focus, .field select:focus { border-color: #555; box-shadow: 0 0 0 2px rgba(226,226,226,.08); }
+.field input:disabled, .field select:disabled { opacity: .5; cursor: not-allowed; }
 .field select option { background: var(--surface); }
 .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 .modal-actions .btn-primary { flex: 1; }
@@ -140,7 +149,6 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
 .qr-modal-info { text-align: center; font-size: 12px; color: var(--text-secondary); margin-top: 10px; }
 /* ── Empty / loading ── */
 .empty { padding: 44px; text-align: center; color: var(--text-secondary); font-size: 13px; }
-.empty-icon { font-size: 30px; margin-bottom: 10px; }
 .loading { padding: 36px; text-align: center; color: var(--text-secondary); font-size: 13px; }
 .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; margin-right: 8px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -179,10 +187,11 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
 </head>
 <body>
 <div class="topbar">
-  <div class="logo">QR<span>Access</span> <small>Admin</small></div>
+  <div class="logo">QR<span>Access</span> <small>Jefe</small></div>
   <div class="topbar-right">
-    <span id="adminName">—</span>
-    <span class="badge">Admin</span>
+    <span id="jefeName">—</span>
+    <span class="badge badge-jefe">Jefe</span>
+    <span class="badge badge-empresa" id="empresaBadge">—</span>
     <button class="btn-logout" id="btnLogout">Salir</button>
   </div>
 </div>
@@ -190,7 +199,7 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
   <nav class="sidebar">
     <div class="nav-label">Panel</div>
     <div class="nav-item active" data-sec="resumen">Resumen</div>
-    <div class="nav-label">Gestión</div>
+    <div class="nav-label">Mi Empresa</div>
     <div class="nav-item" data-sec="usuarios">Usuarios</div>
     <div class="nav-item" data-sec="departamentos">Departamentos</div>
     <div class="nav-item" data-sec="fichajes">Fichajes</div>
@@ -199,8 +208,12 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
     <!-- RESUMEN -->
     <div class="section active" id="sec-resumen">
       <div class="page-header">
-        <div><div class="page-title">Resumen</div><div class="page-sub">Vista general en tiempo real</div></div>
+        <div>
+          <div class="page-title">Resumen</div>
+          <div class="page-sub" id="resumenSub">Vista general de tu empresa en tiempo real</div>
+        </div>
       </div>
+      <div class="empresa-banner">🏢 Datos filtrados por empresa: <strong id="bannerEmpresaResumen">—</strong></div>
       <div class="stats-grid">
         <div class="stat-card"><div class="stat-label">Usuarios</div><div class="stat-value c-accent" id="stUsuarios">—</div></div>
         <div class="stat-card"><div class="stat-label">Departamentos</div><div class="stat-value c-accent" id="stDepts">—</div></div>
@@ -221,24 +234,27 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
     <!-- USUARIOS -->
     <div class="section" id="sec-usuarios">
       <div class="page-header">
-        <div><div class="page-title">Usuarios</div><div class="page-sub">Gestión de cuentas</div></div>
+        <div><div class="page-title">Usuarios</div><div class="page-sub">Gestión de cuentas de tu empresa</div></div>
         <button class="btn-primary" id="btnNuevoUsuario">+ Nuevo usuario</button>
       </div>
+      <div class="empresa-banner">🏢 Mostrando solo usuarios de: <strong id="bannerEmpresaUsuarios">—</strong></div>
       <div class="tcard"><div id="tablaUsuarios"><div class="loading"><span class="spinner"></span>Cargando...</div></div></div>
     </div>
     <!-- DEPARTAMENTOS & QR -->
     <div class="section" id="sec-departamentos">
       <div class="page-header">
-        <div><div class="page-title">Departamentos & QR</div><div class="page-sub">Genera códigos QR por departamento</div></div>
+        <div><div class="page-title">Departamentos & QR</div><div class="page-sub">Genera códigos QR para tu empresa</div></div>
         <button class="btn-primary" id="btnNuevoDept">+ Nuevo departamento</button>
       </div>
+      <div class="empresa-banner">🏢 Mostrando solo departamentos de: <strong id="bannerEmpresaDepts">—</strong></div>
       <div id="qrGrid" class="qr-grid"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
     </div>
     <!-- FICHAJES -->
     <div class="section" id="sec-fichajes">
       <div class="page-header">
-        <div><div class="page-title">Fichajes</div><div class="page-sub">Registro completo con hora exacta</div></div>
+        <div><div class="page-title">Fichajes</div><div class="page-sub">Registro completo de tu empresa</div></div>
       </div>
+      <div class="empresa-banner">🏢 Mostrando solo fichajes de: <strong id="bannerEmpresaFichajes">—</strong></div>
       <div class="tcard">
         <div id="tablaFichajesContent"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
         <div class="pagination" id="paginationFichajes" style="display:none">
@@ -249,8 +265,6 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
     </div>
   </main>
 </div>
-<!-- Wrapper needed by old code -->
-<div id="tablaFichajes" style="display:none"></div>
 
 <!-- Modal usuario -->
 <div class="overlay" id="ovUsuario">
@@ -260,9 +274,9 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
     <div class="field"><label>Email</label><input type="email" id="fEmail" placeholder="juan@empresa.com"></div>
     <div class="field"><label>Contraseña</label><input type="password" id="fPassword" placeholder="mínimo 4 caracteres"></div>
     <div class="field"><label>Rol</label>
-      <select id="fRol"><option value="empleado">Empleado</option><option value="jefe">Jefe</option><option value="admin">Admin</option></select>
+      <select id="fRol"><option value="empleado">Empleado</option><option value="jefe">Jefe</option></select>
     </div>
-    <div class="field"><label>Empresa</label><input type="text" id="fEmpresa" placeholder="Mi Empresa SL"></div>
+    <div class="field"><label>Empresa</label><input type="text" id="fEmpresa" disabled></div>
     <div class="field"><label>Departamento</label>
       <select id="fDept"><option value="">— Sin departamento —</option></select>
     </div>
@@ -278,7 +292,7 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
   <div class="modal">
     <div class="modal-title">Nuevo departamento</div>
     <div class="field"><label>Nombre del departamento</label><input type="text" id="fDeptNombre" placeholder="Ej: Almacén, Oficina, Producción..."></div>
-    <div class="field"><label>Empresa</label><input type="text" id="fDeptEmpresa" placeholder="Mi Empresa SL"></div>
+    <div class="field"><label>Empresa</label><input type="text" id="fDeptEmpresa" disabled></div>
     <div class="field"><label>Latitud (opcional)</label><input type="number" step="any" id="fDeptLat" placeholder="Ej: 40.4168"></div>
     <div class="field"><label>Longitud (opcional)</label><input type="number" step="any" id="fDeptLng" placeholder="Ej: -3.7038"></div>
     <button type="button" id="btnUsarUbicacion" style="width:100%;margin-bottom:12px;padding:9px 14px;background:transparent;border:1px solid #2a2a2a;border-radius:9px;color:var(--text-secondary);font-family:'Inter',sans-serif;font-size:12px;cursor:pointer;transition:background .2s;">Usar mi ubicación actual</button>
@@ -331,8 +345,13 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
 const userRaw = localStorage.getItem('user');
 if (!userRaw) location.href = 'index.html';
 const me = JSON.parse(userRaw);
-if (me.rol !== 'admin') location.href = 'dashboard.html';
-document.getElementById('adminName').textContent = me.nombre || me.email;
+if (me.rol !== 'jefe') location.href = me.rol === 'admin' ? 'admin.html' : 'dashboard.html';
+document.getElementById('jefeName').textContent = me.nombre || me.email;
+document.getElementById('empresaBadge').textContent = me.empresa || '(sin empresa)';
+// Fill empresa banners
+['bannerEmpresaResumen','bannerEmpresaUsuarios','bannerEmpresaDepts','bannerEmpresaFichajes'].forEach(id => {
+  document.getElementById(id).textContent = me.empresa || '(sin empresa)';
+});
 
 // ── Firebase ──────────────────────────────────────────────────────────────
 if (!firebase.apps.length) {
@@ -363,26 +382,18 @@ const PAGE_SIZE = 10;
 
 function renderPagination(containerId, infoId, totalItems, currentPage, onPageChange) {
   const totalPages = Math.ceil(totalItems / PAGE_SIZE);
-  const container = document.getElementById(containerId);
-  const info = document.getElementById(infoId);
-  const paginationWrapper = container.closest ? container.parentElement : document.getElementById(containerId).parentElement;
-
-  // show/hide the whole pagination bar
   const bar = containerId === 'paginationResumenBtns'
     ? document.getElementById('paginationResumen')
     : document.getElementById('paginationFichajes');
   bar.style.display = totalPages > 1 ? 'flex' : 'none';
-
   if (totalPages <= 1) return;
 
   const start = (currentPage - 1) * PAGE_SIZE + 1;
   const end = Math.min(currentPage * PAGE_SIZE, totalItems);
-  info.textContent = `${start}–${end} de ${totalItems}`;
+  document.getElementById(infoId).textContent = `${start}–${end} de ${totalItems}`;
 
   let btns = '';
   btns += `<button class="btn-page" ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">‹</button>`;
-
-  // show up to 5 page numbers around current
   let startP = Math.max(1, currentPage - 2);
   let endP = Math.min(totalPages, currentPage + 2);
   if (endP - startP < 4) {
@@ -394,7 +405,6 @@ function renderPagination(containerId, infoId, totalItems, currentPage, onPageCh
     btns += `<button class="btn-page${i === currentPage ? ' active' : ''}" data-page="${i}">${i}</button>`;
   }
   if (endP < totalPages) btns += `${endP < totalPages - 1 ? '<span style="color:var(--muted);padding:0 4px">…</span>' : ''}<button class="btn-page" data-page="${totalPages}">${totalPages}</button>`;
-
   btns += `<button class="btn-page" ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">›</button>`;
 
   document.getElementById(containerId).innerHTML = btns;
@@ -436,8 +446,18 @@ function fmt(ts) {
   return d.toLocaleDateString('es-ES') + ' ' + d.toLocaleTimeString('es-ES', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
+// ── Ordenar docs por timestamp descendente (client-side) ──────────────────
+function sortByTsDesc(docs) {
+  return docs.slice().sort(function(a, b) {
+    const ta = a.data().timestamp, tb = b.data().timestamp;
+    const da = ta && ta.toDate ? ta.toDate() : new Date(0);
+    const db2 = tb && tb.toDate ? tb.toDate() : new Date(0);
+    return db2 - da;
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────
-// RESUMEN con paginación
+// RESUMEN con paginación — filtrado por empresa
 // ─────────────────────────────────────────────────────────────────────────
 let resumenAllDocs = [];
 let resumenPage = 1;
@@ -459,8 +479,8 @@ function renderResumenPage(page) {
     const tipo = f.tipo || '';
     const userId = f.userId || '';
     return `<tr>
-      <td><span class="resumen-link" data-filter-type="user" data-nombre="${escAttr(nombre)}" data-userid="${escAttr(userId)}" style="cursor:pointer;color:var(--accent);text-decoration:none">${nombre}</span></td>
-      <td><span class="resumen-link" data-filter-type="dept" data-departamento="${escAttr(dept)}" style="cursor:pointer;color:var(--muted);text-decoration:none">${dept}</span></td>
+      <td><span class="resumen-link" data-filter-type="user" data-nombre="${escAttr(nombre)}" data-userid="${escAttr(userId)}" style="cursor:pointer;color:var(--accent)">${nombre}</span></td>
+      <td><span class="resumen-link" data-filter-type="dept" data-departamento="${escAttr(dept)}" style="cursor:pointer;color:var(--muted)">${dept}</span></td>
       <td><span class="resumen-link pill pill-${tipo}" data-filter-type="tipo" data-tipo="${escAttr(tipo)}" style="cursor:pointer">${tipo}</span></td>
       <td style="color:var(--accent);font-weight:500">${fmt(f.timestamp)}</td>
     </tr>`;
@@ -477,46 +497,49 @@ function renderResumenPage(page) {
 
 function loadResumen() {
   if (resumenUnsub) resumenUnsub();
-  resumenUnsub = db.collection('fichajes').orderBy('timestamp','desc').limit(500).onSnapshot(async fSnap => {
-    try {
-      const [uSnap, dSnap] = await Promise.all([
-        db.collection('usuarios').get(),
-        db.collection('departamentos').get()
-      ]);
-      document.getElementById('stUsuarios').textContent = uSnap.size;
-      document.getElementById('stDepts').textContent = dSnap.size;
-      const hoy = new Date(); hoy.setHours(0,0,0,0);
-      const hoyN = fSnap.docs.filter(d => { const ts = d.data().timestamp; return ts && ts.toDate && ts.toDate() >= hoy; }).length;
-      document.getElementById('stHoy').textContent = hoyN;
-      const last = {};
-      fSnap.docs.slice().reverse().forEach(d => { const f = d.data(); if(!last[f.userId]) last[f.userId] = f.tipo; });
-      document.getElementById('stActivos').textContent = Object.values(last).filter(t=>t==='entrada').length;
-
-      resumenAllDocs = fSnap.docs;
-      resumenPage = 1;
-      renderResumenPage(1);
-    } catch(e) { console.error(e); }
-  }, err => console.error(err));
+  resumenUnsub = db.collection('fichajes')
+    .where('empresa', '==', me.empresa)
+    .limit(500)
+    .onSnapshot(async fSnap => {
+      try {
+        const sorted = sortByTsDesc(fSnap.docs);
+        const [uSnap, dSnap] = await Promise.all([
+          db.collection('usuarios').where('empresa', '==', me.empresa).get(),
+          db.collection('departamentos').where('empresa', '==', me.empresa).get()
+        ]);
+        document.getElementById('stUsuarios').textContent = uSnap.size;
+        document.getElementById('stDepts').textContent = dSnap.size;
+        const hoy = new Date(); hoy.setHours(0,0,0,0);
+        const hoyN = sorted.filter(d => { const ts = d.data().timestamp; return ts && ts.toDate && ts.toDate() >= hoy; }).length;
+        document.getElementById('stHoy').textContent = hoyN;
+        const last = {};
+        sorted.slice().reverse().forEach(d => { const f = d.data(); if(!last[f.userId]) last[f.userId] = f.tipo; });
+        document.getElementById('stActivos').textContent = Object.values(last).filter(t=>t==='entrada').length;
+        resumenAllDocs = sorted;
+        resumenPage = 1;
+        renderResumenPage(1);
+      } catch(e) { console.error(e); }
+    }, err => console.error(err));
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// USUARIOS
+// USUARIOS — filtrado por empresa
 // ─────────────────────────────────────────────────────────────────────────
 async function loadUsuarios() {
   document.getElementById('tablaUsuarios').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
   try {
-    const snap = await db.collection('usuarios').get();
-    if (snap.empty) { document.getElementById('tablaUsuarios').innerHTML = '<div class="empty">Sin usuarios</div>'; return; }
+    const snap = await db.collection('usuarios').where('empresa', '==', me.empresa).get();
+    if (snap.empty) { document.getElementById('tablaUsuarios').innerHTML = '<div class="empty">Sin usuarios en esta empresa</div>'; return; }
     document.getElementById('tablaUsuarios').innerHTML = `<table><thead><tr>
-      <th>Nombre</th><th>Email</th><th>Empresa</th><th>Departamento</th><th>Rol</th><th>Acciones</th>
+      <th>Nombre</th><th>Email</th><th>Departamento</th><th>Rol</th><th>Acciones</th>
     </tr></thead><tbody>${snap.docs.map(d => {
       const u = d.data();
+      const rolClass = u.rol === 'jefe' ? 'pill-jefe' : 'pill-emp';
       return `<tr>
         <td><span class="user-link" style="cursor:pointer;color:var(--accent)" onclick="openUserDrawerById('${d.id}')">${esc(u.nombre||'—')}</span></td>
         <td style="color:var(--muted)">${u.email}</td>
-        <td style="color:var(--muted)">${u.empresa||'—'}</td>
         <td style="color:var(--muted)">${u.departamento||'—'}</td>
-        <td><span class="pill ${u.rol==='admin'?'pill-admin':u.rol==='jefe'?'pill-jefe':'pill-emp'}">${u.rol||'empleado'}</span></td>
+        <td><span class="pill ${rolClass}">${u.rol||'empleado'}</span></td>
         <td>
           <button class="btn-act btn-edit" onclick="editUser('${d.id}')">Editar</button>
           <button class="btn-act btn-del" onclick="delUser('${d.id}','${(u.nombre||u.email).replace(/'/g,"\\'")}')">Eliminar</button>
@@ -532,11 +555,13 @@ async function openUserModal(title, data={}) {
   document.getElementById('fNombre').value = data.nombre || '';
   document.getElementById('fEmail').value = data.email || '';
   document.getElementById('fPassword').value = '';
-  document.getElementById('fRol').value = data.rol || 'empleado';
-  document.getElementById('fEmpresa').value = data.empresa || '';
+  document.getElementById('fRol').value = data.rol && data.rol !== 'admin' ? data.rol : 'empleado';
+  // empresa is always locked to the jefe's own empresa
+  document.getElementById('fEmpresa').value = me.empresa || '';
   document.getElementById('fEmail').disabled = !!editingUserId;
   document.getElementById('modalUserErr').classList.remove('show');
-  const dSnap = await db.collection('departamentos').get();
+  // Load only this empresa's departments
+  const dSnap = await db.collection('departamentos').where('empresa', '==', me.empresa).get();
   const sel = document.getElementById('fDept');
   sel.innerHTML = '<option value="">— Sin departamento —</option>';
   dSnap.docs.forEach(d => {
@@ -555,7 +580,6 @@ document.getElementById('btnGuardarUser').addEventListener('click', async () => 
   const email = document.getElementById('fEmail').value.trim().toLowerCase();
   const password = document.getElementById('fPassword').value;
   const rol = document.getElementById('fRol').value;
-  const empresa = document.getElementById('fEmpresa').value.trim();
   const dept = document.getElementById('fDept').value;
   const errEl = document.getElementById('modalUserErr');
   const btn = document.getElementById('btnGuardarUser');
@@ -564,7 +588,8 @@ document.getElementById('btnGuardarUser').addEventListener('click', async () => 
   if (!editingUserId && !password) { errEl.textContent = 'La contraseña es obligatoria'; errEl.classList.add('show'); return; }
   btn.disabled = true; btn.textContent = 'Guardando...';
   try {
-    const datos = { nombre, email, rol, empresa, departamento: dept };
+    // empresa always set to the jefe's own empresa, never admin role
+    const datos = { nombre, email, rol: rol === 'admin' ? 'empleado' : rol, empresa: me.empresa, departamento: dept };
     if (password) datos.password = await hashPassword(password);
     if (editingUserId) {
       await db.collection('usuarios').doc(editingUserId).update(datos);
@@ -592,12 +617,12 @@ async function delUser(id, nombre) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// DEPARTAMENTOS & QR
+// DEPARTAMENTOS & QR — filtrado por empresa
 // ─────────────────────────────────────────────────────────────────────────
 async function loadDepartamentos() {
   document.getElementById('qrGrid').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
   try {
-    const snap = await db.collection('departamentos').get();
+    const snap = await db.collection('departamentos').where('empresa', '==', me.empresa).get();
     if (snap.empty) { document.getElementById('qrGrid').innerHTML = '<div class="empty">Sin departamentos. Crea el primero.</div>'; return; }
     document.getElementById('qrGrid').innerHTML = '';
     snap.docs.forEach(d => renderQRCard(d.id, d.data()));
@@ -625,6 +650,7 @@ function renderQRCard(id, data) {
 
 document.getElementById('btnNuevoDept').addEventListener('click', () => {
   document.getElementById('fDeptNombre').value = '';
+  // empresa locked to jefe's own empresa
   document.getElementById('fDeptEmpresa').value = me.empresa || '';
   document.getElementById('fDeptLat').value = '';
   document.getElementById('fDeptLng').value = '';
@@ -653,7 +679,6 @@ document.getElementById('btnUsarUbicacion').addEventListener('click', function()
 
 document.getElementById('btnGuardarDept').addEventListener('click', async () => {
   const nombre = document.getElementById('fDeptNombre').value.trim();
-  const empresa = document.getElementById('fDeptEmpresa').value.trim();
   const latVal = document.getElementById('fDeptLat').value;
   const lngVal = document.getElementById('fDeptLng').value;
   const latDept = latVal !== '' ? parseFloat(latVal) : null;
@@ -666,7 +691,8 @@ document.getElementById('btnGuardarDept').addEventListener('click', async () => 
   if (lngDept !== null && (isNaN(lngDept) || lngDept < -180 || lngDept > 180)) { errEl.textContent = 'Longitud inválida'; errEl.classList.add('show'); return; }
   btn.disabled = true; btn.textContent = 'Creando...';
   try {
-    await db.collection('departamentos').add({ nombre, empresa, lat: latDept, lng: lngDept, creadoEn: firebase.firestore.FieldValue.serverTimestamp() });
+    // empresa always locked to the jefe's own empresa
+    await db.collection('departamentos').add({ nombre, empresa: me.empresa, lat: latDept, lng: lngDept, creadoEn: firebase.firestore.FieldValue.serverTimestamp() });
     toast('Departamento creado y QR generado');
     document.getElementById('ovDept').classList.remove('show');
     loadDepartamentos(); loadResumen();
@@ -705,7 +731,7 @@ document.getElementById('btnDescargaQR').addEventListener('click', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────
-// FICHAJES con paginación
+// FICHAJES con paginación — filtrado por empresa
 // ─────────────────────────────────────────────────────────────────────────
 let fichajesAllDocs = [];
 let fichajesPage = 1;
@@ -774,11 +800,14 @@ function loadFichajes() {
   document.getElementById('tablaFichajesContent').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
   if (fichajesUnsub) fichajesUnsub();
 
-  fichajesUnsub = db.collection('fichajes').orderBy('timestamp','desc').limit(1000).onSnapshot(snap => {
-    fichajesAllDocs = snap.docs;
-    fichajesPage = 1;
-    renderFichajesPage(1);
-  }, err => console.error(err));
+  fichajesUnsub = db.collection('fichajes')
+    .where('empresa', '==', me.empresa)
+    .limit(1000)
+    .onSnapshot(snap => {
+      fichajesAllDocs = sortByTsDesc(snap.docs);
+      fichajesPage = 1;
+      renderFichajesPage(1);
+    }, err => console.error(err));
 }
 
 // ── Escape helpers ────────────────────────────────────────────────────────
@@ -811,7 +840,7 @@ document.getElementById('recentFichajes').addEventListener('click', function(e) 
 });
 
 // ─────────────────────────────────────────────────────────────────────────
-// USER PROFILE DRAWER
+// USER PROFILE DRAWER — empresa-scoped
 // ─────────────────────────────────────────────────────────────────────────
 async function openUserDrawerById(userId) {
   const doc = await db.collection('usuarios').doc(userId).get();
@@ -823,11 +852,10 @@ async function openUserDrawer(userId, userData) {
   document.getElementById('drawerAvatar').textContent = initials;
   document.getElementById('drawerName').textContent = userData.nombre || '—';
   document.getElementById('drawerEmail').textContent = userData.email || '—';
-  const rolPill = userData.rol === 'admin' ? 'pill-admin' : userData.rol === 'jefe' ? 'pill-jefe' : 'pill-emp';
+  const rolClass = userData.rol === 'jefe' ? 'pill-jefe' : 'pill-emp';
   document.getElementById('drawerMeta').innerHTML =
-    (userData.empresa ? '<span>' + userData.empresa + '</span> · ' : '') +
     (userData.departamento ? '<span>' + userData.departamento + '</span> · ' : '') +
-    '<span class="pill ' + rolPill + '" style="font-size:9px">' + (userData.rol || 'empleado') + '</span>';
+    '<span class="pill ' + rolClass + '" style="font-size:9px">' + (userData.rol || 'empleado') + '</span>';
   document.getElementById('drawerStats').innerHTML = '<div class="dstat"><div class="dstat-label">Cargando...</div></div>';
   document.getElementById('drawerFichajes').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
   document.getElementById('drawerBtnEdit').onclick = function() {
@@ -836,7 +864,7 @@ async function openUserDrawer(userId, userData) {
   document.getElementById('drawerOverlay').classList.add('show');
   document.getElementById('userDrawer').classList.add('show');
   try {
-    const snap = await db.collection('fichajes').where('userId','==',userId).orderBy('timestamp','desc').limit(50).get();
+    const snap = await db.collection('fichajes').where('userId','==',userId).where('empresa','==',me.empresa).orderBy('timestamp','desc').limit(50).get();
     const fichajes = snap.docs.map(d => d.data());
     const hoy = new Date(); hoy.setHours(0,0,0,0);
     const mesInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -869,7 +897,7 @@ document.getElementById('drawerBtnClose').addEventListener('click', closeUserDra
 document.getElementById('drawerOverlay').addEventListener('click', closeUserDrawer);
 
 // ─────────────────────────────────────────────────────────────────────────
-// FICHAJES FILTRADOS (desde Resumen)
+// FICHAJES FILTRADOS — filtrado por empresa + filtro adicional
 // ─────────────────────────────────────────────────────────────────────────
 function goToFichajesFiltered(filters) {
   document.querySelectorAll('.nav-item').forEach(function(i) { i.classList.remove('active'); });
@@ -887,27 +915,19 @@ async function loadFichajesFiltered(filters) {
 
   try {
     let query;
+    // Always scope by empresa first, then apply secondary filter
     if (filters.userId) {
-      query = db.collection('fichajes').where('userId','==',filters.userId).limit(1000);
+      query = db.collection('fichajes').where('empresa','==',me.empresa).where('userId','==',filters.userId).limit(1000);
     } else if (filters.departamento) {
-      query = db.collection('fichajes').where('departamento','==',filters.departamento).limit(1000);
+      query = db.collection('fichajes').where('empresa','==',me.empresa).where('departamento','==',filters.departamento).limit(1000);
     } else if (filters.tipo) {
-      query = db.collection('fichajes').where('tipo','==',filters.tipo).limit(1000);
+      query = db.collection('fichajes').where('empresa','==',me.empresa).where('tipo','==',filters.tipo).limit(1000);
     } else {
-      query = db.collection('fichajes').orderBy('timestamp','desc').limit(1000);
+      query = db.collection('fichajes').where('empresa','==',me.empresa).limit(1000);
     }
 
     const snap = await query.get();
-    let docs = snap.docs;
-
-    if (filters.userId || filters.departamento || filters.tipo) {
-      docs = docs.slice().sort(function(a, b) {
-        const ta = a.data().timestamp; const tb = b.data().timestamp;
-        const da = ta && ta.toDate ? ta.toDate() : new Date(0);
-        const dateB = tb && tb.toDate ? tb.toDate() : new Date(0);
-        return dateB - da;
-      });
-    }
+    let docs = sortByTsDesc(snap.docs);
 
     if (filters.nombre && !filters.userId) {
       docs = docs.filter(function(d) {
