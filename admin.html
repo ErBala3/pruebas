@@ -335,7 +335,9 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="field"><label>Rol</label>
       <select id="fRol"><option value="empleado">Empleado</option><option value="jefe">Jefe</option><option value="admin">Admin</option></select>
     </div>
-    <div class="field"><label>Empresa</label><input type="text" id="fEmpresa" placeholder="Mi Empresa SL"></div>
+    <div class="field"><label>Empresa</label>
+      <select id="fEmpresa"><option value="">— Sin empresa —</option></select>
+    </div>
     <div class="field"><label>Departamento</label>
       <select id="fDept"><option value="">— Sin departamento —</option></select>
     </div>
@@ -1182,10 +1184,28 @@ async function openUserModal(title, data) {
   document.getElementById('fEmail').value    = data.email    || '';
   document.getElementById('fPassword').value = '';
   document.getElementById('fRol').value      = data.rol      || 'empleado';
-  document.getElementById('fEmpresa').value  = data.empresa  || '';
   document.getElementById('fEmail').disabled = !!editingUserId;
   document.getElementById('modalUserErr').classList.remove('show');
   const dSnap = await db.collection('departamentos').get();
+  // Populate empresa dropdown with unique companies from departments
+  const empresaSet = new Set();
+  dSnap.docs.forEach(function(d) { if (d.data().empresa) empresaSet.add(d.data().empresa); });
+  const empSel = document.getElementById('fEmpresa');
+  empSel.innerHTML = '<option value="">— Sin empresa —</option>';
+  empresaSet.forEach(function(emp) {
+    const opt = document.createElement('option');
+    opt.value = emp; opt.textContent = emp;
+    if (data.empresa === emp) opt.selected = true;
+    empSel.appendChild(opt);
+  });
+  // If the current user's empresa is not in the list, add it
+  if (data.empresa && !empresaSet.has(data.empresa)) {
+    const opt = document.createElement('option');
+    opt.value = data.empresa; opt.textContent = data.empresa;
+    opt.selected = true;
+    empSel.appendChild(opt);
+  }
+  // Populate department dropdown
   const sel   = document.getElementById('fDept');
   sel.innerHTML = '<option value="">— Sin departamento —</option>';
   dSnap.docs.forEach(function(d) {
