@@ -205,7 +205,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
   <div class="topbar-right">
     <span id="adminName">—</span>
     <span class="badge">Admin</span>
-    <button class="btn-empresa" id="btnMiEmpresa" title="Filtrar por mi empresa">🏢 Mi empresa</button>
+    <button class="btn-empresa" id="btnMiEmpresa" title="Filtrar por mi empresa">🏢 Mis empresas</button>
     <button class="btn-logout" id="btnLogout">Salir</button>
   </div>
 </div>
@@ -244,9 +244,9 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
           <div class="chart-wrap" style="height:200px"><canvas id="chartDias"></canvas></div>
         </div>
 
-        <!-- Entradas vs Salidas del mes -->
+        <!-- Empleados trabajando ahora -->
         <div class="chart-card">
-          <div class="chart-title">Entradas vs Salidas · este mes</div>
+          <div class="chart-title">Empleados trabajando ahora</div>
           <div class="chart-wrap" style="height:200px"><canvas id="chartTipo"></canvas></div>
         </div>
 
@@ -874,14 +874,20 @@ function renderCharts(allDocs) {
   var diasData = Object.values(diasMap);
 
   // ── Datos: entradas vs salidas del mes ──────────────────────────────
-  var nEntradas = 0, nSalidas = 0;
+  // Empleados actualmente dentro (último fichaje = entrada)
+  var ultimoPorUser = {};
   allDocs.forEach(function(doc) {
-    var f = doc.data ? doc.data() : doc;
-    var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate() : null;
-    if (!ts || ts < mesIni) return;
-    if (f.tipo === 'entrada') nEntradas++;
-    else if (f.tipo === 'salida') nSalidas++;
+    var f  = doc.data ? doc.data() : doc;
+    var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate() : new Date(0);
+    var uid = f.userId || f.email || '?';
+    if (!ultimoPorUser[uid] || ts > ultimoPorUser[uid].ts) {
+      ultimoPorUser[uid] = { ts: ts, tipo: f.tipo, nombre: f.nombre || f.email || uid, dept: f.departamento || '—' };
+    }
   });
+  var activosAhora = Object.values(ultimoPorUser).filter(function(u){ return u.tipo === 'entrada'; });
+  var activosLabels = activosAhora.map(function(u){ return u.nombre; });
+  var activosDepts  = activosAhora.map(function(u){ return u.dept; });
+  var activosData   = activosAhora.map(function(){ return 1; }); // todas barras = 1
 
   // ── Datos: actividad por departamento (mes) ──────────────────────────
   var deptMap = {};
@@ -950,38 +956,47 @@ function renderCharts(allDocs) {
   });
 
   // ── Chart 2: dona entradas vs salidas ───────────────────────────────
+  // ── Chart 2: empleados actualmente dentro ───────────────────────────
   destroyChart('chartTipo');
   var ctx2 = document.getElementById('chartTipo').getContext('2d');
-  _chartInstances['chartTipo'] = new Chart(ctx2, {
-    type: 'doughnut',
-    data: {
-      labels: ['Entradas','Salidas'],
-      datasets: [{
-        data: [nEntradas, nSalidas],
-        backgroundColor: [PALETTE.entrada, PALETTE.salida],
-        borderColor: ['rgba(45,122,79,.9)','rgba(160,160,160,.4)'],
-        borderWidth: 1,
-        hoverOffset: 6
-      }]
-    },
-    options: (function(){
-      var o = baseChartOpts(function(evt, elements) {
-        if (!elements.length) return;
-        var tipo = elements[0].index === 0 ? 'entrada' : 'salida';
-        var d = new Date();
-        var desde = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-01';
-        var hasta = new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().slice(0,10);
-        navToFichajes({ tipo: tipo, desde: desde, hasta: hasta });
-      });
-      o.scales = {}; // sin ejes en dona
-      o.plugins.legend = { display: true, position:'bottom', labels:{ color:PALETTE.tick, font:{size:11}, padding:16 } };
-      o.plugins.tooltip.callbacks = {
-        label: function(item){ return ' ' + item.label + ': ' + item.raw; }
-      };
-      o.cutout = '62%';
-      return o;
-    })()
-  });
+
+  if (!activosAhora.length) {
+    // Sin empleados activos: mostrar mensaje en canvas
+    ctx2.fillStyle = '#a0a0a0';
+    ctx2.font = '13px Inter, sans-serif';
+    ctx2.textAlign = 'center';
+    ctx2.fillText('Nadie trabajando ahora mismo', ctx2.canvas.width / 2, ctx2.canvas.height / 2);
+  } else {
+    _chartInstances['chartTipo'] = new Chart(ctx2, {
+      type: 'bar',
+      data: {
+        labels: activosLabels,
+        datasets: [{
+          label: 'Trabajando',
+          data: activosData,
+          backgroundColor: 'rgba(90,173,126,.75)',
+          borderColor: 'rgba(90,173,126,1)',
+          borderWidth: 1,
+          borderRadius: 4
+        }]
+      },
+      options: (function(){
+        var o = baseChartOpts(function(evt, elements) {
+          if (!elements.length) return;
+          var nombre = activosLabels[elements[0].index];
+          navToFichajes({ nombre: nombre, tipo: 'entrada' });
+        });
+        o.plugins.tooltip.callbacks = {
+          title: function(items){ return activosLabels[items[0].dataIndex]; },
+          label: function(){ return 'Actualmente dentro · ' + activosDepts[0]; },
+          afterLabel: function(item){ return 'Dept: ' + activosDepts[item.dataIndex]; }
+        };
+        o.scales.y.display = false;
+        o.scales.x.ticks.maxRotation = 35;
+        return o;
+      })()
+    });
+  }
 
   // ── Chart 3: barras departamento ─────────────────────────────────────
   destroyChart('chartDept');
@@ -1139,7 +1154,7 @@ function popularFiltrosResumen(allDocs) {
     _soloMiEmpresa = false;
     var btn = document.getElementById('btnMiEmpresa');
     btn.classList.remove('active');
-    btn.textContent = '🏢 Mi empresa';
+    btn.textContent = '🏢 Mis empresas';
     loadResumen();
   });
   document.getElementById('rFiltroDept').addEventListener('change', function() {
@@ -1156,7 +1171,7 @@ document.getElementById('btnMiEmpresa').addEventListener('click', function() {
     _soloMiEmpresa = false;
     _filtroEmpresa = '';
     btn.classList.remove('active');
-    btn.textContent = '🏢 Mi empresa';
+    btn.textContent = '🏢 Mis empresas';
     document.getElementById('rFiltroEmpresa').value = '';
   } else {
     var miEmpresa = me.empresa || '';
@@ -1164,7 +1179,7 @@ document.getElementById('btnMiEmpresa').addEventListener('click', function() {
     _soloMiEmpresa = true;
     _filtroEmpresa = miEmpresa;
     btn.classList.add('active');
-    btn.textContent = '🏢 ' + miEmpresa;
+    btn.textContent = '🏢 Mis empresas (' + miEmpresa + ')';
     document.getElementById('rFiltroEmpresa').value = miEmpresa;
   }
   loadResumen();
