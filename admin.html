@@ -144,6 +144,17 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .chart-wrap canvas { width:100% !important; }
 /* barras clicables */
 .chart-wrap canvas { cursor:pointer; }
+/* ── Lista empleados activos ── */
+.activos-list { display:flex; flex-direction:column; gap:6px; max-height:190px; overflow-y:auto; padding:2px 0; }
+.activos-list::-webkit-scrollbar { width:4px; }
+.activos-list::-webkit-scrollbar-track { background:transparent; }
+.activos-list::-webkit-scrollbar-thumb { background:#333; border-radius:2px; }
+.activo-row { display:flex; align-items:center; justify-content:space-between; padding:7px 10px; background:var(--surface2); border:1px solid var(--border); border-radius:7px; cursor:pointer; transition:border-color .15s,background .15s; gap:10px; }
+.activo-row:hover { border-color:#444; background:rgba(255,255,255,.03); }
+.activo-dot { width:7px; height:7px; border-radius:50%; background:#5aad7e; flex-shrink:0; animation:pulse 2s infinite; }
+.activo-nombre { font-size:12px; font-weight:600; color:var(--text); flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.activo-dept { font-size:11px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:120px; }
+.activos-empty { font-size:12px; color:var(--muted); text-align:center; padding:30px 0; }
 /* ── Paginación ── */
 .pagination { display:flex; align-items:center; justify-content:space-between; padding:12px 22px; border-top:1px solid var(--border); font-size:12px; color:var(--text-secondary); flex-wrap:wrap; gap:8px; }
 .pag-info { font-size:11px; }
@@ -246,8 +257,8 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
 
         <!-- Empleados trabajando ahora -->
         <div class="chart-card">
-          <div class="chart-title">Empleados trabajando ahora</div>
-          <div class="chart-wrap" style="height:200px"><canvas id="chartTipo"></canvas></div>
+          <div class="chart-title">Empleados trabajando ahora · <span id="activosCount" style="color:#5aad7e">0</span></div>
+          <div id="activosList" class="activos-list"></div>
         </div>
 
         <!-- Actividad por departamento (mes) -->
@@ -955,47 +966,26 @@ function renderCharts(allDocs) {
     })()
   });
 
-  // ── Chart 2: dona entradas vs salidas ───────────────────────────────
-  // ── Chart 2: empleados actualmente dentro ───────────────────────────
-  destroyChart('chartTipo');
-  var ctx2 = document.getElementById('chartTipo').getContext('2d');
-
-  if (!activosAhora.length) {
-    // Sin empleados activos: mostrar mensaje en canvas
-    ctx2.fillStyle = '#a0a0a0';
-    ctx2.font = '13px Inter, sans-serif';
-    ctx2.textAlign = 'center';
-    ctx2.fillText('Nadie trabajando ahora mismo', ctx2.canvas.width / 2, ctx2.canvas.height / 2);
-  } else {
-    _chartInstances['chartTipo'] = new Chart(ctx2, {
-      type: 'bar',
-      data: {
-        labels: activosLabels,
-        datasets: [{
-          label: 'Trabajando',
-          data: activosData,
-          backgroundColor: 'rgba(90,173,126,.75)',
-          borderColor: 'rgba(90,173,126,1)',
-          borderWidth: 1,
-          borderRadius: 4
-        }]
-      },
-      options: (function(){
-        var o = baseChartOpts(function(evt, elements) {
-          if (!elements.length) return;
-          var nombre = activosLabels[elements[0].index];
-          navToFichajes({ nombre: nombre, tipo: 'entrada' });
-        });
-        o.plugins.tooltip.callbacks = {
-          title: function(items){ return activosLabels[items[0].dataIndex]; },
-          label: function(){ return 'Actualmente dentro · ' + activosDepts[0]; },
-          afterLabel: function(item){ return 'Dept: ' + activosDepts[item.dataIndex]; }
-        };
-        o.scales.y.display = false;
-        o.scales.x.ticks.maxRotation = 35;
-        return o;
-      })()
-    });
+  // ── Lista: empleados actualmente dentro ─────────────────────────────
+  var activosList = document.getElementById('activosList');
+  var activosCountEl = document.getElementById('activosCount');
+  if (activosList) {
+    activosCountEl.textContent = activosAhora.length;
+    if (!activosAhora.length) {
+      activosList.innerHTML = '<div class="activos-empty">Nadie trabajando ahora mismo</div>';
+    } else {
+            activosList.innerHTML = activosAhora.map(function(u) {
+        return '<div class="activo-row" data-nombre="' + escAttr(u.nombre) + '">' +
+          '<span class="activo-dot"></span>' +
+          '<span class="activo-nombre">' + esc(u.nombre) + '</span>' +
+          '<span class="activo-dept">' + esc(u.dept) + '</span>' +
+          '</div>';
+      }).join('');
+      activosList.onclick = function(e) {
+        var row = e.target.closest('.activo-row');
+        if (row) navToFichajes({ nombre: row.dataset.nombre, tipo: 'entrada' });
+      };
+    }
   }
 
   // ── Chart 3: barras departamento ─────────────────────────────────────
