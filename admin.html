@@ -760,7 +760,7 @@ function buildPagHTML(pagId, paginaActual, total, porPagina, onPageFn) {
 
   // Registrar callback por id
   _pagCallbacks[pagId] = onPageFn;
-  var fn = '_pagCallbacks['' + pagId + '']';
+    var fn = "_pagCallbacks['" + pagId + "']";
 
   var totalPages = Math.ceil(total / porPagina) || 1;
   var infoDesde  = (paginaActual - 1) * porPagina + 1;
