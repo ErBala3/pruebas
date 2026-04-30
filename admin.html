@@ -24,6 +24,14 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .badge { padding: 3px 10px; background: rgba(226,226,226,.08); border: 1px solid #333; border-radius: 20px; color: #a0a0a0; font-size: 11px; font-weight: 500; }
 .btn-logout { padding: 6px 14px; background: transparent; color: var(--danger); border: 1px solid rgba(192,57,43,.4); border-radius: 7px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: background .2s; }
 .btn-logout:hover { background: rgba(192,57,43,.08); border-color: var(--danger); }
+/* Botón Mis empresas */
+.btn-empresa { padding: 6px 14px; background: transparent; color: var(--accent); border: 1px solid rgba(226,226,226,.25); border-radius: 7px; font-family:'Inter',sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: background .2s, border-color .2s; white-space:nowrap; }
+.btn-empresa:hover { background: rgba(226,226,226,.06); border-color: rgba(226,226,226,.5); }
+.btn-empresa.active { background: rgba(226,226,226,.12); border-color: var(--accent); }
+/* Filtros resumen */
+.resumen-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+.resumen-select { padding:7px 10px; background:var(--bg); border:1px solid var(--border); border-radius:7px; color:var(--text); font-family:'Inter',sans-serif; font-size:12px; outline:none; cursor:pointer; min-width:160px; }
+.resumen-select option { background:var(--surface); }
 .layout { display: flex; padding-top: 58px; min-height: 100vh; }
 .sidebar { width: 220px; flex-shrink: 0; background: #151821; border-right: 1px solid var(--border); padding: 24px 0; position: fixed; top: 58px; bottom: 0; left: 0; overflow-y: auto; }
 .nav-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); padding: 14px 20px 6px; font-weight: 500; }
@@ -55,7 +63,6 @@ tr:last-child td { border-bottom: none; }
 tr:hover td { background: rgba(255,255,255,.02); }
 .pill { display: inline-block; padding: 3px 9px; border-radius: 6px; font-size: 11px; font-weight: 500; }
 .pill-admin   { background: rgba(226,226,226,.08); border: 1px solid #333; color: #a0a0a0; }
-.pill-jefe    { background: rgba(251,191,36,.12);  border: 1px solid rgba(251,191,36,.3); color: #fbbf24; }
 .pill-emp     { background: rgba(226,226,226,.06); border: 1px solid #2a2a2a; color: #a0a0a0; }
 .pill-entrada { background: rgba(45,122,79,.15);   border: 1px solid rgba(45,122,79,.3); color: #5aad7e; }
 .pill-salida  { background: rgba(90,90,90,.15);    border: 1px solid #333; color: #a0a0a0; }
@@ -198,6 +205,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
   <div class="topbar-right">
     <span id="adminName">—</span>
     <span class="badge">Admin</span>
+    <button class="btn-empresa" id="btnMiEmpresa" title="Filtrar por mi empresa">🏢 Mi empresa</button>
     <button class="btn-logout" id="btnLogout">Salir</button>
   </div>
 </div>
@@ -218,6 +226,14 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="section active" id="sec-resumen">
       <div class="page-header">
         <div><div class="page-title">Resumen</div><div class="page-sub">Vista general en tiempo real</div></div>
+        <div class="resumen-filters">
+          <select class="resumen-select" id="rFiltroEmpresa">
+            <option value="">Todas las empresas</option>
+          </select>
+          <select class="resumen-select" id="rFiltroDept">
+            <option value="">Todos los departamentos</option>
+          </select>
+        </div>
       </div>
       <!-- ── Gráficas ── -->
       <div class="charts-grid">
@@ -333,11 +349,9 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="field"><label>Email</label><input type="email" id="fEmail" placeholder="juan@empresa.com"></div>
     <div class="field"><label>Contraseña</label><input type="password" id="fPassword" placeholder="mínimo 4 caracteres"></div>
     <div class="field"><label>Rol</label>
-      <select id="fRol"><option value="empleado">Empleado</option><option value="jefe">Jefe</option><option value="admin">Admin</option></select>
+      <select id="fRol"><option value="empleado">Empleado</option><option value="admin">Admin</option></select>
     </div>
-    <div class="field"><label>Empresa</label>
-      <select id="fEmpresa"><option value="">— Sin empresa —</option></select>
-    </div>
+    <div class="field"><label>Empresa</label><input type="text" id="fEmpresa" placeholder="Mi Empresa SL"></div>
     <div class="field"><label>Departamento</label>
       <select id="fDept"><option value="">— Sin departamento —</option></select>
     </div>
@@ -354,7 +368,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
   <div class="modal">
     <div class="modal-title">Nuevo departamento</div>
     <div class="field"><label>Nombre del departamento</label><input type="text" id="fDeptNombre" placeholder="Ej: Almacén, Oficina, Producción..."></div>
-    <div class="field"><label>Empresa</label><select id="fDeptEmpresa"><option value="">— Cargando empresas... —</option></select></div>
+    <div class="field"><label>Empresa</label><input type="text" id="fDeptEmpresa" placeholder="Mi Empresa SL"></div>
     <div class="field"><label>Latitud (opcional)</label><input type="number" step="any" id="fDeptLat" placeholder="Ej: 40.4168"></div>
     <div class="field"><label>Longitud (opcional)</label><input type="number" step="any" id="fDeptLng" placeholder="Ej: -3.7038"></div>
     <button type="button" id="btnUsarUbicacion" style="width:100%;margin-bottom:12px;padding:9px 14px;background:transparent;border:1px solid #2a2a2a;border-radius:9px;color:var(--text-secondary);font-family:'Inter',sans-serif;font-size:12px;cursor:pointer;transition:background .2s;">Usar mi ubicación actual</button>
@@ -460,6 +474,11 @@ let resumenUnsub  = null;
 let _fichajesCache = [];
 let _horasCache    = [];
 
+// ── Filtros globales activos ──────────────────────────────────────────────
+var _filtroEmpresa = '';  // '' = todas
+var _filtroDept    = '';  // '' = todos
+var _soloMiEmpresa = false;
+
 // ── Días laborables ───────────────────────────────────────────────────────
 function diasLaborablesHastaHoy(anio) {
   const hoy    = new Date();
@@ -475,58 +494,40 @@ function diasLaborablesAnio(anio) {
   while (c <= fin) { const d = c.getDay(); if (d !== 0 && d !== 6) dias++; c.setDate(c.getDate()+1); }
   return dias;
 }
-function diasLaborablesHastaHoyDelMes(anio, mes) {
-  const hoy    = new Date(); hoy.setHours(0,0,0,0);
-  const inicio = new Date(anio, mes, 1);
-  const limite = new Date(Math.min(hoy.getTime(), new Date(anio, mes + 1, 0).getTime()));
-  let dias = 0, c = new Date(inicio);
-  while (c <= limite) { const d = c.getDay(); if (d !== 0 && d !== 6) dias++; c.setDate(c.getDate()+1); }
-  return dias;
-}
-function diasLaborablesMes(anio, mes) {
-  const inicio = new Date(anio, mes, 1), fin = new Date(anio, mes + 1, 0);
-  let dias = 0, c = new Date(inicio);
-  while (c <= fin) { const d = c.getDay(); if (d !== 0 && d !== 6) dias++; c.setDate(c.getDate()+1); }
-  return dias;
-}
 
-// ── Calcular balance mensual para un userId dado sus fichajes ─────────────
-function calcularBalanceMensual(fichajesDelMes) {
-  const hoy  = new Date();
-  const anio = hoy.getFullYear();
-  const mes  = hoy.getMonth();
+// ── Calcular balance anual para un userId dado sus fichajes ───────────────
+function calcularBalanceAnual(fichajesDelAnio) {
+  const anio     = new Date().getFullYear();
   let horasTrab  = 0;
-  fichajesDelMes.forEach(function(f) {
+  fichajesDelAnio.forEach(function(f) {
     if (f.tipo !== 'salida') return;
     horasTrab += (f.horasNormales || 0) + (f.horasExtra || 0);
   });
-  const horasPorDia  = HORAS_ANUALES_CONVENIO / diasLaborablesAnio(anio);
-  const diasLab      = diasLaborablesHastaHoyDelMes(anio, mes);
-  const diasLabMes   = diasLaborablesMes(anio, mes);
-  const horasTeoHoy  = diasLab * horasPorDia;
-  const horasMes     = diasLabMes * horasPorDia;
+  const diasLab      = diasLaborablesHastaHoy(anio);
+  const diasLabAnio  = diasLaborablesAnio(anio);
+  const horasTeoHoy  = diasLab * (HORAS_ANUALES_CONVENIO / diasLabAnio);
   const balance      = horasTrab - horasTeoHoy;
-  const pct          = (horasTrab / horasMes) * 100;
-  return { horasTrab, horasTeoHoy, horasMes, balance, pct };
+  const pct          = (horasTrab / HORAS_ANUALES_CONVENIO) * 100;
+  return { horasTrab, horasTeoHoy, balance, pct };
 }
 
 // ── Mensaje de balance ────────────────────────────────────────────────────
 function balanceMsg(bal) {
-  const { horasTrab, horasTeoHoy, horasMes, balance, pct } = bal;
+  const { horasTrab, horasTeoHoy, balance, pct } = bal;
   let cls, titulo, detalle;
-  const faltanMes = horasMes - horasTrab;
+  const faltanAnual = HORAS_ANUALES_CONVENIO - horasTrab;
   if (horasTrab === 0) {
-    cls = 'b-info'; titulo = 'Sin fichajes este mes.';
+    cls = 'b-info'; titulo = 'Sin fichajes este año.';
     detalle = 'Objetivo a estas alturas: ' + horasTeoHoy.toFixed(0) + 'h.';
   } else if (pct >= 100) {
-    cls = 'b-ok'; titulo = 'Mes completado · ' + horasTrab.toFixed(1) + 'h.';
-    detalle = 'Horas extra sobre convenio mensual: +' + (horasTrab - horasMes).toFixed(1) + 'h.';
+    cls = 'b-ok'; titulo = 'Año completado · ' + horasTrab.toFixed(1) + 'h.';
+    detalle = 'Horas extra sobre convenio: +' + (horasTrab - HORAS_ANUALES_CONVENIO).toFixed(1) + 'h.';
   } else if (balance >= 20) {
     cls = 'b-ok'; titulo = '+' + balance.toFixed(1) + 'h de ventaja sobre el objetivo.';
-    detalle = 'Restan ' + faltanMes.toFixed(1) + 'h para completar el mes (' + pct.toFixed(1) + '%).';
+    detalle = 'Restan ' + faltanAnual.toFixed(1) + 'h para completar el año (' + pct.toFixed(1) + '%).';
   } else if (balance >= 0) {
     cls = 'b-ok'; titulo = 'Al día · +' + balance.toFixed(1) + 'h.';
-    detalle = horasTrab.toFixed(1) + 'h de ' + horasMes.toFixed(0) + 'h (' + pct.toFixed(1) + '%). Faltan ' + faltanMes.toFixed(1) + 'h.';
+    detalle = horasTrab.toFixed(1) + 'h de ' + HORAS_ANUALES_CONVENIO + 'h (' + pct.toFixed(1) + '%). Faltan ' + faltanAnual.toFixed(1) + 'h.';
   } else if (balance > -10) {
     cls = 'b-warn'; titulo = 'Pequeño retraso · ' + balance.toFixed(1) + 'h.';
     detalle = 'Debería tener ' + horasTeoHoy.toFixed(1) + 'h, lleva ' + horasTrab.toFixed(1) + 'h.';
@@ -630,7 +631,7 @@ document.getElementById('btnExportFichajes').addEventListener('click', function(
 // ── Exportar horas por empleado ───────────────────────────────────────────
 document.getElementById('btnExportHoras').addEventListener('click', function() {
   if (!_horasCache.length) { toast('No hay datos para exportar', 'warn'); return; }
-  const cabeceras = ['Nombre','Email','Empresa','H. Trabajadas','H. Teóricas hoy','Balance','% Mensual','Horas extra','Estado'];
+  const cabeceras = ['Nombre','Email','Empresa','H. Trabajadas','H. Teóricas hoy','Balance','% Anual','Horas extra','Estado'];
   const filas = _horasCache.map(function(r) {
     const estado = r.balance >= 0 ? 'Al día' : (r.balance > -10 ? 'Leve retraso' : 'Déficit');
     return [
@@ -655,18 +656,16 @@ async function loadHorasEmpleados() {
   document.getElementById('tablaHoras').innerHTML = '<div class="loading"><span class="spinner"></span>Calculando horas...</div>';
   _horasCache = [];
   try {
-    const hoy    = new Date();
-    const anio   = hoy.getFullYear();
-    const mes    = hoy.getMonth();
-    const inicio = new Date(anio, mes, 1);
-    const fin    = new Date(anio, mes + 1, 1);
+    const anio   = new Date().getFullYear();
+    const inicio = new Date(anio, 0, 1);
+    const fin    = new Date(anio + 1, 0, 1);
 
     const [uSnap, fSnap] = await Promise.all([
       db.collection('usuarios').get(),
       db.collection('fichajes').get()
     ]);
 
-    // Agrupar fichajes por userId y filtrar por mes actual
+    // Agrupar fichajes por userId y filtrar por año
     const fichajesPorUser = {};
     fSnap.docs.forEach(function(d) {
       const f  = d.data();
@@ -682,7 +681,7 @@ async function loadHorasEmpleados() {
     uSnap.docs.forEach(function(d) {
       const u        = d.data();
       const fich     = fichajesPorUser[d.id] || [];
-      const bal      = calcularBalanceMensual(fich);
+      const bal      = calcularBalanceAnual(fich);
       const horasExtra = fich.reduce(function(s, f) { return s + (f.tipo === 'salida' ? (f.horasExtra || 0) : 0); }, 0);
       filas.push({
         id: d.id,
@@ -733,7 +732,7 @@ async function loadHorasEmpleados() {
 
     document.getElementById('tablaHoras').innerHTML =
       '<table><thead><tr>' +
-      '<th>Empleado</th><th>Empresa</th><th>Trabajadas</th><th>Objetivo hoy</th><th>Balance</th><th>Progreso mensual</th><th>H. Extra</th>' +
+      '<th>Empleado</th><th>Empresa</th><th>Trabajadas</th><th>Objetivo hoy</th><th>Balance</th><th>Progreso anual</th><th>H. Extra</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
 
   } catch(e) {
@@ -751,22 +750,30 @@ var _pagResumen  = 1;
 var _pagFichajes = 1;
 var _resumenDocs = []; // todos los docs del resumen para paginar
 
+// Registro de callbacks indexados por pagId — evita usar toString() en onclick
+var _pagCallbacks = {};
+
 function buildPagHTML(pagId, paginaActual, total, porPagina, onPageFn) {
-  var totalPages = Math.ceil(total / porPagina) || 1;
-  var desde = (paginaActual - 1) * porPagina + 1;
-  var hasta = Math.min(paginaActual * porPagina, total);
   var el = document.getElementById(pagId);
   if (!el) return;
   if (total === 0) { el.style.display = 'none'; return; }
+
+  // Registrar callback por id
+  _pagCallbacks[pagId] = onPageFn;
+  var fn = '_pagCallbacks['' + pagId + '']';
+
+  var totalPages = Math.ceil(total / porPagina) || 1;
+  var infoDesde  = (paginaActual - 1) * porPagina + 1;
+  var infoHasta  = Math.min(paginaActual * porPagina, total);
+
   el.style.display = 'flex';
 
-  // Info
-  var html = '<span class="pag-info">Mostrando ' + desde + '–' + hasta + ' de ' + total + '</span>';
+  var html = '<span class="pag-info">Mostrando ' + infoDesde + '–' + infoHasta + ' de ' + total + '</span>';
   html += '<div class="pag-btns">';
 
   // Anterior
-  html += '<button class="pag-btn" ' + (paginaActual === 1 ? 'disabled' : '') +
-          ' onclick="' + onPageFn.name + '(' + (paginaActual-1) + ')">‹</button>';
+  html += '<button class="pag-btn"' + (paginaActual === 1 ? ' disabled' : '') +
+          ' onclick="' + fn + '(' + (paginaActual - 1) + ')">‹</button>';
 
   // Páginas
   var pages = [];
@@ -775,23 +782,24 @@ function buildPagHTML(pagId, paginaActual, total, porPagina, onPageFn) {
   } else {
     pages.push(1);
     if (paginaActual > 3) pages.push('…');
-    for (var i = Math.max(2, paginaActual-1); i <= Math.min(totalPages-1, paginaActual+1); i++) pages.push(i);
-    if (paginaActual < totalPages-2) pages.push('…');
+    for (var i = Math.max(2, paginaActual - 1); i <= Math.min(totalPages - 1, paginaActual + 1); i++) pages.push(i);
+    if (paginaActual < totalPages - 2) pages.push('…');
     pages.push(totalPages);
   }
   pages.forEach(function(p) {
     if (p === '…') {
       html += '<span class="pag-ellipsis">…</span>';
     } else {
-      html += '<button class="pag-btn' + (p === paginaActual ? ' active' : '') + '" ' +
-              (p === paginaActual ? 'disabled' : 'onclick="' + onPageFn.name + '(' + p + ')"') +
+      var isActive = (p === paginaActual);
+      html += '<button class="pag-btn' + (isActive ? ' active' : '') + '"' +
+              (isActive ? ' disabled' : ' onclick="' + fn + '(' + p + ')"') +
               '>' + p + '</button>';
     }
   });
 
   // Siguiente
-  html += '<button class="pag-btn" ' + (paginaActual === totalPages ? 'disabled' : '') +
-          ' onclick="' + onPageFn.name + '(' + (paginaActual+1) + ')">›</button>';
+  html += '<button class="pag-btn"' + (paginaActual === totalPages ? ' disabled' : '') +
+          ' onclick="' + fn + '(' + (paginaActual + 1) + ')">›</button>';
   html += '</div>';
   el.innerHTML = html;
 }
@@ -1043,21 +1051,21 @@ function renderCharts(allDocs) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// RESUMEN – renderizado paginado de la tabla reciente
+// RESUMEN
 // ─────────────────────────────────────────────────────────────────────────
 function renderResumenPagina(pagina) {
   _pagResumen = pagina;
-  var total   = _resumenDocs.length;
+  var total = _resumenDocs.length;
   if (!total) {
     document.getElementById('recentFichajes').innerHTML = '<div class="empty">No hay fichajes aún</div>';
     document.getElementById('recentPag').style.display = 'none';
     return;
   }
-  var desde = (pagina - 1) * PAG_SIZE_RESUMEN;
-  var hasta = Math.min(desde + PAG_SIZE_RESUMEN, total);
+  var desde   = (pagina - 1) * PAG_SIZE_RESUMEN;
+  var hasta   = Math.min(desde + PAG_SIZE_RESUMEN, total);
   var pagDocs = _resumenDocs.slice(desde, hasta);
   var tbody = pagDocs.map(function(d) {
-    var f = d.data();
+    var f       = d.data ? d.data() : d;
     var nombre  = f.nombre || f.email || '—';
     var dept    = f.departamento || '—';
     var tipo    = f.tipo || '';
@@ -1078,8 +1086,90 @@ function renderResumenPagina(pagina) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// RESUMEN
+// FILTRO GLOBAL (empresa + departamento)
 // ─────────────────────────────────────────────────────────────────────────
+
+// Filtra un array de {data()} docs según _filtroEmpresa y _filtroDept
+function filtrarDocs(docs) {
+  return docs.filter(function(d) {
+    var f = d.data ? d.data() : d;
+    if (_filtroEmpresa && (f.empresa || '') !== _filtroEmpresa) return false;
+    if (_filtroDept    && (f.departamento || '') !== _filtroDept) return false;
+    return true;
+  });
+}
+
+// Rellena los selects con los valores únicos que existen en los docs
+function popularFiltrosResumen(allDocs) {
+  var empresas = {}, depts = {};
+  allDocs.forEach(function(d) {
+    var f = d.data ? d.data() : d;
+    if (f.empresa)       empresas[f.empresa] = 1;
+    if (f.departamento)  depts[f.departamento] = 1;
+  });
+
+  var selEmp  = document.getElementById('rFiltroEmpresa');
+  var selDept = document.getElementById('rFiltroDept');
+  var prevEmp  = selEmp.value;
+  var prevDept = selDept.value;
+
+  selEmp.innerHTML  = '<option value="">Todas las empresas</option>';
+  selDept.innerHTML = '<option value="">Todos los departamentos</option>';
+
+  Object.keys(empresas).sort().forEach(function(e) {
+    var o = document.createElement('option'); o.value = e; o.textContent = e;
+    if (e === prevEmp) o.selected = true;
+    selEmp.appendChild(o);
+  });
+  Object.keys(depts).sort().forEach(function(d) {
+    var o = document.createElement('option'); o.value = d; o.textContent = d;
+    if (d === prevDept) o.selected = true;
+    selDept.appendChild(o);
+  });
+
+  // Restaurar valores de filtro desde los selects
+  _filtroEmpresa = selEmp.value;
+  _filtroDept    = selDept.value;
+}
+
+// Listeners de los selects del Resumen
+(function() {
+  document.getElementById('rFiltroEmpresa').addEventListener('change', function() {
+    _filtroEmpresa = this.value;
+    _soloMiEmpresa = false;
+    var btn = document.getElementById('btnMiEmpresa');
+    btn.classList.remove('active');
+    btn.textContent = '🏢 Mi empresa';
+    loadResumen();
+  });
+  document.getElementById('rFiltroDept').addEventListener('change', function() {
+    _filtroDept = this.value;
+    loadResumen();
+  });
+})();
+
+// Botón "Mi empresa" en la topbar
+document.getElementById('btnMiEmpresa').addEventListener('click', function() {
+  var btn = this;
+  if (_soloMiEmpresa) {
+    // Desactivar filtro
+    _soloMiEmpresa = false;
+    _filtroEmpresa = '';
+    btn.classList.remove('active');
+    btn.textContent = '🏢 Mi empresa';
+    document.getElementById('rFiltroEmpresa').value = '';
+  } else {
+    var miEmpresa = me.empresa || '';
+    if (!miEmpresa) { alert('Tu usuario no tiene empresa asignada.'); return; }
+    _soloMiEmpresa = true;
+    _filtroEmpresa = miEmpresa;
+    btn.classList.add('active');
+    btn.textContent = '🏢 ' + miEmpresa;
+    document.getElementById('rFiltroEmpresa').value = miEmpresa;
+  }
+  loadResumen();
+});
+
 function loadResumen() {
   if (resumenUnsub) resumenUnsub();
   resumenUnsub = db.collection('fichajes').orderBy('timestamp','desc').limit(500).onSnapshot(async function(fSnap) {
@@ -1089,9 +1179,23 @@ function loadResumen() {
         db.collection('departamentos').get()
       ]);
 
-      // ── Stat: usuarios, depts ──────────────────────────────────────────
-      document.getElementById('stUsuarios').textContent = uSnap.size;
-      document.getElementById('stDepts').textContent    = dSnap.size;
+      // Poblar selects con empresas y departamentos disponibles
+      popularFiltrosResumen(fSnap.docs);
+
+      // Aplicar filtros globales a los docs
+      var docsVisibles = filtrarDocs(fSnap.docs);
+
+      // ── Stat: usuarios, depts (filtrados) ────────────────────────────
+      var usuariosVisibles = _filtroEmpresa
+        ? uSnap.docs.filter(function(d){ return (d.data().empresa||'') === _filtroEmpresa; }).length
+        : uSnap.size;
+      var deptsVisibles = _filtroDept
+        ? 1
+        : (_filtroEmpresa
+            ? dSnap.docs.filter(function(d){ return (d.data().empresa||'') === _filtroEmpresa; }).length
+            : dSnap.size);
+      document.getElementById('stUsuarios').textContent = usuariosVisibles;
+      document.getElementById('stDepts').textContent    = deptsVisibles;
 
       // ── Fechas de referencia ──────────────────────────────────────────
       const ahora    = new Date();
@@ -1099,14 +1203,14 @@ function loadResumen() {
       const mesIni   = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
 
       // ── Stat: fichajes hoy ────────────────────────────────────────────
-      const fichajesHoy = fSnap.docs.filter(function(d) {
+      const fichajesHoy = docsVisibles.filter(function(d) {
         const ts = d.data().timestamp;
         return ts && ts.toDate && ts.toDate() >= hoy;
       });
       document.getElementById('stHoy').textContent = fichajesHoy.length;
 
       // ── Stat: fichajes este mes ───────────────────────────────────────
-      const fichajesMes = fSnap.docs.filter(function(d) {
+      const fichajesMes = docsVisibles.filter(function(d) {
         const ts = d.data().timestamp;
         return ts && ts.toDate && ts.toDate() >= mesIni;
       });
@@ -1114,7 +1218,7 @@ function loadResumen() {
 
       // ── Stat: quién está dentro ahora (último fichaje = entrada) ──────
       const last = {};
-      fSnap.docs.slice().reverse().forEach(function(d) {
+      docsVisibles.slice().reverse().forEach(function(d) {
         const f = d.data(); if (!last[f.userId]) last[f.userId] = f.tipo;
       });
       const activos = Object.values(last).filter(function(t){ return t==='entrada'; }).length;
@@ -1138,13 +1242,11 @@ function loadResumen() {
       document.getElementById('stHExtra').textContent = hExtraHoy.toFixed(1) + 'h';
 
       // ── Tabla recientes con paginación ────────────────────────────────
-      _resumenDocs = fSnap.docs; // guardar para paginar
-      _pagResumen  = 1;
-
+      _resumenDocs = docsVisibles; // guardar para paginar
       renderResumenPagina(1);
 
       // Renderizar gráficas con todos los docs disponibles
-      renderCharts(fSnap.docs);
+      renderCharts(docsVisibles);
     } catch(e) { console.error(e); }
   }, function(err) { console.error(err); });
 }
@@ -1166,7 +1268,7 @@ async function loadUsuarios() {
           '<td style="color:var(--muted)">' + esc(u.email||'—') + '</td>' +
           '<td style="color:var(--muted)">' + esc(u.empresa||'—') + '</td>' +
           '<td style="color:var(--muted)">' + esc(u.departamento||'—') + '</td>' +
-          '<td><span class="pill ' + (u.rol==='admin'?'pill-admin':u.rol==='jefe'?'pill-jefe':'pill-emp') + '">' + esc(u.rol||'empleado') + '</span></td>' +
+          '<td><span class="pill ' + (u.rol==='admin'?'pill-admin':'pill-emp') + '">' + esc(u.rol||'empleado') + '</span></td>' +
           '<td>' +
             '<button class="btn-act btn-edit" onclick="editUser(\'' + d.id + '\')">Editar</button>' +
             '<button class="btn-act btn-del"  onclick="delUser(\'' + d.id + '\',\'' + escAttr(u.nombre||u.email).replace(/'/g,"\\'") + '\')">Eliminar</button>' +
@@ -1177,26 +1279,6 @@ async function loadUsuarios() {
 
 // ── Modal usuario ─────────────────────────────────────────────────────────
 let editingUserId = null;
-var allDeptDocs = [];
-
-function filterDepts(empresa, selectedDept) {
-  const sel = document.getElementById('fDept');
-  sel.innerHTML = '<option value="">— Sin departamento —</option>';
-  allDeptDocs.forEach(function(d) {
-    const data = d.data();
-    // Only show departments that belong to the selected company (or all if no company selected)
-    if (empresa && data.empresa !== empresa) return;
-    const opt = document.createElement('option');
-    opt.value = data.nombre; opt.textContent = data.nombre;
-    if (selectedDept === data.nombre) opt.selected = true;
-    sel.appendChild(opt);
-  });
-}
-
-document.getElementById('fEmpresa').addEventListener('change', function() {
-  filterDepts(this.value, '');
-});
-
 async function openUserModal(title, data) {
   data = data || {};
   document.getElementById('modalUserTitle').textContent = title;
@@ -1204,30 +1286,18 @@ async function openUserModal(title, data) {
   document.getElementById('fEmail').value    = data.email    || '';
   document.getElementById('fPassword').value = '';
   document.getElementById('fRol').value      = data.rol      || 'empleado';
+  document.getElementById('fEmpresa').value  = data.empresa  || '';
   document.getElementById('fEmail').disabled = !!editingUserId;
   document.getElementById('modalUserErr').classList.remove('show');
   const dSnap = await db.collection('departamentos').get();
-  allDeptDocs = dSnap.docs;
-  // Populate empresa dropdown with unique companies from departments
-  const empresaSet = new Set();
-  dSnap.docs.forEach(function(d) { if (d.data().empresa) empresaSet.add(d.data().empresa); });
-  const empSel = document.getElementById('fEmpresa');
-  empSel.innerHTML = '<option value="">— Sin empresa —</option>';
-  empresaSet.forEach(function(emp) {
+  const sel   = document.getElementById('fDept');
+  sel.innerHTML = '<option value="">— Sin departamento —</option>';
+  dSnap.docs.forEach(function(d) {
     const opt = document.createElement('option');
-    opt.value = emp; opt.textContent = emp;
-    if (data.empresa === emp) opt.selected = true;
-    empSel.appendChild(opt);
+    opt.value = d.data().nombre; opt.textContent = d.data().nombre;
+    if (data.departamento === d.data().nombre) opt.selected = true;
+    sel.appendChild(opt);
   });
-  // If the current user's empresa is not in the list, add it
-  if (data.empresa && !empresaSet.has(data.empresa)) {
-    const opt = document.createElement('option');
-    opt.value = data.empresa; opt.textContent = data.empresa;
-    opt.selected = true;
-    empSel.appendChild(opt);
-  }
-  // Populate department dropdown filtered by the selected company
-  filterDepts(data.empresa || '', data.departamento || '');
   document.getElementById('ovUsuario').classList.add('show');
 }
 document.getElementById('btnNuevoUsuario').addEventListener('click', function() { editingUserId = null; openUserModal('Nuevo usuario'); });
@@ -1244,15 +1314,6 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
   errEl.classList.remove('show');
   if (!nombre || !email) { errEl.textContent = 'Nombre y email son obligatorios'; errEl.classList.add('show'); return; }
   if (!editingUserId && !password) { errEl.textContent = 'La contraseña es obligatoria'; errEl.classList.add('show'); return; }
-  // Validate that the selected department belongs to the selected company
-  if (empresa && dept) {
-    const deptDoc = allDeptDocs.find(function(d) { return d.data().nombre === dept; });
-    if (deptDoc && deptDoc.data().empresa !== empresa) {
-      errEl.textContent = 'El departamento seleccionado no pertenece a la empresa indicada';
-      errEl.classList.add('show');
-      return;
-    }
-  }
   btn.disabled = true; btn.textContent = 'Guardando...';
   try {
     const datos = { nombre, email, rol, empresa, departamento: dept };
@@ -1303,30 +1364,12 @@ function renderQRCard(id, data) {
   const qrUrl = new URL('.', location.href).href + 'index.html?dept=' + id;
   new QRCode(document.getElementById('qrbox-'+id), { text: qrUrl, width: 140, height: 140, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
 }
-document.getElementById('btnNuevoDept').addEventListener('click', async function() {
+document.getElementById('btnNuevoDept').addEventListener('click', function() {
   document.getElementById('fDeptNombre').value = '';
+  document.getElementById('fDeptEmpresa').value = me.empresa || '';
   document.getElementById('fDeptLat').value = ''; document.getElementById('fDeptLng').value = '';
   document.getElementById('modalDeptErr').classList.remove('show');
-  const empSel = document.getElementById('fDeptEmpresa');
-  empSel.innerHTML = '<option value="">— Cargando empresas... —</option>';
   document.getElementById('ovDept').classList.add('show');
-  try {
-    const uSnap = await db.collection('usuarios').get();
-    const empresaSet = new Set();
-    uSnap.docs.forEach(function(d) { var emp = d.data().empresa; if (emp) empresaSet.add(emp); });
-    empSel.innerHTML = '<option value="">— Selecciona empresa —</option>';
-    empresaSet.forEach(function(emp) {
-      var opt = document.createElement('option');
-      opt.value = emp; opt.textContent = emp;
-      if (me.empresa === emp) opt.selected = true;
-      empSel.appendChild(opt);
-    });
-    if (!empresaSet.size) {
-      empSel.innerHTML = '<option value="">— Sin empresas creadas —</option>';
-    }
-  } catch(e) {
-    empSel.innerHTML = '<option value="">— Error al cargar empresas —</option>';
-  }
 });
 document.getElementById('btnCancelDept').addEventListener('click', function() { document.getElementById('ovDept').classList.remove('show'); });
 document.getElementById('btnUsarUbicacion').addEventListener('click', function() {
@@ -1525,16 +1568,14 @@ function applyFichajesFilters() {
   renderTablaFichajes(datos);
 }
 
-function loadFichajes(skipReset) {
+function loadFichajes() {
   document.getElementById('tablaFichajes').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
   // Resetear filtros visuales pero mantener estado de ordenación
-  if (!skipReset) {
-    document.getElementById('fltNombre').value     = '';
-    document.getElementById('fltDept').value       = '';
-    document.getElementById('fltTipo').value       = '';
-    document.getElementById('fltFechaDesde').value = '';
-    document.getElementById('fltFechaHasta').value = '';
-  }
+  document.getElementById('fltNombre').value     = '';
+  document.getElementById('fltDept').value       = '';
+  document.getElementById('fltTipo').value       = '';
+  document.getElementById('fltFechaDesde').value = '';
+  document.getElementById('fltFechaHasta').value = '';
 
   if (fichajesUnsub) fichajesUnsub();
   fichajesUnsub = db.collection('fichajes').orderBy('timestamp','desc').limit(500)
@@ -1579,7 +1620,7 @@ async function openUserDrawer(userId, userData) {
   document.getElementById('drawerAvatar').textContent = initials;
   document.getElementById('drawerName').textContent   = userData.nombre || '—';
   document.getElementById('drawerEmail').textContent  = userData.email  || '—';
-  const rolPill = userData.rol === 'admin' ? 'pill-admin' : userData.rol === 'jefe' ? 'pill-jefe' : 'pill-emp';
+  const rolPill = userData.rol === 'admin' ? 'pill-admin' : 'pill-emp';
   document.getElementById('drawerMeta').innerHTML =
     (userData.empresa      ? '<span>'+esc(userData.empresa)+'</span> · ' : '') +
     (userData.departamento ? '<span>'+esc(userData.departamento)+'</span> · ' : '') +
@@ -1593,9 +1634,8 @@ async function openUserDrawer(userId, userData) {
   document.getElementById('userDrawer').classList.add('show');
   try {
     const anio   = new Date().getFullYear();
-    const mes    = new Date().getMonth();
-    const inicio = new Date(anio, mes, 1);
-    const fin    = new Date(anio, mes + 1, 1);
+    const inicio = new Date(anio, 0, 1);
+    const fin    = new Date(anio + 1, 0, 1);
 
     const snap     = await db.collection('fichajes').where('userId','==',userId).orderBy('timestamp','desc').limit(200).get();
     const fichajes = snap.docs.map(function(d){ return d.data(); });
@@ -1605,21 +1645,21 @@ async function openUserDrawer(userId, userData) {
     const total     = fichajes.length;
     const esteMes   = fichajes.filter(function(f){ return f.timestamp && f.timestamp.toDate && f.timestamp.toDate() >= mesInicio; }).length;
 
-    // Fichajes del mes actual para balance
-    const fichajesMes = fichajes.filter(function(f) {
+    // Fichajes del año actual para balance
+    const fichajesAnio = fichajes.filter(function(f) {
       if (!f.timestamp || !f.timestamp.toDate) return false;
       const d = f.timestamp.toDate(); return d >= inicio && d < fin;
     });
 
-    const bal        = calcularBalanceMensual(fichajesMes);
-    const hNormMes   = fichajesMes.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasNormales||0):0); },0);
-    const hExtraMes  = fichajesMes.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasExtra||0):0);    },0);
+    const bal        = calcularBalanceAnual(fichajesAnio);
+    const hNormAnio  = fichajesAnio.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasNormales||0):0); },0);
+    const hExtraAnio = fichajesAnio.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasExtra||0):0);    },0);
 
     document.getElementById('drawerStats').innerHTML =
       '<div class="dstat"><div class="dstat-label">Total fichajes</div><div class="dstat-value c-accent">'+total+'</div></div>' +
       '<div class="dstat"><div class="dstat-label">Este mes</div><div class="dstat-value c-accent">'+esteMes+'</div></div>' +
-      '<div class="dstat"><div class="dstat-label">H. normales este mes</div><div class="dstat-value c-success">'+hNormMes.toFixed(1)+'h</div></div>' +
-      '<div class="dstat"><div class="dstat-label">H. extra este mes</div><div class="dstat-value c-warn">'+hExtraMes.toFixed(1)+'h</div></div>';
+      '<div class="dstat"><div class="dstat-label">H. normales '+anio+'</div><div class="dstat-value c-success">'+hNormAnio.toFixed(1)+'h</div></div>' +
+      '<div class="dstat"><div class="dstat-label">H. extra '+anio+'</div><div class="dstat-value c-warn">'+hExtraAnio.toFixed(1)+'h</div></div>';
 
     // Barra de progreso anual
     const pctBar = Math.min(bal.pct, 100);
@@ -1684,8 +1724,7 @@ function navToFichajes(opts) {
     applyFichajesFilters();
   } else {
     // loadFichajes cargará datos y llamará applyFichajesFilters
-    // Pasamos true para no borrar los filtros que acabamos de establecer
-    loadFichajes(true);
+    loadFichajes();
   }
 }
 
