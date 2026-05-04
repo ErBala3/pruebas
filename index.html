@@ -64,10 +64,10 @@ body {
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
-// ── Leer parámetro ?dept de la URL y guardarlo para después del login ──
+// ── Leer parámetro ?dept de la URL y guardarlo para después del login ──────
 (function() {
-  var urlParams = new URLSearchParams(window.location.search);
-  var pendingDept = urlParams.get('dept');
+  const urlParams = new URLSearchParams(window.location.search);
+  const pendingDept = urlParams.get('dept');
   if (pendingDept) sessionStorage.setItem('pendingDept', pendingDept);
 })();
 
@@ -79,10 +79,8 @@ firebase.initializeApp({
   messagingSenderId: "452860965959",
   appId: "1:452860965959:web:42ecb1c31f17e55daa6d62"
 });
-
 const db = firebase.firestore();
 
-// ── Hash de contraseña (SHA-256 via Web Crypto API) ───────────────────
 async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
@@ -92,77 +90,61 @@ async function hashPassword(password) {
 }
 
 async function doLogin() {
-  const email    = document.getElementById('email').value.trim().toLowerCase();
+  const email = document.getElementById('email').value.trim().toLowerCase();
   const password = document.getElementById('password').value;
-  const errorEl  = document.getElementById('error');
-  const btn      = document.getElementById('btnLogin');
-
+  const errorEl = document.getElementById('error');
+  const btn = document.getElementById('btnLogin');
   errorEl.classList.remove('show');
 
-  if (!email || !password) {
-    errorEl.textContent = 'Rellena email y contraseña';
-    errorEl.classList.add('show');
-    return;
-  }
+  if (!email || !password) { errorEl.textContent = 'Rellena email y contraseña'; errorEl.classList.add('show'); return; }
 
   btn.disabled = true; btn.textContent = 'Conectando...';
 
   try {
     const hashed = await hashPassword(password);
-    const snap = await db.collection('usuarios')
-      .where('email', '==', email)
-      .where('password', '==', hashed)
-      .limit(1).get();
+    const snap = await db.collection('usuarios').where('email','==',email).where('password','==',hashed).limit(1).get();
 
     if (snap.empty) {
-      errorEl.textContent = 'Email o contraseña incorrectos';
-      errorEl.classList.add('show');
-      btn.disabled = false; btn.textContent = 'Entrar';
-      return;
+      errorEl.textContent = 'Email o contraseña incorrectos'; errorEl.classList.add('show');
+      btn.disabled = false; btn.textContent = 'Entrar'; return;
     }
 
-    const doc = snap.docs[0];
-    const u   = doc.data();
-
+    const doc = snap.docs[0]; const u = doc.data();
     localStorage.setItem('user', JSON.stringify({
-      id:           doc.id,
-      email:        u.email,
-      nombre:       u.nombre       || '',
-      rol:          u.rol          || 'empleado',
-      empresa:      u.empresa      || '',
-      empresas:     Array.isArray(u.empresas) ? u.empresas : (u.empresa ? [u.empresa] : []),
-      departamento: u.departamento || '',
-      departamentos:Array.isArray(u.departamentos) ? u.departamentos : (u.departamento ? [u.departamento] : [])
+      id: doc.id, email: u.email, nombre: u.nombre || '',
+      rol: u.rol || 'empleado', empresa: u.empresa || ''
     }));
 
-    // admin y jefe van a admin.html
-    if (u.rol === 'admin' || u.rol === 'jefe') {
-      window.location.href = 'admin.html';
-      return;
-    }
-
     const stored = sessionStorage.getItem('pendingDept');
-    if (stored) {
-      window.location.href = 'dashboard.html?dept=' + stored;
-    } else {
-      window.location.href = 'dashboard.html';
-    }
+    const rol = u.rol || 'empleado';
 
+    if (rol === 'admin' || rol === 'jefe') {
+      // Admins y jefes van al panel de gestión
+      // Si hay un dept pendiente, lo procesa después desde dashboard
+      if (stored && rol === 'jefe') {
+        // Jefe con QR pendiente: primero ficha, luego puede ir al panel
+        window.location.href = `dashboard.html?dept=${stored}`;
+      } else {
+        window.location.href = 'admin.html';
+      }
+    } else {
+      // Empleados van al dashboard de fichaje
+      if (stored) {
+        window.location.href = `dashboard.html?dept=${stored}`;
+      } else {
+        window.location.href = 'dashboard.html';
+      }
+    }
   } catch(err) {
     errorEl.textContent = err.code === 'permission-denied'
       ? 'Error de permisos en Firestore. Revisa las reglas.'
       : 'Error: ' + err.message;
-    errorEl.classList.add('show');
-    btn.disabled = false; btn.textContent = 'Entrar';
+    errorEl.classList.add('show'); btn.disabled = false; btn.textContent = 'Entrar';
   }
 }
 
 document.getElementById('btnLogin').addEventListener('click', doLogin);
-['email', 'password'].forEach(function(id) {
-  document.getElementById(id).addEventListener('keydown', function(e) {
-    if (e.key === 'Enter') doLogin();
-  });
-});
+['email','password'].forEach(id => document.getElementById(id).addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); }));
 </script>
 </body>
 </html>
