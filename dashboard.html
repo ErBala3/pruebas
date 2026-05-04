@@ -81,6 +81,56 @@ body {
 .btn-rescan { width: 100%; margin-top: 12px; padding: 11px; background: transparent; color: #a0a0a0; border: 1px solid #2a2a2a; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600; cursor: pointer; transition: background .2s; display: none; }
 .btn-rescan:hover { background: rgba(255,255,255,.04); border-color: #555; }
 .btn-rescan.show { display: block; }
+
+/* ── Calendario anual ── */
+.cal-panel {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 18px 20px; animation: fadeUp .45s .05s ease both;
+}
+.cal-panel-title {
+  font-size: 11px; font-weight: 600; color: var(--text-secondary);
+  text-transform: uppercase; letter-spacing: .8px; margin-bottom: 12px;
+}
+/* Mes acordeón */
+.mes-item { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 6px; }
+.mes-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; cursor: pointer; user-select: none;
+  transition: background .15s;
+}
+.mes-header:hover { background: rgba(255,255,255,.03); }
+.mes-nombre { font-size: 13px; font-weight: 600; }
+.mes-nombre.c-ok   { color: #6ab88a; }
+.mes-nombre.c-err  { color: #c0392b; }
+.mes-nombre.c-none { color: var(--text-secondary); }
+.mes-resumen { font-size: 11px; color: var(--muted); }
+.mes-arrow { font-size: 10px; color: var(--muted); transition: transform .2s; }
+.mes-arrow.open { transform: rotate(180deg); }
+/* Cuerpo del mes (calendario) */
+.mes-body { display: none; padding: 10px 12px 12px; background: var(--surface2); border-top: 1px solid var(--border); }
+.mes-body.open { display: block; }
+/* Cabecera días semana */
+.cal-week-header {
+  display: grid; grid-template-columns: repeat(7, 1fr);
+  gap: 3px; margin-bottom: 4px;
+}
+.cal-wd { font-size: 9px; font-weight: 600; color: var(--muted); text-align: center; padding: 2px 0; }
+/* Grid días */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.cal-dia {
+  aspect-ratio: 1; border-radius: 5px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; font-size: 10px; font-weight: 600;
+  border: 1px solid transparent; position: relative;
+}
+.cal-dia.vacio { background: transparent; border-color: transparent; }
+.cal-dia.sin-datos { background: rgba(255,255,255,.03); border-color: var(--border); color: var(--muted); }
+.cal-dia.ok   { background: rgba(45,122,79,.18);  border-color: rgba(45,122,79,.4);  color: #6ab88a; }
+.cal-dia.err  { background: rgba(192,57,43,.18);  border-color: rgba(192,57,43,.4);  color: #c0392b; }
+.cal-dia.hoy  { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cal-dia .dia-num { font-size: 11px; line-height: 1; }
+.cal-dia .dia-h   { font-size: 8px; color: inherit; opacity: .8; margin-top: 1px; }
+/* Futuro */
+.cal-dia.futuro { opacity: .25; pointer-events: none; }
 </style>
 </head>
 <body>
@@ -124,6 +174,12 @@ body {
     <div class="balance-msg s-info" id="hpMsg">
       <div class="bm-title">Cargando datos...</div>
     </div>
+  </div>
+
+  <!-- Calendario anual -->
+  <div class="cal-panel" id="calPanel">
+    <div class="cal-panel-title">Mi año · <span id="calAnio">—</span></div>
+    <div id="calMeses"><div style="font-size:12px;color:var(--muted);padding:8px 0">Cargando...</div></div>
   </div>
 
   <!-- Escáner -->
@@ -200,6 +256,180 @@ function diasLaborablesAnio(anio) {
     c.setDate(c.getDate() + 1);
   }
   return dias;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// CALENDARIO ANUAL
+// ─────────────────────────────────────────────────────────────────────────
+var NOMBRES_MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                     'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+var DIAS_SEMANA   = ['L','M','X','J','V','S','D'];
+
+// Horas mínimas por día laboral (convenio / días laborables del mes)
+function horasMinDia(anio, mes) {
+  // dias laborables en ese mes
+  var diasLab = 0;
+  var totalDias = new Date(anio, mes + 1, 0).getDate();
+  for (var d = 1; d <= totalDias; d++) {
+    var dow = new Date(anio, mes, d).getDay();
+    if (dow !== 0 && dow !== 6) diasLab++;
+  }
+  var horasLab = diasLaborablesAnio(anio);
+  return diasLab > 0 ? (HORAS_ANUALES_CONVENIO / horasLab) : 0;
+}
+
+async function buildCalendario() {
+  var anio   = new Date().getFullYear();
+  var hoy    = new Date();
+  document.getElementById('calAnio').textContent = anio;
+
+  // Traer todos los fichajes del año
+  var snap = await db.collection('fichajes').where('userId','==', user.id).get();
+
+  // Agrupar horas trabajadas por fecha 'YYYY-MM-DD'
+  // Solo contamos salidas (que tienen horasNormales + horasExtra)
+  var horasPorDia = {};
+  snap.docs.forEach(function(d) {
+    var f  = d.data();
+    var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate()
+           : (f.timestampCliente ? new Date(f.timestampCliente) : null);
+    if (!ts) return;
+    if (ts.getFullYear() !== anio) return;
+    if (f.tipo !== 'salida') return;
+    var key = ts.getFullYear() + '-'
+      + String(ts.getMonth()+1).padStart(2,'0') + '-'
+      + String(ts.getDate()).padStart(2,'0');
+    horasPorDia[key] = (horasPorDia[key] || 0) + (f.horasNormales||0) + (f.horasExtra||0);
+  });
+
+  // Calcular horas trabajadas por mes para el color del acordeón
+  var horasPorMes = {};
+  Object.keys(horasPorDia).forEach(function(key) {
+    var mes = parseInt(key.split('-')[1]) - 1; // 0-based
+    horasPorMes[mes] = (horasPorMes[mes] || 0) + horasPorDia[key];
+  });
+
+  var container = document.getElementById('calMeses');
+  container.innerHTML = '';
+
+  for (var m = 0; m < 12; m++) {
+    var mesPasado    = new Date(anio, m + 1, 0) < hoy; // mes completamente pasado
+    var mesActual    = (m === hoy.getMonth());
+    var mesFuturo    = (new Date(anio, m, 1) > hoy);
+
+    // Horas teóricas del mes completo (solo hasta hoy si es mes actual)
+    var totalDiasMes = new Date(anio, m + 1, 0).getDate();
+    var diasLabMes   = 0;
+    var diasHastaHoy = mesPasado ? totalDiasMes : (mesActual ? hoy.getDate() : 0);
+    for (var dd = 1; dd <= diasHastaHoy; dd++) {
+      var dow = new Date(anio, m, dd).getDay();
+      if (dow !== 0 && dow !== 6) diasLabMes++;
+    }
+    var hTeoricas  = diasLabMes * (HORAS_ANUALES_CONVENIO / diasLaborablesAnio(anio));
+    var hTrabajadas = horasPorMes[m] || 0;
+
+    // Color del mes
+    var clsMes, txtResumen;
+    if (mesFuturo) {
+      clsMes     = 'c-none';
+      txtResumen = '';
+    } else if (hTrabajadas === 0) {
+      clsMes     = 'c-none';
+      txtResumen = 'Sin registros';
+    } else if (hTrabajadas >= hTeoricas - 0.5) {
+      clsMes     = 'c-ok';
+      txtResumen = hTrabajadas.toFixed(1) + 'h / ' + hTeoricas.toFixed(1) + 'h';
+    } else {
+      clsMes     = 'c-err';
+      txtResumen = hTrabajadas.toFixed(1) + 'h / ' + hTeoricas.toFixed(1) + 'h';
+    }
+
+    // Construir ítem mes
+    var mesId   = 'mes-' + m;
+    var bodyId  = 'mes-body-' + m;
+    var arrowId = 'mes-arrow-' + m;
+
+    var item = document.createElement('div');
+    item.className = 'mes-item';
+    item.innerHTML =
+      '<div class="mes-header" onclick="toggleMes(' + m + ')">' +
+        '<span class="mes-nombre ' + clsMes + '">' + NOMBRES_MESES[m] + '</span>' +
+        '<span class="mes-resumen">' + txtResumen + '</span>' +
+        '<span class="mes-arrow" id="' + arrowId + '">▼</span>' +
+      '</div>' +
+      '<div class="mes-body" id="' + bodyId + '">' +
+        buildCalGrid(anio, m, hoy, horasPorDia) +
+      '</div>';
+    container.appendChild(item);
+
+    // Abrir mes actual por defecto
+    if (mesActual) {
+      document.getElementById(bodyId).classList.add('open');
+      document.getElementById(arrowId).classList.add('open');
+    }
+  }
+}
+
+function toggleMes(m) {
+  var body  = document.getElementById('mes-body-' + m);
+  var arrow = document.getElementById('mes-arrow-' + m);
+  body.classList.toggle('open');
+  arrow.classList.toggle('open');
+}
+
+function buildCalGrid(anio, mes, hoy, horasPorDia) {
+  var totalDias  = new Date(anio, mes + 1, 0).getDate();
+  // Día de la semana del primer día (0=Dom → convertir a Lun=0)
+  var primerDow  = new Date(anio, mes, 1).getDay();
+  primerDow      = primerDow === 0 ? 6 : primerDow - 1; // lunes=0
+
+  var hMinDia    = HORAS_ANUALES_CONVENIO / diasLaborablesAnio(anio);
+
+  var html = '<div class="cal-week-header">' +
+    DIAS_SEMANA.map(function(d){ return '<div class="cal-wd">' + d + '</div>'; }).join('') +
+    '</div><div class="cal-grid">';
+
+  // Celdas vacías iniciales
+  for (var e = 0; e < primerDow; e++) {
+    html += '<div class="cal-dia vacio"></div>';
+  }
+
+  for (var d = 1; d <= totalDias; d++) {
+    var fecha   = new Date(anio, mes, d);
+    var dow     = fecha.getDay(); // 0=Dom, 6=Sab
+    var esHoy   = (fecha.toDateString() === hoy.toDateString());
+    var esFuturo = fecha > hoy;
+    var key     = anio + '-' + String(mes+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    var horas   = horasPorDia[key] || 0;
+    var esFinSemana = (dow === 0 || dow === 6);
+
+    var cls, horasTxt;
+    if (esFuturo) {
+      cls      = 'futuro sin-datos';
+      horasTxt = '';
+    } else if (horas === 0) {
+      cls      = 'sin-datos';
+      horasTxt = '';
+    } else if (!esFinSemana && horas >= hMinDia - 0.25) {
+      cls      = 'ok';
+      horasTxt = horas.toFixed(1) + 'h';
+    } else if (horas > 0) {
+      cls      = 'err';
+      horasTxt = horas.toFixed(1) + 'h';
+    } else {
+      cls      = 'sin-datos';
+      horasTxt = '';
+    }
+    if (esHoy) cls += ' hoy';
+
+    html += '<div class="cal-dia ' + cls + '" title="' + key + (horas ? ' · ' + horas.toFixed(1) + 'h' : '') + '">' +
+              '<span class="dia-num">' + d + '</span>' +
+              (horasTxt ? '<span class="dia-h">' + horasTxt + '</span>' : '') +
+            '</div>';
+  }
+
+  html += '</div>';
+  return html;
 }
 
 // ── Panel de horas ────────────────────────────────────────────────────────
@@ -414,8 +644,8 @@ async function registrarFichaje(deptId, modoAuto) {
     }
     document.getElementById('fichajeDetail').innerHTML = details.join('<br>');
 
-    // Actualizar panel de horas tras salida
-    if (tipo === 'salida') cargarPanelHoras();
+    // Actualizar panel de horas y calendario tras salida
+    if (tipo === 'salida') { cargarPanelHoras(); buildCalendario(); }
     return true;
 
   } catch(err) {
@@ -465,6 +695,7 @@ document.getElementById('btnRescan').addEventListener('click', function() {
 
 (function init() {
   cargarPanelHoras();
+  buildCalendario();
   const urlParams = new URLSearchParams(window.location.search);
   const deptId    = urlParams.get('dept') || sessionStorage.getItem('pendingDept');
   if (deptId) procesarFichajeAutomatico(deptId);
