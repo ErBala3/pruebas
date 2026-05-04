@@ -215,7 +215,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
   <div class="logo">QR<span>Access</span> <small>Admin</small></div>
   <div class="topbar-right">
     <span id="adminName">—</span>
-    <span class="badge">Admin</span>
+    <span class="badge" id="rolBadge">Admin</span>
     <button class="btn-empresa" id="btnMiEmpresa" title="Filtrar por mi empresa">🏢 Mis empresas</button>
     <button class="btn-logout" id="btnLogout">Salir</button>
   </div>
@@ -360,7 +360,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="field"><label>Email</label><input type="email" id="fEmail" placeholder="juan@empresa.com"></div>
     <div class="field"><label>Contraseña</label><input type="password" id="fPassword" placeholder="mínimo 4 caracteres"></div>
     <div class="field"><label>Rol</label>
-      <select id="fRol"><option value="empleado">Empleado</option><option value="admin">Admin</option></select>
+      <select id="fRol"><option value="empleado">Empleado</option><option value="jefe">Jefe</option><option value="admin">Admin</option></select>
     </div>
     <div class="field"><label>Empresa</label><input type="text" id="fEmpresa" placeholder="Mi Empresa SL"></div>
     <div class="field"><label>Departamento</label>
@@ -446,8 +446,29 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
 const userRaw = localStorage.getItem('user');
 if (!userRaw) location.href = 'index.html';
 const me = JSON.parse(userRaw);
-if (me.rol !== 'admin') location.href = 'dashboard.html';
+if (me.rol !== 'admin' && me.rol !== 'jefe') location.href = 'dashboard.html';
 document.getElementById('adminName').textContent = me.nombre || me.email;
+
+// Badge y permisos según rol
+var esJefe = (me.rol === 'jefe');
+document.getElementById('rolBadge').textContent = esJefe ? 'Jefe' : 'Admin';
+
+// Los jefes NO pueden gestionar usuarios ni departamentos: ocultar esas secciones
+if (esJefe) {
+  document.querySelectorAll('.nav-item[data-sec="usuarios"], .nav-item[data-sec="departamentos"]').forEach(function(el) {
+    el.style.display = 'none';
+  });
+  // Para jefes: activar filtro de empresa automáticamente si tienen una asignada
+  if (me.empresa) {
+    _filtroEmpresa = me.empresa;
+    _soloMiEmpresa = true;
+    var btnEmp = document.getElementById('btnMiEmpresa');
+    if (btnEmp) {
+      btnEmp.classList.add('active');
+      btnEmp.textContent = '🏢 Mis empresas (' + me.empresa + ')';
+    }
+  }
+}
 
 // ── Firebase ──────────────────────────────────────────────────────────────
 if (!firebase.apps.length) {
@@ -1273,7 +1294,7 @@ async function loadUsuarios() {
           '<td style="color:var(--muted)">' + esc(u.email||'—') + '</td>' +
           '<td style="color:var(--muted)">' + esc(u.empresa||'—') + '</td>' +
           '<td style="color:var(--muted)">' + esc(u.departamento||'—') + '</td>' +
-          '<td><span class="pill ' + (u.rol==='admin'?'pill-admin':'pill-emp') + '">' + esc(u.rol||'empleado') + '</span></td>' +
+          '<td><span class="pill ' + (u.rol==='admin'?'pill-admin':(u.rol==='jefe'?'pill-warn':'pill-emp')) + '">' + esc(u.rol||'empleado') + '</span></td>' +
           '<td>' +
             '<button class="btn-act btn-edit" onclick="editUser(\'' + d.id + '\')">Editar</button>' +
             '<button class="btn-act btn-del"  onclick="delUser(\'' + d.id + '\',\'' + escAttr(u.nombre||u.email).replace(/'/g,"\\'") + '\')">Eliminar</button>' +
@@ -1625,7 +1646,7 @@ async function openUserDrawer(userId, userData) {
   document.getElementById('drawerAvatar').textContent = initials;
   document.getElementById('drawerName').textContent   = userData.nombre || '—';
   document.getElementById('drawerEmail').textContent  = userData.email  || '—';
-  const rolPill = userData.rol === 'admin' ? 'pill-admin' : 'pill-emp';
+  const rolPill = userData.rol === 'admin' ? 'pill-admin' : (userData.rol === 'jefe' ? 'pill-warn' : 'pill-emp');
   document.getElementById('drawerMeta').innerHTML =
     (userData.empresa      ? '<span>'+esc(userData.empresa)+'</span> · ' : '') +
     (userData.departamento ? '<span>'+esc(userData.departamento)+'</span> · ' : '') +
