@@ -125,11 +125,14 @@ async function doLogin() {
     const u   = doc.data();
 
     localStorage.setItem('user', JSON.stringify({
-      id:      doc.id,
-      email:   u.email,
-      nombre:  u.nombre  || '',
-      rol:     u.rol     || 'empleado',
-      empresa: u.empresa || ''
+      id:           doc.id,
+      email:        u.email,
+      nombre:       u.nombre       || '',
+      rol:          u.rol          || 'empleado',
+      empresa:      u.empresa      || '',
+      empresas:     Array.isArray(u.empresas) ? u.empresas : (u.empresa ? [u.empresa] : []),
+      departamento: u.departamento || '',
+      departamentos:Array.isArray(u.departamentos) ? u.departamentos : (u.departamento ? [u.departamento] : [])
     }));
 
     // admin y jefe van a admin.html
