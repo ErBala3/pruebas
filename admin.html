@@ -362,9 +362,13 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="field"><label>Rol</label>
       <select id="fRol"><option value="empleado">Empleado</option><option value="jefe">Jefe</option><option value="admin">Admin</option></select>
     </div>
-    <div class="field"><label>Empresa</label><input type="text" id="fEmpresa" placeholder="Mi Empresa SL"></div>
-    <div class="field"><label>Departamento</label>
-      <select id="fDept"><option value="">— Sin departamento —</option></select>
+    <div class="field"><label>Empresas</label>
+      <input type="text" id="fEmpresa" placeholder="Empresa SL, Otra SL (separadas por coma)">
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">Separa múltiples empresas con comas</div>
+    </div>
+    <div class="field"><label>Departamentos</label>
+      <select id="fDept" multiple style="height:90px"><option value="">— Sin departamento —</option></select>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">Ctrl+clic para seleccionar varios</div>
     </div>
     <div class="modal-err" id="modalUserErr"></div>
     <div class="modal-actions">
@@ -453,19 +457,23 @@ document.getElementById('adminName').textContent = me.nombre || me.email;
 var esJefe = (me.rol === 'jefe');
 document.getElementById('rolBadge').textContent = esJefe ? 'Jefe' : 'Admin';
 
-// Los jefes NO pueden gestionar usuarios ni departamentos: ocultar esas secciones
+// Los jefes pueden ver usuarios pero NO gestionar departamentos
 if (esJefe) {
-  document.querySelectorAll('.nav-item[data-sec="usuarios"], .nav-item[data-sec="departamentos"]').forEach(function(el) {
+  document.querySelectorAll('.nav-item[data-sec="departamentos"]').forEach(function(el) {
     el.style.display = 'none';
   });
-  // Para jefes: activar filtro de empresa automáticamente si tienen una asignada
-  if (me.empresa) {
-    _filtroEmpresa = me.empresa;
+  // Para jefes: activar filtro por sus empresas automáticamente
+  var misEmpresas = Array.isArray(me.empresas) && me.empresas.length
+    ? me.empresas
+    : (me.empresa ? [me.empresa] : []);
+  if (misEmpresas.length) {
+    // Guardar el array de empresas del jefe para filtrar
+    window._misEmpresasJefe = misEmpresas;
     _soloMiEmpresa = true;
     var btnEmp = document.getElementById('btnMiEmpresa');
     if (btnEmp) {
       btnEmp.classList.add('active');
-      btnEmp.textContent = '🏢 Mis empresas (' + me.empresa + ')';
+      btnEmp.textContent = '🏢 Mis empresas (' + misEmpresas.length + ')';
     }
   }
 }
@@ -1119,8 +1127,19 @@ function renderResumenPagina(pagina) {
 function filtrarDocs(docs) {
   return docs.filter(function(d) {
     var f = d.data ? d.data() : d;
-    if (_filtroEmpresa && (f.empresa || '') !== _filtroEmpresa) return false;
-    if (_filtroDept    && (f.departamento || '') !== _filtroDept) return false;
+    // Soporte multi-empresa: el jefe tiene _misEmpresasJefe[]
+    if (_soloMiEmpresa && window._misEmpresasJefe && window._misEmpresasJefe.length) {
+      var emp = Array.isArray(f.empresas) ? f.empresas : (f.empresa ? [f.empresa] : []);
+      var coincide = window._misEmpresasJefe.some(function(e) { return emp.indexOf(e) >= 0; });
+      if (!coincide) return false;
+    } else if (_filtroEmpresa) {
+      var emp = Array.isArray(f.empresas) ? f.empresas : (f.empresa ? [f.empresa] : []);
+      if (emp.indexOf(_filtroEmpresa) < 0) return false;
+    }
+    if (_filtroDept) {
+      var depts = Array.isArray(f.departamentos) ? f.departamentos : (f.departamento ? [f.departamento] : []);
+      if (depts.indexOf(_filtroDept) < 0) return false;
+    }
     return true;
   });
 }
@@ -1130,9 +1149,17 @@ function popularFiltrosResumen(allDocs) {
   var empresas = {}, depts = {};
   allDocs.forEach(function(d) {
     var f = d.data ? d.data() : d;
-    if (f.empresa)       empresas[f.empresa] = 1;
-    if (f.departamento)  depts[f.departamento] = 1;
+    var emps = Array.isArray(f.empresas) ? f.empresas : (f.empresa ? [f.empresa] : []);
+    var deps = Array.isArray(f.departamentos) ? f.departamentos : (f.departamento ? [f.departamento] : []);
+    emps.forEach(function(e){ if (e) empresas[e] = 1; });
+    deps.forEach(function(d){ if (d) depts[d] = 1; });
   });
+  // Para jefes: mostrar solo sus empresas en el desplegable
+  if (window._misEmpresasJefe && window._misEmpresasJefe.length) {
+    var filtered = {};
+    window._misEmpresasJefe.forEach(function(e){ if (empresas[e]) filtered[e] = 1; });
+    empresas = filtered;
+  }
 
   var selEmp  = document.getElementById('rFiltroEmpresa');
   var selDept = document.getElementById('rFiltroDept');
@@ -1185,13 +1212,15 @@ document.getElementById('btnMiEmpresa').addEventListener('click', function() {
     btn.textContent = '🏢 Mis empresas';
     document.getElementById('rFiltroEmpresa').value = '';
   } else {
-    var miEmpresa = me.empresa || '';
-    if (!miEmpresa) { alert('Tu usuario no tiene empresa asignada.'); return; }
+    var misEmps = Array.isArray(me.empresas) && me.empresas.length
+      ? me.empresas : (me.empresa ? [me.empresa] : []);
+    if (!misEmps.length) { alert('Tu usuario no tiene empresa asignada.'); return; }
     _soloMiEmpresa = true;
-    _filtroEmpresa = miEmpresa;
+    window._misEmpresasJefe = misEmps;
+    _filtroEmpresa = misEmps[0]; // usar la primera para el select
     btn.classList.add('active');
-    btn.textContent = '🏢 Mis empresas (' + miEmpresa + ')';
-    document.getElementById('rFiltroEmpresa').value = miEmpresa;
+    btn.textContent = '🏢 Mis empresas (' + misEmps.length + ')';
+    document.getElementById('rFiltroEmpresa').value = '';
   }
   loadResumen();
 });
@@ -1292,8 +1321,8 @@ async function loadUsuarios() {
         return '<tr>' +
           '<td><span style="cursor:pointer;color:var(--accent)" onclick="openUserDrawerById(\'' + d.id + '\')">' + esc(u.nombre||'—') + '</span></td>' +
           '<td style="color:var(--muted)">' + esc(u.email||'—') + '</td>' +
-          '<td style="color:var(--muted)">' + esc(u.empresa||'—') + '</td>' +
-          '<td style="color:var(--muted)">' + esc(u.departamento||'—') + '</td>' +
+          '<td style="color:var(--muted)">' + esc((Array.isArray(u.empresas)&&u.empresas.length ? u.empresas.join(', ') : u.empresa)||'—') + '</td>' +
+          '<td style="color:var(--muted)">' + esc((Array.isArray(u.departamentos)&&u.departamentos.length ? u.departamentos.join(', ') : u.departamento)||'—') + '</td>' +
           '<td><span class="pill ' + (u.rol==='admin'?'pill-admin':(u.rol==='jefe'?'pill-warn':'pill-emp')) + '">' + esc(u.rol||'empleado') + '</span></td>' +
           '<td>' +
             '<button class="btn-act btn-edit" onclick="editUser(\'' + d.id + '\')">Editar</button>' +
@@ -1312,16 +1341,23 @@ async function openUserModal(title, data) {
   document.getElementById('fEmail').value    = data.email    || '';
   document.getElementById('fPassword').value = '';
   document.getElementById('fRol').value      = data.rol      || 'empleado';
-  document.getElementById('fEmpresa').value  = data.empresa  || '';
+  // Soportar array de empresas o string legacy
+  var empVal = Array.isArray(data.empresas) && data.empresas.length
+    ? data.empresas.join(', ')
+    : (data.empresa || '');
+  document.getElementById('fEmpresa').value  = empVal;
   document.getElementById('fEmail').disabled = !!editingUserId;
   document.getElementById('modalUserErr').classList.remove('show');
   const dSnap = await db.collection('departamentos').get();
   const sel   = document.getElementById('fDept');
   sel.innerHTML = '<option value="">— Sin departamento —</option>';
+  var userDepts = Array.isArray(data.departamentos) && data.departamentos.length
+    ? data.departamentos
+    : (data.departamento ? [data.departamento] : []);
   dSnap.docs.forEach(function(d) {
     const opt = document.createElement('option');
     opt.value = d.data().nombre; opt.textContent = d.data().nombre;
-    if (data.departamento === d.data().nombre) opt.selected = true;
+    if (userDepts.indexOf(d.data().nombre) >= 0) opt.selected = true;
     sel.appendChild(opt);
   });
   document.getElementById('ovUsuario').classList.add('show');
@@ -1342,7 +1378,19 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
   if (!editingUserId && !password) { errEl.textContent = 'La contraseña es obligatoria'; errEl.classList.add('show'); return; }
   btn.disabled = true; btn.textContent = 'Guardando...';
   try {
-    const datos = { nombre, email, rol, empresa, departamento: dept };
+    // Convertir empresa a array limpio
+    var empresasArr = empresa.split(',').map(function(e){ return e.trim(); }).filter(Boolean);
+    // Obtener departamentos seleccionados (select multiple)
+    var deptSel = document.getElementById('fDept');
+    var deptsArr = Array.from(deptSel.selectedOptions)
+      .map(function(o){ return o.value; }).filter(Boolean);
+    const datos = {
+      nombre, email, rol,
+      empresa:       empresasArr[0] || '',       // compatibilidad backward
+      empresas:      empresasArr,
+      departamento:  deptsArr[0] || '',           // compatibilidad backward
+      departamentos: deptsArr
+    };
     if (password) datos.password = await hashPassword(password);
     if (editingUserId) {
       await db.collection('usuarios').doc(editingUserId).update(datos); toast('Usuario actualizado');
