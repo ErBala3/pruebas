@@ -158,7 +158,33 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
 .toast.ok { background: #1e1e1e; border-left: 3px solid #2d7a4f; color: #f0f0f0; }
 .toast.err { background: #1e1e1e; border-left: 3px solid #c0392b; color: #f0f0f0; }
 .toast.warn { background: #1e1e1e; border-left: 3px solid #8a6800; color: #f0f0f0; }
-@media(max-width:768px){ .sidebar{display:none} .main{margin-left:0;padding:18px} }
+/* ── Hamburger button (mobile only) ── */
+.btn-menu { display:none; background:transparent; border:1px solid var(--border); border-radius:7px; color:var(--text); padding:5px 10px; font-size:18px; cursor:pointer; line-height:1; }
+/* ── Responsive breakpoints ── */
+@media(max-width:768px){
+  .btn-menu { display:block; }
+  .sidebar { display:none; z-index:150; transition:transform .25s ease; }
+  .sidebar.open { display:block; }
+  .sidebar-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:140; }
+  .sidebar-backdrop.open { display:block; }
+  .main { margin-left:0; padding:16px; }
+  .tcard { overflow-x:auto; }
+  table { min-width:560px; }
+  .topbar { padding:0 14px; }
+  #jefeName { display:none; }
+  .badge-empresa { display:none; }
+  .page-title { font-size:18px; }
+  .stats-grid { grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); }
+  .qr-grid { grid-template-columns: 1fr; }
+  .header-actions { justify-content:flex-start; }
+}
+@media(max-width:480px){
+  .topbar { height:52px; }
+  .layout { padding-top:52px; }
+  .main { padding:12px; }
+  .modal { padding:24px 18px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
 /* ── User profile drawer ── */
 .drawer-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(3px); z-index:300; }
 .drawer-overlay.show { display:block; }
@@ -187,7 +213,10 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
 </head>
 <body>
 <div class="topbar">
-  <div class="logo">QR<span>Access</span> <small>Jefe</small></div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <button class="btn-menu" id="btnMenu">☰</button>
+    <div class="logo">QR<span>Access</span> <small>Jefe</small></div>
+  </div>
   <div class="topbar-right">
     <span id="jefeName">—</span>
     <span class="badge badge-jefe">Jefe</span>
@@ -195,8 +224,9 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
     <button class="btn-logout" id="btnLogout">Salir</button>
   </div>
 </div>
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 <div class="layout">
-  <nav class="sidebar">
+  <nav class="sidebar" id="sidebar">
     <div class="nav-label">Panel</div>
     <div class="nav-item active" data-sec="resumen">Resumen</div>
     <div class="nav-label">Mi Empresa</div>
@@ -942,6 +972,23 @@ async function loadFichajesFiltered(filters) {
     document.getElementById('tablaFichajesContent').innerHTML = '<div class="empty">Error: ' + e.message + '</div>';
   }
 }
+</script>
+<script>
+// ── Hamburger sidebar toggle ───────────────────────────────────────────────
+(function() {
+  var btnMenu = document.getElementById('btnMenu');
+  var sidebar = document.getElementById('sidebar');
+  var backdrop = document.getElementById('sidebarBackdrop');
+  function openSidebar() { sidebar.classList.add('open'); backdrop.classList.add('open'); }
+  function closeSidebar() { sidebar.classList.remove('open'); backdrop.classList.remove('open'); }
+  if (btnMenu) btnMenu.addEventListener('click', function() {
+    sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+  });
+  if (backdrop) backdrop.addEventListener('click', closeSidebar);
+  document.querySelectorAll('.nav-item').forEach(function(el) {
+    el.addEventListener('click', function() { if (window.innerWidth <= 768) closeSidebar(); });
+  });
+})();
 </script>
 </body>
 </html>
