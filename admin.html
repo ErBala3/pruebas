@@ -84,6 +84,15 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .qr-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 18px; }
 .qr-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 24px; display: flex; flex-direction: column; align-items: center; gap: 14px; animation: fadeUp .4s ease both; transition: border-color .2s; }
 .qr-card:hover { border-color: #333333; }
+/* ── Horario departamento ── */
+.horario-row { display:flex; gap:8px; align-items:center; }
+.horario-row input[type=time] { flex:1; padding:9px 10px; background:var(--bg); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'Inter',sans-serif; font-size:13px; outline:none; color-scheme:dark; }
+.horario-row input[type=time]:focus { border-color:#555; }
+.horario-sep { font-size:12px; color:var(--muted); }
+.dias-wrap { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
+.dia-btn { padding:5px 9px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-secondary); font-family:'Inter',sans-serif; font-size:12px; font-weight:600; cursor:pointer; transition:background .15s,border-color .15s,color .15s; }
+.dia-btn.on { background:rgba(90,173,126,.18); border-color:rgba(90,173,126,.5); color:#6ab88a; }
+.qr-horario { font-size:11px; color:var(--text-secondary); margin-top:2px; }
 .qr-dept    { font-size: 15px; font-weight: 600; color: var(--text); text-align: center; }
 .qr-empresa { font-size: 11px; color: var(--text-secondary); }
 .qr-box { background: white; padding: 12px; border-radius: 8px; }
@@ -109,6 +118,26 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .modal-actions .btn-primary { flex: 1; }
 .btn-cancel { flex: 1; padding: 9px; background: transparent; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: border-color .2s, color .2s; }
 .btn-cancel:hover { border-color: var(--text); color: var(--text); }
+/* ── Selector multi-empresa / multi-dept ── */
+.emp-input-wrap { display:flex; gap:6px; }
+.emp-input-wrap input { flex:1; }
+.btn-add-emp { padding:8px 12px; background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--accent); font-family:'Inter',sans-serif; font-size:13px; cursor:pointer; white-space:nowrap; transition:background .15s; }
+.btn-add-emp:hover { background:rgba(226,226,226,.06); }
+.chips-wrap { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; min-height:0; }
+.chip { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; background:rgba(226,226,226,.08); border:1px solid #333; border-radius:20px; font-size:12px; color:var(--text); }
+.chip-del { cursor:pointer; color:var(--muted); font-size:14px; line-height:1; transition:color .15s; }
+.chip-del:hover { color:var(--danger); }
+.dept-group { margin-bottom:10px; }
+.dept-group-title { font-size:10px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
+.dept-checks { display:flex; flex-direction:column; gap:4px; }
+.dept-check-row { display:flex; align-items:center; gap:8px; padding:5px 8px; border-radius:6px; cursor:pointer; transition:background .15s; }
+.dept-check-row:hover { background:rgba(255,255,255,.04); }
+.dept-check-row input[type=checkbox] { accent-color:#5aad7e; width:14px; height:14px; cursor:pointer; flex-shrink:0; }
+.dept-check-row label { font-size:13px; color:var(--text); cursor:pointer; }
+.dept-scroll { max-height:160px; overflow-y:auto; border:1px solid var(--border); border-radius:8px; padding:8px 10px; background:var(--bg); }
+.dept-scroll::-webkit-scrollbar { width:4px; }
+.dept-scroll::-webkit-scrollbar-thumb { background:#333; border-radius:2px; }
+.dept-empty { font-size:12px; color:var(--muted); padding:8px 0; text-align:center; }
 .modal-err { margin-top: 10px; padding: 9px 12px; background: rgba(192,57,43,.08); border-left: 3px solid var(--danger); border-radius: 6px; color: var(--danger); font-size: 12px; display: none; }
 .modal-err.show { display: block; }
 .qr-modal-box  { background: white; padding: 20px; border-radius: 10px; margin: 16px auto; width: fit-content; }
@@ -362,13 +391,19 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="field"><label>Rol</label>
       <select id="fRol"><option value="empleado">Empleado</option><option value="jefe">Jefe</option><option value="admin">Admin</option></select>
     </div>
-    <div class="field"><label>Empresas</label>
-      <input type="text" id="fEmpresa" placeholder="Empresa SL, Otra SL (separadas por coma)">
-      <div style="font-size:10px;color:var(--muted);margin-top:4px">Separa múltiples empresas con comas</div>
+    <div class="field">
+      <label>Empresas</label>
+      <div class="emp-input-wrap">
+        <input type="text" id="fEmpresa" placeholder="Nombre de empresa...">
+        <button type="button" class="btn-add-emp" id="btnAddEmp">+ Añadir</button>
+      </div>
+      <div class="chips-wrap" id="empChips"></div>
     </div>
-    <div class="field"><label>Departamentos</label>
-      <select id="fDept" multiple style="height:90px"><option value="">— Sin departamento —</option></select>
-      <div style="font-size:10px;color:var(--muted);margin-top:4px">Ctrl+clic para seleccionar varios</div>
+    <div class="field">
+      <label>Departamentos <span style="font-size:10px;color:var(--muted)">(de las empresas seleccionadas)</span></label>
+      <div class="dept-scroll" id="deptChecks">
+        <div class="dept-empty">Añade una empresa primero</div>
+      </div>
     </div>
     <div class="modal-err" id="modalUserErr"></div>
     <div class="modal-actions">
@@ -384,6 +419,24 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="modal-title">Nuevo departamento</div>
     <div class="field"><label>Nombre del departamento</label><input type="text" id="fDeptNombre" placeholder="Ej: Almacén, Oficina, Producción..."></div>
     <div class="field"><label>Empresa</label><input type="text" id="fDeptEmpresa" placeholder="Mi Empresa SL"></div>
+    <div class="field">
+      <label>Horario de trabajo</label>
+      <div class="horario-row">
+        <input type="time" id="fDeptHoraEntrada" value="08:00">
+        <span class="horario-sep">→</span>
+        <input type="time" id="fDeptHoraSalida" value="14:00">
+      </div>
+      <div class="dias-wrap" id="diasSemana">
+        <button type="button" class="dia-btn on" data-dia="1">L</button>
+        <button type="button" class="dia-btn on" data-dia="2">M</button>
+        <button type="button" class="dia-btn on" data-dia="3">X</button>
+        <button type="button" class="dia-btn on" data-dia="4">J</button>
+        <button type="button" class="dia-btn on" data-dia="5">V</button>
+        <button type="button" class="dia-btn" data-dia="6">S</button>
+        <button type="button" class="dia-btn" data-dia="0">D</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:5px">Días activos y horario por defecto. Los verdes están activos.</div>
+    </div>
     <div class="field"><label>Latitud (opcional)</label><input type="number" step="any" id="fDeptLat" placeholder="Ej: 40.4168"></div>
     <div class="field"><label>Longitud (opcional)</label><input type="number" step="any" id="fDeptLng" placeholder="Ej: -3.7038"></div>
     <button type="button" id="btnUsarUbicacion" style="width:100%;margin-bottom:12px;padding:9px 14px;background:transparent;border:1px solid #2a2a2a;border-radius:9px;color:var(--text-secondary);font-family:'Inter',sans-serif;font-size:12px;cursor:pointer;transition:background .2s;">Usar mi ubicación actual</button>
@@ -1314,10 +1367,41 @@ async function loadUsuarios() {
   try {
     const snap = await db.collection('usuarios').get();
     if (snap.empty) { document.getElementById('tablaUsuarios').innerHTML = '<div class="empty">Sin usuarios</div>'; return; }
+
+    // Mis empresas (para jefes)
+    var misEmps = Array.isArray(me.empresas) && me.empresas.length
+      ? me.empresas : (me.empresa ? [me.empresa] : []);
+
+    // Filtrar usuarios visibles según rol del admin actual
+    var visibles = snap.docs.filter(function(d) {
+      var u = d.data();
+      // Nadie ve su propio registro oculto — pero sí se ve a sí mismo
+      if (esJefe) {
+        // Jefe: solo ve jefes y empleados de SUS empresas. Nunca ve admins.
+        if (u.rol === 'admin') return false;
+        var uEmps = Array.isArray(u.empresas) && u.empresas.length ? u.empresas : (u.empresa ? [u.empresa] : []);
+        return misEmps.some(function(e) { return uEmps.indexOf(e) >= 0; });
+      } else {
+        // Admin: ve a todos EXCEPTO admins de otras empresas
+        // (admins de su misma empresa sí los ve)
+        if (u.rol === 'admin' && u.id !== me.id) {
+          var uEmps = Array.isArray(u.empresas) && u.empresas.length ? u.empresas : (u.empresa ? [u.empresa] : []);
+          var meEmps = Array.isArray(me.empresas) && me.empresas.length ? me.empresas : (me.empresa ? [me.empresa] : []);
+          // Si no comparte ninguna empresa con el admin actual, ocultar
+          var comparte = meEmps.some(function(e) { return uEmps.indexOf(e) >= 0; });
+          if (!comparte) return false;
+        }
+        return true;
+      }
+    });
+
+    if (!visibles.length) { document.getElementById('tablaUsuarios').innerHTML = '<div class="empty">Sin usuarios</div>'; return; }
+
     document.getElementById('tablaUsuarios').innerHTML =
       '<table><thead><tr><th>Nombre</th><th>Email</th><th>Empresa</th><th>Departamento</th><th>Rol</th><th>Acciones</th></tr></thead><tbody>' +
-      snap.docs.map(function(d) {
+      visibles.map(function(d) {
         const u = d.data();
+        var puedeEditar = esJefe ? (u.rol !== 'admin') : true;
         return '<tr>' +
           '<td><span style="cursor:pointer;color:var(--accent)" onclick="openUserDrawerById(\'' + d.id + '\')">' + esc(u.nombre||'—') + '</span></td>' +
           '<td style="color:var(--muted)">' + esc(u.email||'—') + '</td>' +
@@ -1325,8 +1409,10 @@ async function loadUsuarios() {
           '<td style="color:var(--muted)">' + esc((Array.isArray(u.departamentos)&&u.departamentos.length ? u.departamentos.join(', ') : u.departamento)||'—') + '</td>' +
           '<td><span class="pill ' + (u.rol==='admin'?'pill-admin':(u.rol==='jefe'?'pill-warn':'pill-emp')) + '">' + esc(u.rol||'empleado') + '</span></td>' +
           '<td>' +
-            '<button class="btn-act btn-edit" onclick="editUser(\'' + d.id + '\')">Editar</button>' +
-            '<button class="btn-act btn-del"  onclick="delUser(\'' + d.id + '\',\'' + escAttr(u.nombre||u.email).replace(/'/g,"\\'") + '\')">Eliminar</button>' +
+            (puedeEditar
+              ? '<button class="btn-act btn-edit" onclick="editUser(\'' + d.id + '\')">Editar</button>' +
+                '<button class="btn-act btn-del"  onclick="delUser(\'' + d.id + '\',\'' + escAttr(u.nombre||u.email).replace(/'/g,"\\'") + '\')">Eliminar</button>'
+              : '<span style="font-size:11px;color:var(--muted)">Sin permisos</span>') +
           '</td></tr>';
       }).join('') + '</tbody></table>';
   } catch(e) { document.getElementById('tablaUsuarios').innerHTML = '<div class="empty">Error al cargar</div>'; }
@@ -1334,43 +1420,146 @@ async function loadUsuarios() {
 
 // ── Modal usuario ─────────────────────────────────────────────────────────
 let editingUserId = null;
+// ── Estado del modal de usuario ─────────────────────────────────────────
+var _modalEmpresas = [];   // array de strings
+var _allDepts      = [];   // todos los docs de departamentos {id, nombre, empresa}
+var _modalDepts    = [];   // departamentos seleccionados
+
+function _renderEmpChips() {
+  var wrap = document.getElementById('empChips');
+  wrap.innerHTML = _modalEmpresas.map(function(e, i) {
+    return '<span class="chip">' + esc(e) +
+      '<span class="chip-del" onclick="_removeEmpresa(' + i + ')">×</span></span>';
+  }).join('');
+  _renderDeptChecks();
+}
+
+function _removeEmpresa(idx) {
+  var emp = _modalEmpresas[idx];
+  _modalEmpresas.splice(idx, 1);
+  // Quitar depts de esa empresa de la selección
+  _modalDepts = _modalDepts.filter(function(d) {
+    var deptObj = _allDepts.find(function(a){ return a.nombre === d; });
+    return deptObj && _modalEmpresas.indexOf(deptObj.empresa) >= 0;
+  });
+  _renderEmpChips();
+}
+
+function _renderDeptChecks() {
+  var container = document.getElementById('deptChecks');
+  if (!_modalEmpresas.length) {
+    container.innerHTML = '<div class="dept-empty">Añade una empresa primero</div>';
+    return;
+  }
+  // Agrupar depts disponibles por empresa seleccionada
+  var deptsVisibles = _allDepts.filter(function(d) {
+    return _modalEmpresas.indexOf(d.empresa) >= 0;
+  });
+  if (!deptsVisibles.length) {
+    container.innerHTML = '<div class="dept-empty">No hay departamentos para estas empresas</div>';
+    return;
+  }
+  // Agrupar por empresa
+  var grupos = {};
+  _modalEmpresas.forEach(function(e){ grupos[e] = []; });
+  deptsVisibles.forEach(function(d){ if (grupos[d.empresa]) grupos[d.empresa].push(d); });
+
+  container.innerHTML = Object.keys(grupos).map(function(emp) {
+    var depts = grupos[emp];
+    if (!depts.length) return '';
+    var rows = depts.map(function(d) {
+      var checked = _modalDepts.indexOf(d.nombre) >= 0 ? 'checked' : '';
+      return '<label class="dept-check-row">' +
+        '<input type="checkbox" value="' + escAttr(d.nombre) + '" ' + checked +
+        ' onchange="_toggleDept(this)">' +
+        '<span>' + esc(d.nombre) + '</span></label>';
+    }).join('');
+    return '<div class="dept-group">' +
+      (_modalEmpresas.length > 1 ? '<div class="dept-group-title">' + esc(emp) + '</div>' : '') +
+      '<div class="dept-checks">' + rows + '</div></div>';
+  }).join('');
+}
+
+function _toggleDept(cb) {
+  var val = cb.value;
+  if (cb.checked) {
+    if (_modalDepts.indexOf(val) < 0) _modalDepts.push(val);
+  } else {
+    _modalDepts = _modalDepts.filter(function(d){ return d !== val; });
+  }
+}
+
+// Listener botón añadir empresa
+document.getElementById('btnAddEmp').addEventListener('click', function() {
+  var inp = document.getElementById('fEmpresa');
+  var val = inp.value.trim();
+  if (!val) return;
+  // Separar por comas (permite pegar múltiples a la vez)
+  val.split(',').map(function(e){ return e.trim(); }).filter(Boolean).forEach(function(e) {
+    if (_modalEmpresas.indexOf(e) < 0) _modalEmpresas.push(e);
+  });
+  inp.value = '';
+  _renderEmpChips();
+});
+document.getElementById('fEmpresa').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnAddEmp').click(); }
+});
+
 async function openUserModal(title, data) {
   data = data || {};
   document.getElementById('modalUserTitle').textContent = title;
   document.getElementById('fNombre').value   = data.nombre   || '';
   document.getElementById('fEmail').value    = data.email    || '';
   document.getElementById('fPassword').value = '';
-  document.getElementById('fRol').value      = data.rol      || 'empleado';
-  // Soportar array de empresas o string legacy
-  var empVal = Array.isArray(data.empresas) && data.empresas.length
-    ? data.empresas.join(', ')
-    : (data.empresa || '');
-  document.getElementById('fEmpresa').value  = empVal;
   document.getElementById('fEmail').disabled = !!editingUserId;
   document.getElementById('modalUserErr').classList.remove('show');
-  const dSnap = await db.collection('departamentos').get();
-  const sel   = document.getElementById('fDept');
-  sel.innerHTML = '<option value="">— Sin departamento —</option>';
-  var userDepts = Array.isArray(data.departamentos) && data.departamentos.length
-    ? data.departamentos
+  document.getElementById('fEmpresa').value  = '';
+
+  // Opciones de rol según quien edita
+  var fRolEl = document.getElementById('fRol');
+  if (esJefe) {
+    fRolEl.innerHTML = '<option value="empleado">Empleado</option><option value="jefe">Jefe</option>';
+  } else {
+    fRolEl.innerHTML = '<option value="empleado">Empleado</option><option value="jefe">Jefe</option><option value="admin">Admin</option>';
+  }
+  fRolEl.value = data.rol || 'empleado';
+
+  // Cargar empresas seleccionadas del usuario
+  _modalEmpresas = Array.isArray(data.empresas) && data.empresas.length
+    ? data.empresas.slice()
+    : (data.empresa ? [data.empresa] : []);
+  _modalDepts = Array.isArray(data.departamentos) && data.departamentos.length
+    ? data.departamentos.slice()
     : (data.departamento ? [data.departamento] : []);
-  dSnap.docs.forEach(function(d) {
-    const opt = document.createElement('option');
-    opt.value = d.data().nombre; opt.textContent = d.data().nombre;
-    if (userDepts.indexOf(d.data().nombre) >= 0) opt.selected = true;
-    sel.appendChild(opt);
+
+  // Cargar todos los departamentos de Firestore
+  const dSnap = await db.collection('departamentos').get();
+  _allDepts = dSnap.docs.map(function(d) {
+    return { nombre: d.data().nombre, empresa: d.data().empresa || '' };
   });
+
+  _renderEmpChips();
   document.getElementById('ovUsuario').classList.add('show');
 }
-document.getElementById('btnNuevoUsuario').addEventListener('click', function() { editingUserId = null; openUserModal('Nuevo usuario'); });
+document.getElementById('btnNuevoUsuario').addEventListener('click', function() {
+  editingUserId = null;
+  // Para jefes: pre-rellenar con sus propias empresas
+  var preData = {};
+  if (esJefe && me.empresas && me.empresas.length) {
+    preData.empresas = me.empresas;
+    preData.empresa  = me.empresas[0];
+  }
+  openUserModal('Nuevo usuario', preData);
+});
 document.getElementById('btnCancelUser').addEventListener('click',   function() { document.getElementById('ovUsuario').classList.remove('show'); });
 document.getElementById('btnGuardarUser').addEventListener('click', async function() {
   const nombre   = document.getElementById('fNombre').value.trim();
   const email    = document.getElementById('fEmail').value.trim().toLowerCase();
   const password = document.getElementById('fPassword').value;
   const rol      = document.getElementById('fRol').value;
-  const empresa  = document.getElementById('fEmpresa').value.trim();
-  const dept     = document.getElementById('fDept').value;
+  // Leer desde el estado del modal interactivo
+  const empresa = _modalEmpresas.join(', '); // para compatibilidad con validación
+  const dept    = _modalDepts[0] || '';
   const errEl    = document.getElementById('modalUserErr');
   const btn      = document.getElementById('btnGuardarUser');
   errEl.classList.remove('show');
@@ -1378,18 +1567,12 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
   if (!editingUserId && !password) { errEl.textContent = 'La contraseña es obligatoria'; errEl.classList.add('show'); return; }
   btn.disabled = true; btn.textContent = 'Guardando...';
   try {
-    // Convertir empresa a array limpio
-    var empresasArr = empresa.split(',').map(function(e){ return e.trim(); }).filter(Boolean);
-    // Obtener departamentos seleccionados (select multiple)
-    var deptSel = document.getElementById('fDept');
-    var deptsArr = Array.from(deptSel.selectedOptions)
-      .map(function(o){ return o.value; }).filter(Boolean);
     const datos = {
       nombre, email, rol,
-      empresa:       empresasArr[0] || '',       // compatibilidad backward
-      empresas:      empresasArr,
-      departamento:  deptsArr[0] || '',           // compatibilidad backward
-      departamentos: deptsArr
+      empresa:       _modalEmpresas[0] || '',     // compatibilidad backward
+      empresas:      _modalEmpresas.slice(),
+      departamento:  _modalDepts[0]   || '',      // compatibilidad backward
+      departamentos: _modalDepts.slice()
     };
     if (password) datos.password = await hashPassword(password);
     if (editingUserId) {
@@ -1404,9 +1587,18 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
   } catch(e) { errEl.textContent = 'Error: '+e.message; errEl.classList.add('show'); }
   btn.disabled = false; btn.textContent = 'Guardar';
 });
-async function editUser(id) { const doc = await db.collection('usuarios').doc(id).get(); editingUserId = id; openUserModal('Editar usuario', doc.data()); }
+async function editUser(id) {
+  const doc  = await db.collection('usuarios').doc(id).get();
+  const data = doc.data();
+  if (esJefe && data.rol === 'admin') { toast('No tienes permisos para editar admins', 'err'); return; }
+  editingUserId = id;
+  openUserModal('Editar usuario', data);
+}
 async function delUser(id, nombre) {
   if (!confirm('¿Eliminar "' + nombre + '"?')) return;
+  // Verificar permisos antes de borrar
+  const doc = await db.collection('usuarios').doc(id).get();
+  if (doc.exists && esJefe && doc.data().rol === 'admin') { toast('No tienes permisos para eliminar admins', 'err'); return; }
   await db.collection('usuarios').doc(id).delete();
   toast('Usuario eliminado'); loadUsuarios(); loadResumen();
 }
@@ -1426,9 +1618,18 @@ async function loadDepartamentos() {
 function renderQRCard(id, data) {
   const card = document.createElement('div');
   card.className = 'qr-card';
+  var horarioTxt = '';
+  if (data.horaEntrada && data.horaSalida) {
+    var diasNombres = ['D','L','M','X','J','V','S'];
+    var diasStr = Array.isArray(data.diasActivos) && data.diasActivos.length
+      ? data.diasActivos.map(function(d){ return diasNombres[d]; }).join(' ')
+      : 'L M X J V';
+    horarioTxt = data.horaEntrada + '–' + data.horaSalida + ' · ' + diasStr;
+  }
   card.innerHTML =
     '<div class="qr-dept">'    + esc(data.nombre)        + '</div>' +
     '<div class="qr-empresa">' + esc(data.empresa || '') + '</div>' +
+    (horarioTxt ? '<div class="qr-horario">⏰ ' + esc(horarioTxt) + '</div>' : '') +
     '<div class="qr-box" id="qrbox-' + id + '"></div>' +
     '<div class="qr-actions">' +
       '<button class="btn-download" onclick="verQR(\'' + id + '\',\'' + escAttr(data.nombre) + '\',\'' + escAttr(data.empresa||'') + '\')">Ver QR</button>' +
@@ -1438,10 +1639,24 @@ function renderQRCard(id, data) {
   const qrUrl = new URL('.', location.href).href + 'index.html?dept=' + id;
   new QRCode(document.getElementById('qrbox-'+id), { text: qrUrl, width: 140, height: 140, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
 }
+// Toggle días de la semana en el modal
+document.getElementById('diasSemana').addEventListener('click', function(e) {
+  var btn = e.target.closest('.dia-btn');
+  if (btn) btn.classList.toggle('on');
+});
+
 document.getElementById('btnNuevoDept').addEventListener('click', function() {
-  document.getElementById('fDeptNombre').value = '';
-  document.getElementById('fDeptEmpresa').value = me.empresa || '';
-  document.getElementById('fDeptLat').value = ''; document.getElementById('fDeptLng').value = '';
+  document.getElementById('fDeptNombre').value   = '';
+  document.getElementById('fDeptEmpresa').value  = me.empresa || '';
+  document.getElementById('fDeptLat').value      = '';
+  document.getElementById('fDeptLng').value      = '';
+  document.getElementById('fDeptHoraEntrada').value = '08:00';
+  document.getElementById('fDeptHoraSalida').value  = '14:00';
+  // Resetear días: L-V activos, S-D inactivos
+  document.querySelectorAll('#diasSemana .dia-btn').forEach(function(b) {
+    var dia = parseInt(b.dataset.dia);
+    b.classList.toggle('on', dia >= 1 && dia <= 5);
+  });
   document.getElementById('modalDeptErr').classList.remove('show');
   document.getElementById('ovDept').classList.add('show');
 });
@@ -1470,7 +1685,23 @@ document.getElementById('btnGuardarDept').addEventListener('click', async functi
   if (lngDept!==null && (isNaN(lngDept)||lngDept<-180||lngDept>180)) { errEl.textContent='Longitud inválida'; errEl.classList.add('show'); return; }
   btn.disabled=true; btn.textContent='Creando...';
   try {
-    await db.collection('departamentos').add({ nombre, empresa, lat:latDept, lng:lngDept, creadoEn:firebase.firestore.FieldValue.serverTimestamp() });
+    var horaEntrada = document.getElementById('fDeptHoraEntrada').value || '08:00';
+    var horaSalida  = document.getElementById('fDeptHoraSalida').value  || '14:00';
+    // Días activos: array de números (0=Dom,1=Lun...6=Sab)
+    var diasActivos = [];
+    document.querySelectorAll('#diasSemana .dia-btn.on').forEach(function(b) {
+      diasActivos.push(parseInt(b.dataset.dia));
+    });
+    // Calcular horas diarias del horario
+    var [hE, mE] = horaEntrada.split(':').map(Number);
+    var [hS, mS] = horaSalida.split(':').map(Number);
+    var horasDia  = ((hS * 60 + mS) - (hE * 60 + mE)) / 60;
+    await db.collection('departamentos').add({
+      nombre, empresa, lat:latDept, lng:lngDept,
+      horaEntrada, horaSalida, diasActivos,
+      horasDia: parseFloat(horasDia.toFixed(2)),
+      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
+    });
     toast('Departamento creado y QR generado');
     document.getElementById('ovDept').classList.remove('show');
     loadDepartamentos(); loadResumen();
