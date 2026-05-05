@@ -177,7 +177,7 @@ body {
     </div>
     <div class="progress-wrap">
       <div class="progress-label">
-        <span>Progreso anual (<span id="hpAnualTotal">1792</span>h)</span>
+        <span>Progreso del mes (<span id="hpAnualTotal">—</span>h)</span>
         <span id="hpPct">—</span>
       </div>
       <div class="progress-bar">
@@ -449,81 +449,125 @@ function buildCalGrid(anio, mes, hoy, horasPorDia) {
   return html;
 }
 
-// ── Panel de horas ────────────────────────────────────────────────────────
+// ── Helpers horario departamento ─────────────────────────────────────────
+// Dado un horario {horaEntrada, horaSalida, diasActivos, horasDia},
+// calcula los días laborables del mes que caen en diasActivos
+function diasLaborablesMesConHorario(anio, mes, diasActivos) {
+  var total = new Date(anio, mes + 1, 0).getDate();
+  var count = 0;
+  for (var d = 1; d <= total; d++) {
+    var dow = new Date(anio, mes, d).getDay();
+    if (diasActivos.indexOf(dow) >= 0) count++;
+  }
+  return count;
+}
+function diasLaborablesHastaDiaConHorario(anio, mes, diaHasta, diasActivos) {
+  var count = 0;
+  for (var d = 1; d <= diaHasta; d++) {
+    var dow = new Date(anio, mes, d).getDay();
+    if (diasActivos.indexOf(dow) >= 0) count++;
+  }
+  return count;
+}
+
+// ── Panel de horas (mes actual, horario del departamento) ──────────────────
 async function cargarPanelHoras() {
   try {
-    const anio   = new Date().getFullYear();
-    const inicio = new Date(anio, 0, 1);
-    const fin    = new Date(anio + 1, 0, 1);
+    const ahora = new Date();
+    const anio  = ahora.getFullYear();
+    const mes   = ahora.getMonth();   // 0-based
+    const diaHoy = ahora.getDate();
+    const mesInicio = new Date(anio, mes, 1);
+    const mesFin    = new Date(anio, mes + 1, 1);
 
-    document.getElementById('hpAnio').textContent      = anio;
-    document.getElementById('hpAnualTotal').textContent = HORAS_ANUALES_CONVENIO;
+    // Nombres de mes en español
+    const nombresMes = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+                        'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    document.getElementById('hpAnio').textContent = nombresMes[mes] + ' ' + anio;
 
+    // Obtener horario del departamento del usuario (si tiene)
+    var horasDia      = HORAS_JORNADA_NORMAL; // 8h por defecto
+    var diasActivos   = [1,2,3,4,5];           // L-V por defecto
+    var horaEntradaTxt = '08:00', horaSalidaTxt = '14:00';
+    var deptNombre = user.departamento || (Array.isArray(user.departamentos) && user.departamentos[0]);
+    if (deptNombre) {
+      try {
+        const dSnap = await db.collection('departamentos')
+          .where('nombre','==', deptNombre).limit(1).get();
+        if (!dSnap.empty) {
+          const d = dSnap.docs[0].data();
+          if (d.horasDia)     horasDia      = d.horasDia;
+          if (d.diasActivos)  diasActivos   = d.diasActivos;
+          if (d.horaEntrada)  horaEntradaTxt = d.horaEntrada;
+          if (d.horaSalida)   horaSalidaTxt  = d.horaSalida;
+        }
+      } catch(_) {}
+    }
+
+    // Horas trabajadas este mes
     const snap = await db.collection('fichajes').where('userId', '==', user.id).get();
-
     let horasTrabajadas = 0;
     snap.docs.forEach(function(d) {
       const f  = d.data();
-      const ts = f.timestamp;
-      if (!ts || !ts.toDate) return;
-      const fecha = ts.toDate();
-      if (fecha < inicio || fecha >= fin) return;
+      const ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate() : null;
+      if (!ts) return;
+      if (ts < mesInicio || ts >= mesFin) return;
       if (f.tipo !== 'salida') return;
       horasTrabajadas += (f.horasNormales || 0) + (f.horasExtra || 0);
     });
 
-    const diasLab      = diasLaborablesHastaHoy(anio);
-    const diasLabAnio  = diasLaborablesAnio(anio);
-    const horasPorDia  = HORAS_ANUALES_CONVENIO / diasLabAnio;
-    const horasTeoricas = diasLab * horasPorDia;
-    const balance       = horasTrabajadas - horasTeoricas;
-    const pctReal       = (horasTrabajadas / HORAS_ANUALES_CONVENIO) * 100;
-    const pctBar        = Math.min(pctReal, 100);
+    // Horas teóricas del mes hasta hoy (solo días activos del horario)
+    const diasLab      = diasLaborablesHastaDiaConHorario(anio, mes, diaHoy, diasActivos);
+    const diasLabMes   = diasLaborablesMesConHorario(anio, mes, diasActivos);
+    const horasTeoricas     = diasLab    * horasDia; // hasta hoy
+    const horasTeoricasMes  = diasLabMes * horasDia; // mes completo
+    const balance    = horasTrabajadas - horasTeoricas;
+    const pctReal    = diasLabMes > 0 ? (horasTrabajadas / horasTeoricasMes) * 100 : 0;
+    const pctBar     = Math.min(pctReal, 100);
 
-    // Valores estadísticos
+    // Actualizar label total
+    document.getElementById('hpAnualTotal').textContent = horasTeoricasMes.toFixed(0);
+
     document.getElementById('hpTrabajadas').textContent = horasTrabajadas.toFixed(1) + 'h';
     document.getElementById('hpTeoricas').textContent   = horasTeoricas.toFixed(1) + 'h';
 
     const balEl = document.getElementById('hpBalance');
     balEl.textContent = (balance >= 0 ? '+' : '') + balance.toFixed(1) + 'h';
-    balEl.className   = 'hstat-value ' + (balance >= 0 ? 'c-ok' : (balance > -10 ? 'c-warn' : 'c-err'));
+    balEl.className   = 'hstat-value ' + (balance >= 0 ? 'c-ok' : (balance > -2 ? 'c-warn' : 'c-err'));
 
     document.getElementById('hpPct').textContent = pctReal.toFixed(1) + '%';
     const barEl = document.getElementById('hpBar');
     barEl.style.width = pctBar + '%';
-    if (pctReal >= 100)     barEl.className = 'progress-fill p-over';
-    else if (balance < -10) barEl.className = 'progress-fill p-warn';
-    else                    barEl.className = 'progress-fill';
+    if (pctReal >= 100)   barEl.className = 'progress-fill p-over';
+    else if (balance < -2) barEl.className = 'progress-fill p-warn';
+    else                  barEl.className = 'progress-fill';
 
     // Mensaje personalizado
     const msgEl = document.getElementById('hpMsg');
     let cls, titulo, detalle;
-    const faltanAnual = HORAS_ANUALES_CONVENIO - horasTrabajadas;
+    const horarioTxt = horaEntradaTxt + '–' + horaSalidaTxt + ' (' + horasDia + 'h/día)';
+    const faltanMes  = horasTeoricasMes - horasTrabajadas;
 
     if (horasTrabajadas === 0) {
       cls     = 's-info';
-      titulo  = 'Sin fichajes registrados aún en ' + anio + '.';
-      detalle = 'A estas alturas del año deberías llevar aproximadamente ' + horasTeoricas.toFixed(0) + 'h según el convenio (' + HORAS_ANUALES_CONVENIO + 'h anuales).';
-    } else if (pctReal >= 100) {
+      titulo  = 'Sin fichajes registrados en ' + nombresMes[mes] + '.';
+      detalle = 'Deberías llevar ' + horasTeoricas.toFixed(0) + 'h hasta hoy · Horario: ' + horarioTxt + '.';
+    } else if (balance >= 4) {
       cls     = 's-ok';
-      titulo  = '¡Has completado las ' + HORAS_ANUALES_CONVENIO + 'h anuales!';
-      detalle = 'Llevas ' + horasTrabajadas.toFixed(1) + 'h trabajadas este año. Tienes ' + (horasTrabajadas - HORAS_ANUALES_CONVENIO).toFixed(1) + 'h extra acumuladas.';
-    } else if (balance >= 20) {
-      cls     = 's-ok';
-      titulo  = 'Llevas ' + balance.toFixed(1) + 'h de ventaja sobre el objetivo.';
-      detalle = 'Vas por delante del ritmo anual. Te restan ' + faltanAnual.toFixed(1) + 'h para completar el año (' + pctReal.toFixed(1) + '% completado).';
+      titulo  = '¡Llevas ' + balance.toFixed(1) + 'h de ventaja este mes!';
+      detalle = horasTrabajadas.toFixed(1) + 'h trabajadas · Objetivo hasta hoy: ' + horasTeoricas.toFixed(1) + 'h · Faltan ' + Math.max(0, faltanMes).toFixed(1) + 'h para cerrar el mes.';
     } else if (balance >= 0) {
       cls     = 's-ok';
       titulo  = 'Al día · ' + balance.toFixed(1) + 'h por encima del objetivo.';
-      detalle = 'Llevas ' + horasTrabajadas.toFixed(1) + 'h de ' + HORAS_ANUALES_CONVENIO + 'h (' + pctReal.toFixed(1) + '%). Te restan ' + faltanAnual.toFixed(1) + 'h para terminar el año.';
-    } else if (balance > -10) {
+      detalle = horasTrabajadas.toFixed(1) + 'h de ' + horasTeoricasMes.toFixed(1) + 'h del mes (' + pctReal.toFixed(1) + '%) · Horario: ' + horarioTxt + '.';
+    } else if (balance > -2) {
       cls     = 's-warn';
-      titulo  = 'Pequeño retraso · te faltan ' + Math.abs(balance).toFixed(1) + 'h para estar al día.';
-      detalle = 'Deberías tener ' + horasTeoricas.toFixed(1) + 'h y llevas ' + horasTrabajadas.toFixed(1) + 'h. Podrías recuperarlo en pocos días.';
+      titulo  = 'Pequeño retraso · ' + Math.abs(balance).toFixed(1) + 'h por debajo del objetivo.';
+      detalle = 'Deberías tener ' + horasTeoricas.toFixed(1) + 'h y llevas ' + horasTrabajadas.toFixed(1) + 'h. Te quedan ' + faltanMes.toFixed(1) + 'h para completar el mes.';
     } else {
       cls     = 's-err';
-      titulo  = 'Déficit de ' + Math.abs(balance).toFixed(1) + 'h respecto al objetivo anual.';
-      detalle = 'Deberías llevar ' + horasTeoricas.toFixed(1) + 'h y tienes ' + horasTrabajadas.toFixed(1) + 'h (' + pctReal.toFixed(1) + '%). Aún te restan ' + faltanAnual.toFixed(1) + 'h para completar el año.';
+      titulo  = 'Déficit de ' + Math.abs(balance).toFixed(1) + 'h respecto al objetivo de este mes.';
+      detalle = 'Deberías llevar ' + horasTeoricas.toFixed(1) + 'h y tienes ' + horasTrabajadas.toFixed(1) + 'h (' + pctReal.toFixed(1) + '%). Restan ' + faltanMes.toFixed(1) + 'h en ' + nombresMes[mes] + '.';
     }
 
     msgEl.className = 'balance-msg ' + cls;
