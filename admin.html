@@ -180,8 +180,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
   .main { padding:12px; }
   .modal { padding:24px 18px; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
-  .btn-empresa span, .btn-empresa { font-size:0; }
-  .btn-empresa::before { content:'🏢'; font-size:16px; }
+  .btn-empresa .btn-empresa-label { display:none; }
 }
 /* ── Barra de filtro fichajes ── */
 .filter-bar { display:flex; align-items:center; gap:8px; padding:14px 22px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
@@ -279,7 +278,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
   <div class="topbar-right">
     <span id="adminName">—</span>
     <span class="badge" id="rolBadge">Admin</span>
-    <button class="btn-empresa" id="btnMiEmpresa" title="Filtrar por mi empresa">🏢 Mis empresas</button>
+    <button class="btn-empresa" id="btnMiEmpresa" title="Filtrar por mi empresa" aria-label="Filtrar por mis empresas">🏢 <span class="btn-empresa-label">Mis empresas</span></button>
     <button class="btn-logout" id="btnLogout">Salir</button>
   </div>
 </div>
