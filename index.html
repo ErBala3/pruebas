@@ -16,17 +16,13 @@
 body {
   font-family: 'Inter', sans-serif;
   background: var(--bg); color: var(--text);
-  min-height: 100vh; display: flex; align-items: center; justify-content: center;
-  padding: 16px;
+  min-height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
 .card {
-  position: relative; width: 100%; max-width: 380px; background: var(--surface);
+  position: relative; width: 380px; background: var(--surface);
   border: 1px solid var(--border); border-radius: 10px; padding: 44px 40px 40px;
   box-shadow: 0 1px 4px rgba(0,0,0,.6);
   animation: fadeUp .5s ease both;
-}
-@media (max-width: 480px) {
-  .card { padding: 32px 20px 24px; }
 }
 @keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
 .logo { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
@@ -53,6 +49,15 @@ body {
   border-left: 3px solid var(--danger); border-radius: 6px; color: var(--danger); font-size: 13px; display: none;
 }
 .error.show { display: block; }
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .card { width: 100%; margin: 0 16px; padding: 32px 22px 28px; border-radius: 10px; }
+  body  { padding: 20px 0; min-height: 100vh; justify-content: flex-start; padding-top: 40px; }
+}
+@media (max-width: 360px) {
+  .card { margin: 0 10px; padding: 28px 16px 24px; }
+  .logo { font-size: 20px; }
+}
 </style>
 </head>
 <body>
