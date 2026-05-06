@@ -22,6 +22,8 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .logo small { font-size: 12px; color: var(--text-secondary); margin-left: 10px; font-weight: 400; }
 .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--text-secondary); }
 .badge { padding: 3px 10px; background: rgba(226,226,226,.08); border: 1px solid #333; border-radius: 20px; color: #a0a0a0; font-size: 11px; font-weight: 500; }
+.btn-hamburger { display:none; background:transparent; border:none; color:var(--text); font-size:20px; cursor:pointer; padding:4px 8px; line-height:1; }
+@media(max-width:768px){ .btn-hamburger { display:block; } }
 .btn-logout { padding: 6px 14px; background: transparent; color: var(--danger); border: 1px solid rgba(192,57,43,.4); border-radius: 7px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: background .2s; }
 .btn-logout:hover { background: rgba(192,57,43,.08); border-color: var(--danger); }
 /* Botón Mis empresas */
@@ -151,36 +153,72 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .toast.ok   { background: #1e1e1e; border-left: 3px solid #2d7a4f; color: #f0f0f0; }
 .toast.err  { background: #1e1e1e; border-left: 3px solid #c0392b; color: #f0f0f0; }
 .toast.warn { background: #1e1e1e; border-left: 3px solid #8a6800; color: #f0f0f0; }
-/* ── Hamburger button (mobile only) ── */
-.btn-menu { display:none; background:transparent; border:1px solid var(--border); border-radius:7px; color:var(--text); padding:5px 10px; font-size:18px; cursor:pointer; line-height:1; }
-/* ── Responsive breakpoints ── */
-@media(max-width:768px){
-  .btn-menu { display:block; }
-  .sidebar { display:none; z-index:150; transition:transform .25s ease; }
-  .sidebar.open { display:block; }
-  .sidebar-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:140; }
-  .sidebar-backdrop.open { display:block; }
-  .main { margin-left:0; padding:16px; }
-  .tcard { overflow-x:auto; }
-  table { min-width:600px; }
-  .topbar { padding:0 14px; }
-  #adminName { display:none; }
-  .badge { display:none; }
-  .btn-empresa { font-size:12px; padding:5px 10px; }
-  .page-title { font-size:18px; }
-  .stats-grid { grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); }
-  .filter-bar { gap:6px; }
-  .filter-input { min-width:120px; }
-  .qr-grid { grid-template-columns: 1fr; }
-  .header-actions { justify-content:flex-start; }
+/* ── Responsive – tablet ── */
+@media (max-width: 900px) {
+  .charts-grid { grid-template-columns: 1fr; }
 }
-@media(max-width:480px){
-  .topbar { height:52px; }
-  .layout { padding-top:52px; }
-  .main { padding:12px; }
-  .modal { padding:24px 18px; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  .btn-empresa .btn-empresa-label { display:none; }
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .main    { margin-left: 0; padding: 18px; }
+  /* Topbar compacto */
+  .topbar  { padding: 0 16px; }
+  .logo small { display: none; }
+  /* Hamburger: mostrar sidebar con clase */
+  .sidebar.open { display: block; position: fixed; z-index: 200; width: 240px; }
+  /* Stats en 2 col */
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  /* Tablas scroll horizontal */
+  .tcard { overflow-x: auto; }
+  table  { min-width: 600px; }
+  /* Header actions apiladas */
+  .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+  .header-actions { width: 100%; }
+  .btn-csv, .btn-primary { width: 100%; }
+  /* Filtros en columna */
+  .filter-bar { flex-direction: column; align-items: stretch; }
+  .filter-input, .filter-select, .filter-date { width: 100%; max-width: none; }
+  /* Modal full-width */
+  .modal { width: calc(100vw - 32px); padding: 24px 18px; }
+  /* Drawer full-width */
+  .drawer { width: 100%; }
+  /* QR grid 1 col */
+  .qr-grid { grid-template-columns: 1fr; }
+  /* Resumen filters */
+  .resumen-filters { flex-direction: column; width: 100%; }
+  .resumen-select { width: 100%; }
+  /* Botón empresa en topbar: solo icono */
+  .btn-empresa { padding: 6px 10px; font-size: 12px; }
+}
+/* ── Responsive – móvil ── */
+@media (max-width: 480px) {
+  .topbar  { height: 52px; padding: 0 12px; }
+  .main    { padding: 12px; }
+  .logo    { font-size: 17px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .stat-value { font-size: 22px; }
+  .page-title { font-size: 18px; }
+  /* Charts altura reducida */
+  .chart-wrap { height: 160px !important; }
+  .chart-card { padding: 14px 14px; }
+  /* Activos list */
+  .activo-dept { display: none; }
+  /* Modal */
+  .modal { padding: 20px 14px; }
+  .modal-title { font-size: 15px; }
+  /* Dias semana */
+  .dias-wrap { gap: 4px; }
+  .dia-btn { padding: 5px 7px; font-size: 11px; }
+  /* Topbar right: ocultar nombre */
+  #adminName { display: none; }
+  .badge     { display: none; }
+}
+/* ── Responsive – móvil pequeño ── */
+@media (max-width: 360px) {
+  .main    { padding: 10px 8px; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+  .stat-card { padding: 12px 12px; }
+  .tcard-head { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .btn-csv { width: 100%; }
 }
 /* ── Barra de filtro fichajes ── */
 .filter-bar { display:flex; align-items:center; gap:8px; padding:14px 22px; border-bottom:1px solid var(--border); flex-wrap:wrap; }
@@ -195,7 +233,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .filter-date::-webkit-calendar-picker-indicator { filter:invert(.6); cursor:pointer; }
 /* ── Gráficas resumen ── */
 .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
-@media(max-width:900px){ .charts-grid { grid-template-columns:1fr; } }
 .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:18px 20px; animation:fadeUp .5s ease both; }
 .chart-card:nth-child(2){animation-delay:.07s} .chart-card:nth-child(3){animation-delay:.14s} .chart-card:nth-child(4){animation-delay:.21s}
 .chart-title { font-size:12px; font-weight:600; color:var(--text-secondary); text-transform:uppercase; letter-spacing:.7px; margin-bottom:14px; }
@@ -271,21 +308,18 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
 <body>
 
 <div class="topbar">
-  <div style="display:flex;align-items:center;gap:10px;">
-    <button class="btn-menu" id="btnMenu">☰</button>
-    <div class="logo">QR<span>Access</span> <small>Admin</small></div>
-  </div>
+  <div class="logo">QR<span>Access</span> <small>Admin</small></div>
+  <button class="btn-hamburger" id="btnHamburger" aria-label="Menú">☰</button>
   <div class="topbar-right">
     <span id="adminName">—</span>
     <span class="badge" id="rolBadge">Admin</span>
-    <button class="btn-empresa" id="btnMiEmpresa" title="Filtrar por mi empresa" aria-label="Filtrar por mis empresas">🏢 <span class="btn-empresa-label">Mis empresas</span></button>
+    <button class="btn-empresa" id="btnMiEmpresa" title="Filtrar por mi empresa">🏢 Mis empresas</button>
     <button class="btn-logout" id="btnLogout">Salir</button>
   </div>
 </div>
 
-<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 <div class="layout">
-  <nav class="sidebar" id="sidebar">
+  <nav class="sidebar">
     <div class="nav-label">Panel</div>
     <div class="nav-item active" data-sec="resumen">Resumen</div>
     <div class="nav-label">Gestión</div>
@@ -2095,24 +2129,29 @@ function goToFichajesFiltered(filters) {
   });
 }
 
+// ── Hamburger sidebar en móvil ──────────────────────────────────────────
+document.getElementById('btnHamburger').addEventListener('click', function() {
+  var sidebar = document.querySelector('.sidebar');
+  sidebar.classList.toggle('open');
+  // Cerrar al hacer clic fuera
+  if (sidebar.classList.contains('open')) {
+    document.addEventListener('click', function closeSidebar(e) {
+      if (!sidebar.contains(e.target) && e.target.id !== 'btnHamburger') {
+        sidebar.classList.remove('open');
+        document.removeEventListener('click', closeSidebar);
+      }
+    });
+  }
+});
+// Cerrar sidebar al navegar (móvil)
+document.querySelectorAll('.nav-item').forEach(function(item) {
+  item.addEventListener('click', function() {
+    document.querySelector('.sidebar').classList.remove('open');
+  });
+});
+
 // ── Inicio ────────────────────────────────────────────────────────────────
 loadResumen();
-
-// ── Hamburger sidebar toggle ───────────────────────────────────────────────
-(function() {
-  var btnMenu = document.getElementById('btnMenu');
-  var sidebar = document.getElementById('sidebar');
-  var backdrop = document.getElementById('sidebarBackdrop');
-  function openSidebar() { sidebar.classList.add('open'); backdrop.classList.add('open'); }
-  function closeSidebar() { sidebar.classList.remove('open'); backdrop.classList.remove('open'); }
-  if (btnMenu) btnMenu.addEventListener('click', function() {
-    sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
-  });
-  if (backdrop) backdrop.addEventListener('click', closeSidebar);
-  document.querySelectorAll('.nav-item').forEach(function(el) {
-    el.addEventListener('click', function() { if (window.innerWidth <= 768) closeSidebar(); });
-  });
-})();
 </script>
 </body>
 </html>
