@@ -578,11 +578,8 @@ document.getElementById('adminName').textContent = me.nombre || me.email;
 var esJefe = (me.rol === 'jefe');
 document.getElementById('rolBadge').textContent = esJefe ? 'Jefe' : 'Admin';
 
-// Los jefes pueden ver usuarios pero NO gestionar departamentos
+// Los jefes pueden ver usuarios Y gestionar departamentos de sus empresas
 if (esJefe) {
-  document.querySelectorAll('.nav-item[data-sec="departamentos"]').forEach(function(el) {
-    el.style.display = 'none';
-  });
   // Para jefes: activar filtro por sus empresas automáticamente
   var misEmpresas = Array.isArray(me.empresas) && me.empresas.length
     ? me.empresas
@@ -1678,9 +1675,16 @@ async function loadDepartamentos() {
   document.getElementById('qrGrid').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
   try {
     const snap = await db.collection('departamentos').get();
-    if (snap.empty) { document.getElementById('qrGrid').innerHTML = '<div class="empty">Sin departamentos. Crea el primero.</div>'; return; }
+    var docs = snap.docs;
+    // Jefes: filtrar solo los departamentos de sus empresas
+    if (esJefe && window._misEmpresasJefe && window._misEmpresasJefe.length) {
+      docs = docs.filter(function(d) {
+        return window._misEmpresasJefe.indexOf(d.data().empresa) >= 0;
+      });
+    }
+    if (!docs.length) { document.getElementById('qrGrid').innerHTML = '<div class="empty">Sin departamentos. Crea el primero.</div>'; return; }
     document.getElementById('qrGrid').innerHTML = '';
-    snap.docs.forEach(function(d) { renderQRCard(d.id, d.data()); });
+    docs.forEach(function(d) { renderQRCard(d.id, d.data()); });
   } catch(e) { console.error(e); }
 }
 function renderQRCard(id, data) {
@@ -1715,7 +1719,19 @@ document.getElementById('diasSemana').addEventListener('click', function(e) {
 
 document.getElementById('btnNuevoDept').addEventListener('click', function() {
   document.getElementById('fDeptNombre').value   = '';
-  document.getElementById('fDeptEmpresa').value  = me.empresa || '';
+  // Jefes: pre-rellenar con su empresa y no dejar cambiarla
+  var misEmps = window._misEmpresasJefe && window._misEmpresasJefe.length
+    ? window._misEmpresasJefe : [];
+  var empInput = document.getElementById('fDeptEmpresa');
+  if (esJefe && misEmps.length) {
+    empInput.value    = misEmps[0];
+    empInput.readOnly = true;
+    empInput.style.opacity = '.6';
+  } else {
+    empInput.value    = me.empresa || '';
+    empInput.readOnly = false;
+    empInput.style.opacity = '';
+  }
   document.getElementById('fDeptLat').value      = '';
   document.getElementById('fDeptLng').value      = '';
   document.getElementById('fDeptHoraEntrada').value = '08:00';
