@@ -105,6 +105,8 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .btn-download:hover { background: rgba(226,226,226,.04); }
 .btn-del-dept { padding: 8px; background: transparent; border: 1px solid rgba(192,57,43,.4); border-radius: 7px; color: var(--danger); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s; text-align: center; }
 .btn-del-dept:hover { background: rgba(192,57,43,.08); }
+.btn-edit-dept { padding: 8px; background: transparent; border: 1px solid rgba(226,226,226,.2); border-radius: 7px; color: var(--accent); font-family:'Inter',sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s; text-align: center; }
+.btn-edit-dept:hover { background: rgba(226,226,226,.06); }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 .live-dot { display: inline-block; width: 7px; height: 7px; background: #5aad7e; border-radius: 50%; margin-right: 7px; animation: pulse 2s infinite; }
 .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(4px); z-index: 200; align-items: center; justify-content: center; }
@@ -483,7 +485,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
 
 <!-- Modal departamento -->
 <div class="overlay" id="ovDept">
-  <div class="modal">
+  <div class="modal" id="modalDept">
     <div class="modal-title">Nuevo departamento</div>
     <div class="field"><label>Nombre del departamento</label><input type="text" id="fDeptNombre" placeholder="Ej: Almacén, Oficina, Producción..."></div>
     <div class="field"><label>Empresa</label><input type="text" id="fDeptEmpresa" placeholder="Mi Empresa SL"></div>
@@ -1704,13 +1706,17 @@ function renderQRCard(id, data) {
     (horarioTxt ? '<div class="qr-horario">⏰ ' + esc(horarioTxt) + '</div>' : '') +
     '<div class="qr-box" id="qrbox-' + id + '"></div>' +
     '<div class="qr-actions">' +
-      '<button class="btn-download" onclick="verQR(\'' + id + '\',\'' + escAttr(data.nombre) + '\',\'' + escAttr(data.empresa||'') + '\')">Ver QR</button>' +
-      '<button class="btn-del-dept" onclick="delDept(\'' + id + '\',\'' + escAttr(data.nombre) + '\')">Eliminar</button>' +
+      '<button class="btn-edit-dept" onclick="editDept(\'' + id + '\')">Editar</button>' +
+      '<button class="btn-download"  onclick="verQR(\'' + id + '\',\'' + escAttr(data.nombre) + '\',\'' + escAttr(data.empresa||'') + '\')">Ver QR</button>' +
+      '<button class="btn-del-dept"  onclick="delDept(\'' + id + '\',\'' + escAttr(data.nombre) + '\')">Eliminar</button>' +
     '</div>';
   document.getElementById('qrGrid').appendChild(card);
   const qrUrl = new URL('.', location.href).href + 'index.html?dept=' + id;
   new QRCode(document.getElementById('qrbox-'+id), { text: qrUrl, width: 140, height: 140, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
 }
+// ID del departamento en edición (null = nuevo)
+var _editingDeptId = null;
+
 // Toggle días de la semana en el modal
 document.getElementById('diasSemana').addEventListener('click', function(e) {
   var btn = e.target.closest('.dia-btn');
@@ -1718,6 +1724,9 @@ document.getElementById('diasSemana').addEventListener('click', function(e) {
 });
 
 document.getElementById('btnNuevoDept').addEventListener('click', function() {
+  _editingDeptId = null;
+  document.getElementById('modalDept').querySelector('.modal-title').textContent = 'Nuevo departamento';
+  document.getElementById('btnGuardarDept').textContent = 'Crear y generar QR';
   document.getElementById('fDeptNombre').value   = '';
   // Jefes: pre-rellenar con su empresa y no dejar cambiarla
   var misEmps = window._misEmpresasJefe && window._misEmpresasJefe.length
@@ -1771,27 +1780,63 @@ document.getElementById('btnGuardarDept').addEventListener('click', async functi
   try {
     var horaEntrada = document.getElementById('fDeptHoraEntrada').value || '08:00';
     var horaSalida  = document.getElementById('fDeptHoraSalida').value  || '14:00';
-    // Días activos: array de números (0=Dom,1=Lun...6=Sab)
     var diasActivos = [];
     document.querySelectorAll('#diasSemana .dia-btn.on').forEach(function(b) {
       diasActivos.push(parseInt(b.dataset.dia));
     });
-    // Calcular horas diarias del horario
-    var [hE, mE] = horaEntrada.split(':').map(Number);
-    var [hS, mS] = horaSalida.split(':').map(Number);
-    var horasDia  = ((hS * 60 + mS) - (hE * 60 + mE)) / 60;
-    await db.collection('departamentos').add({
+    var hE = parseInt(horaEntrada.split(':')[0]), mE = parseInt(horaEntrada.split(':')[1]);
+    var hS = parseInt(horaSalida.split(':')[0]),  mS = parseInt(horaSalida.split(':')[1]);
+    var horasDia = ((hS * 60 + mS) - (hE * 60 + mE)) / 60;
+    var datos = {
       nombre, empresa, lat:latDept, lng:lngDept,
       horaEntrada, horaSalida, diasActivos,
-      horasDia: parseFloat(horasDia.toFixed(2)),
-      creadoEn: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    toast('Departamento creado y QR generado');
+      horasDia: parseFloat(horasDia.toFixed(2))
+    };
+    if (_editingDeptId) {
+      await db.collection('departamentos').doc(_editingDeptId).update(datos);
+      toast('Departamento actualizado');
+    } else {
+      datos.creadoEn = firebase.firestore.FieldValue.serverTimestamp();
+      await db.collection('departamentos').add(datos);
+      toast('Departamento creado y QR generado');
+    }
+    _editingDeptId = null;
     document.getElementById('ovDept').classList.remove('show');
     loadDepartamentos(); loadResumen();
   } catch(e) { errEl.textContent='Error: '+e.message; errEl.classList.add('show'); }
   btn.disabled=false; btn.textContent='Crear y generar QR';
 });
+async function editDept(id) {
+  const doc  = await db.collection('departamentos').doc(id).get();
+  if (!doc.exists) { toast('Departamento no encontrado', 'err'); return; }
+  const d    = doc.data();
+
+  _editingDeptId = id;
+  document.getElementById('modalDept').querySelector('.modal-title').textContent = 'Editar departamento';
+  document.getElementById('btnGuardarDept').textContent = 'Guardar cambios';
+
+  document.getElementById('fDeptNombre').value = d.nombre || '';
+
+  var empInput = document.getElementById('fDeptEmpresa');
+  empInput.value    = d.empresa || '';
+  if (esJefe) { empInput.readOnly = true; empInput.style.opacity = '.6'; }
+  else        { empInput.readOnly = false; empInput.style.opacity = ''; }
+
+  document.getElementById('fDeptLat').value = d.lat  != null ? d.lat  : '';
+  document.getElementById('fDeptLng').value = d.lng  != null ? d.lng  : '';
+  document.getElementById('fDeptHoraEntrada').value = d.horaEntrada || '08:00';
+  document.getElementById('fDeptHoraSalida').value  = d.horaSalida  || '14:00';
+
+  // Días activos
+  var diasGuardados = Array.isArray(d.diasActivos) ? d.diasActivos : [1,2,3,4,5];
+  document.querySelectorAll('#diasSemana .dia-btn').forEach(function(b) {
+    b.classList.toggle('on', diasGuardados.indexOf(parseInt(b.dataset.dia)) >= 0);
+  });
+
+  document.getElementById('modalDeptErr').classList.remove('show');
+  document.getElementById('ovDept').classList.add('show');
+}
+
 async function delDept(id, nombre) {
   if (!confirm('¿Eliminar el departamento "'+nombre+'"?')) return;
   await db.collection('departamentos').doc(id).delete();
