@@ -124,6 +124,13 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .btn-cancel:hover { border-color: var(--text); color: var(--text); }
 /* ── Selector multi-empresa / multi-dept ── */
 .emp-input-wrap { display:flex; gap:6px; }
+/* Selector empresa jefe */
+.emp-checks-wrap { display:flex; flex-direction:column; gap:5px; margin-top:4px; }
+.emp-check-row { display:flex; align-items:center; gap:8px; padding:6px 10px; border-radius:7px; cursor:pointer; border:1px solid var(--border); background:var(--surface2); transition:border-color .15s,background .15s; }
+.emp-check-row:hover { border-color:#444; background:rgba(255,255,255,.03); }
+.emp-check-row input[type=checkbox] { accent-color:#5aad7e; width:14px; height:14px; cursor:pointer; flex-shrink:0; }
+.emp-check-row.checked { border-color:rgba(90,173,126,.4); background:rgba(90,173,126,.08); }
+.emp-check-row label { font-size:13px; color:var(--text); cursor:pointer; flex:1; }
 .emp-input-wrap input { flex:1; }
 .btn-add-emp { padding:8px 12px; background:transparent; border:1px solid var(--border); border-radius:8px; color:var(--accent); font-family:'Inter',sans-serif; font-size:13px; cursor:pointer; white-space:nowrap; transition:background .15s; }
 .btn-add-emp:hover { background:rgba(226,226,226,.06); }
@@ -463,11 +470,19 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     </div>
     <div class="field">
       <label>Empresas</label>
-      <div class="emp-input-wrap">
-        <input type="text" id="fEmpresa" placeholder="Nombre de empresa...">
-        <button type="button" class="btn-add-emp" id="btnAddEmp">+ Añadir</button>
+      <!-- Modo admin: texto libre + chips -->
+      <div id="empAdminWrap">
+        <div class="emp-input-wrap">
+          <input type="text" id="fEmpresa" placeholder="Nombre de empresa...">
+          <button type="button" class="btn-add-emp" id="btnAddEmp">+ Añadir</button>
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Escribe el nombre y pulsa Añadir. Si no existe, se creará.</div>
+        <div class="chips-wrap" id="empChips"></div>
       </div>
-      <div class="chips-wrap" id="empChips"></div>
+      <!-- Modo jefe: checkboxes de sus propias empresas -->
+      <div id="empJefeWrap" style="display:none">
+        <div class="emp-checks-wrap" id="empJefeChecks"></div>
+      </div>
     </div>
     <div class="field">
       <label>Departamentos <span style="font-size:10px;color:var(--muted)">(de las empresas seleccionadas)</span></label>
@@ -1501,6 +1516,35 @@ function _renderEmpChips() {
   _renderDeptChecks();
 }
 
+function _renderEmpJefeChecks() {
+  var misEmps  = window._misEmpresasJefe || [];
+  var container = document.getElementById('empJefeChecks');
+  if (!container) return;
+  container.innerHTML = misEmps.map(function(e) {
+    var checked = _modalEmpresas.indexOf(e) >= 0;
+    return '<label class="emp-check-row' + (checked ? ' checked' : '') + '">' +
+      '<input type="checkbox" value="' + escAttr(e) + '" ' + (checked ? 'checked' : '') +
+      ' onchange="_toggleEmpJefe(this)">' +
+      '<span>' + esc(e) + '</span></label>';
+  }).join('');
+}
+
+function _toggleEmpJefe(cb) {
+  var val = cb.value;
+  cb.closest('.emp-check-row').classList.toggle('checked', cb.checked);
+  if (cb.checked) {
+    if (_modalEmpresas.indexOf(val) < 0) _modalEmpresas.push(val);
+  } else {
+    _modalEmpresas = _modalEmpresas.filter(function(e){ return e !== val; });
+    // Quitar depts de esa empresa
+    _modalDepts = _modalDepts.filter(function(d) {
+      var obj = _allDepts.find(function(a){ return a.nombre === d; });
+      return obj && _modalEmpresas.indexOf(obj.empresa) >= 0;
+    });
+  }
+  _renderDeptChecks();
+}
+
 function _removeEmpresa(idx) {
   var emp = _modalEmpresas[idx];
   _modalEmpresas.splice(idx, 1);
@@ -1591,7 +1635,7 @@ async function openUserModal(title, data) {
   }
   fRolEl.value = data.rol || 'empleado';
 
-  // Cargar empresas seleccionadas del usuario
+  // Cargar empresas y departamentos seleccionados del usuario
   _modalEmpresas = Array.isArray(data.empresas) && data.empresas.length
     ? data.empresas.slice()
     : (data.empresa ? [data.empresa] : []);
@@ -1605,7 +1649,20 @@ async function openUserModal(title, data) {
     return { nombre: d.data().nombre, empresa: d.data().empresa || '' };
   });
 
-  _renderEmpChips();
+  // Mostrar el modo correcto de selector de empresa
+  var adminWrap = document.getElementById('empAdminWrap');
+  var jefeWrap  = document.getElementById('empJefeWrap');
+  if (esJefe) {
+    adminWrap.style.display = 'none';
+    jefeWrap.style.display  = 'block';
+    _renderEmpJefeChecks();
+  } else {
+    adminWrap.style.display = 'block';
+    jefeWrap.style.display  = 'none';
+    _renderEmpChips();
+  }
+
+  _renderDeptChecks();
   document.getElementById('ovUsuario').classList.add('show');
 }
 document.getElementById('btnNuevoUsuario').addEventListener('click', function() {
@@ -1634,6 +1691,21 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
   if (!editingUserId && !password) { errEl.textContent = 'La contraseña es obligatoria'; errEl.classList.add('show'); return; }
   btn.disabled = true; btn.textContent = 'Guardando...';
   try {
+    // Admins: asegurarse de que cada empresa existe en Firestore
+    if (!esJefe && _modalEmpresas.length) {
+      const empSnap = await db.collection('departamentos').get();
+      const empresasExistentes = new Set(empSnap.docs.map(function(d){ return d.data().empresa; }));
+      // También revisar la colección de usuarios para empresas ya registradas
+      const uSnap2 = await db.collection('usuarios').get();
+      uSnap2.docs.forEach(function(d) {
+        var u = d.data();
+        (Array.isArray(u.empresas) ? u.empresas : (u.empresa ? [u.empresa] : []))
+          .forEach(function(e){ empresasExistentes.add(e); });
+      });
+      // Por ahora solo registramos el nombre — el admin puede crear depts después
+      // No hay colección separada de empresas; se usan las que aparecen en usuarios/depts
+    }
+
     const datos = {
       nombre, email, rol,
       empresa:       _modalEmpresas[0] || '',     // compatibilidad backward
