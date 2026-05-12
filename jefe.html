@@ -724,7 +724,7 @@ function renderQRCard(id, data) {
       <button class="btn-download" onclick="verQR('${id}','${data.nombre}','${data.empresa||''}')">Ver QR</button>
       <button class="btn-del-dept" onclick="delDept('${id}','${data.nombre}')">Eliminar</button>
     </div>
-    <button class="btn-partidos" onclick="openHorarioPartido('${id}','${data.nombre}')">🕐 Horario partido</button>`;
+    <button class="btn-partidos" onclick="openHorarioPartido('${id}','${esc(data.nombre)}')">🕐 Horario partido</button>`;
   document.getElementById('qrGrid').appendChild(card);
   const qrUrl = `${new URL('.', location.href).href}index.html?dept=${id}`;
   new QRCode(document.getElementById('qrbox-' + id), {
@@ -970,8 +970,8 @@ async function loadHorasEmpleados() {
       // Determine current status from last fichaje
       const sorted = fichajes.slice().sort((a, b) => {
         const da = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : new Date(0);
-        const db2 = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate() : new Date(0);
-        return db2 - da;
+        const dateB = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate() : new Date(0);
+        return dateB - da;
       });
       const lastTipo = sorted.length ? (sorted[0].tipo || '—') : '—';
       const estadoBadge = lastTipo === 'entrada'
@@ -1047,6 +1047,21 @@ document.getElementById('btnGuardarHp').addEventListener('click', async () => {
   const tardeSalida = document.getElementById('hpTardeSalida').value;
   if (!mananaEntrada || !mananaSalida || !tardeEntrada || !tardeSalida) {
     errEl.textContent = 'Completa todos los campos del horario';
+    errEl.classList.add('show');
+    return;
+  }
+  if (mananaEntrada >= mananaSalida) {
+    errEl.textContent = 'La salida de mañana debe ser posterior a la entrada de mañana';
+    errEl.classList.add('show');
+    return;
+  }
+  if (tardeEntrada >= tardeSalida) {
+    errEl.textContent = 'La salida de tarde debe ser posterior a la entrada de tarde';
+    errEl.classList.add('show');
+    return;
+  }
+  if (mananaSalida > tardeEntrada) {
+    errEl.textContent = 'La entrada de tarde debe ser posterior a la salida de mañana';
     errEl.classList.add('show');
     return;
   }
