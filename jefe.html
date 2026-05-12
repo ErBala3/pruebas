@@ -242,14 +242,10 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
   <nav class="sidebar" id="sidebar">
     <div class="nav-label">Panel</div>
     <div class="nav-item active" data-sec="resumen">Resumen</div>
-    <div class="nav-label">Mi Empresa</div>
-    <div class="nav-empresa-wrap">
-      <div class="nav-empresa-btn"><span class="nav-icon">🏢</span><span id="navEmpresaNombre">—</span></div>
-    </div>
-    <div class="nav-item" data-sec="usuarios">👥 Usuarios</div>
-    <div class="nav-item" data-sec="departamentos">🏷️ Departamentos</div>
-    <div class="nav-item" data-sec="fichajes">📋 Fichajes</div>
-    <div class="nav-item" data-sec="horas-empleados">📊 Horas por empleados</div>
+    <div class="nav-item" data-sec="usuarios">Usuarios</div>
+    <div class="nav-item" data-sec="departamentos">Departamentos</div>
+    <div class="nav-item" data-sec="fichajes">Fichajes</div>
+    <div class="nav-item" data-sec="horas-empleados">Horas por empleados</div>
   </nav>
   <main class="main">
     <!-- RESUMEN -->
@@ -300,7 +296,7 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
     <div class="section" id="sec-fichajes">
       <div class="page-header">
         <div><div class="page-title">Fichajes</div><div class="page-sub">Registro completo de tu empresa</div></div>
-        <button class="btn-filter-toggle" id="btnFallidosAlFinal">⚠️ Fallidos al final</button>
+
       </div>
       <div class="empresa-banner">🏢 Mostrando solo fichajes de: <strong id="bannerEmpresaFichajes">—</strong></div>
       <div class="tcard">
@@ -423,8 +419,7 @@ if (!userRaw) location.href = 'index.html';
 const me = JSON.parse(userRaw);
 if (me.rol !== 'jefe') location.href = me.rol === 'admin' ? 'admin.html' : 'dashboard.html';
 document.getElementById('jefeName').textContent = me.nombre || me.email;
-document.getElementById('empresaBadge').textContent = me.empresa || '(sin empresa)';
-document.getElementById('navEmpresaNombre').textContent = me.empresa || '(sin empresa)';
+document.getElementById('empresaBadge').textContent = (Array.isArray(me.empresas) && me.empresas.length > 1) ? 'Mis empresas' : (me.empresa || '(sin empresa)');
 // Fill empresa banners
 ['bannerEmpresaResumen','bannerEmpresaUsuarios','bannerEmpresaDepts','bannerEmpresaFichajes','bannerEmpresaHoras'].forEach(id => {
   document.getElementById(id).textContent = me.empresa || '(sin empresa)';
@@ -507,9 +502,6 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if (sec === 'usuarios') loadUsuarios();
     if (sec === 'departamentos') loadDepartamentos();
     if (sec === 'fichajes') {
-      fichajesFallidosAlFinal = false;
-      var bt = document.getElementById('btnFallidosAlFinal');
-      if (bt) { bt.classList.remove('active'); bt.textContent = '⚠️ Fallidos al final'; }
       loadFichajes();
     }
     if (sec === 'horas-empleados') loadHorasEmpleados();
@@ -905,30 +897,6 @@ function escAttr(str) {
 
 // ── Carga inicial ─────────────────────────────────────────────────────────
 loadResumen();
-
-// ── Filtro: Fallidos al final ──────────────────────────────────────────────
-let fichajesFallidosAlFinal = false;
-
-function isFallidoFichaje(d) {
-  const f = d.data ? d.data() : d;
-  return !!(f.locError || f.exito === false || f.fallido === true || f.valido === false);
-}
-
-document.getElementById('btnFallidosAlFinal').addEventListener('click', function() {
-  fichajesFallidosAlFinal = !fichajesFallidosAlFinal;
-  this.classList.toggle('active', fichajesFallidosAlFinal);
-  this.textContent = fichajesFallidosAlFinal ? '⚠️ Fallidos al final (activo)' : '⚠️ Fallidos al final';
-  if (fichajesFallidosAlFinal) {
-    fichajesAllDocs = [
-      ...fichajesAllDocs.filter(d => !isFallidoFichaje(d)),
-      ...fichajesAllDocs.filter(d => isFallidoFichaje(d))
-    ];
-  } else {
-    fichajesAllDocs = sortByTsDesc(fichajesAllDocs);
-  }
-  fichajesPage = 1;
-  renderFichajesPage(1);
-});
 
 // ─────────────────────────────────────────────────────────────────────────
 // HORAS POR EMPLEADOS — filtrado por empresa
