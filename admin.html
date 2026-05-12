@@ -464,7 +464,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="modal-title" id="modalUserTitle">Nuevo usuario</div>
     <div class="field"><label>Nombre</label><input type="text" id="fNombre" placeholder="Juan García"></div>
     <div class="field"><label>Email</label><input type="email" id="fEmail" placeholder="juan@empresa.com"></div>
-    <div class="field"><label>Contraseña</label><input type="password" id="fPassword" placeholder="mínimo 4 caracteres"></div>
+    <div class="field"><label>Contraseña</label><input type="password" id="fPassword" placeholder="Mín. 6 car. · Mayús, minús y número"></div>
     <div class="field"><label>Rol</label>
       <select id="fRol"><option value="empleado">Empleado</option><option value="jefe">Jefe</option><option value="admin">Admin</option></select>
     </div>
@@ -1687,8 +1687,18 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
   const errEl    = document.getElementById('modalUserErr');
   const btn      = document.getElementById('btnGuardarUser');
   errEl.classList.remove('show');
+  // Validar formato email
+  var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!nombre || !email) { errEl.textContent = 'Nombre y email son obligatorios'; errEl.classList.add('show'); return; }
+  if (!emailRegex.test(email)) { errEl.textContent = 'El email no tiene un formato válido (ej: usuario@empresa.com)'; errEl.classList.add('show'); return; }
+  // Validar contraseña: mínimo 6 caracteres, al menos una mayúscula, una minúscula y un número
   if (!editingUserId && !password) { errEl.textContent = 'La contraseña es obligatoria'; errEl.classList.add('show'); return; }
+  if (password) {
+    if (password.length < 6) { errEl.textContent = 'La contraseña debe tener al menos 6 caracteres'; errEl.classList.add('show'); return; }
+    if (!/[A-Z]/.test(password)) { errEl.textContent = 'La contraseña debe incluir al menos una mayúscula'; errEl.classList.add('show'); return; }
+    if (!/[a-z]/.test(password)) { errEl.textContent = 'La contraseña debe incluir al menos una minúscula'; errEl.classList.add('show'); return; }
+    if (!/[0-9]/.test(password)) { errEl.textContent = 'La contraseña debe incluir al menos un número'; errEl.classList.add('show'); return; }
+  }
   btn.disabled = true; btn.textContent = 'Guardando...';
   try {
     // Admins: asegurarse de que cada empresa existe en Firestore
