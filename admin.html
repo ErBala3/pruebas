@@ -162,10 +162,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .toast.ok   { background: #1e1e1e; border-left: 3px solid #2d7a4f; color: #f0f0f0; }
 .toast.err  { background: #1e1e1e; border-left: 3px solid #c0392b; color: #f0f0f0; }
 .toast.warn { background: #1e1e1e; border-left: 3px solid #8a6800; color: #f0f0f0; }
-/* ── Empresa nav button ── */
-.nav-empresa-wrap { padding: 4px 14px 10px; }
-.nav-empresa-btn { display: flex; align-items: center; gap: 8px; padding: 9px 13px; background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.22); border-radius: 8px; color: #d4a017; font-size: 12px; font-weight: 600; word-break: break-all; line-height: 1.3; }
-.nav-empresa-btn .nav-icon { font-size: 15px; flex-shrink: 0; }
 /* ── Horario partido btn ── */
 .btn-partidos { padding: 8px; background: transparent; border: 1px solid rgba(251,191,36,.3); border-radius: 7px; color: #d4a017; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s; text-align: center; width: 100%; margin-top: 6px; }
 .btn-partidos:hover { background: rgba(251,191,36,.08); }
@@ -345,13 +341,10 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="nav-label">Panel</div>
     <div class="nav-item active" data-sec="resumen">Resumen</div>
     <div class="nav-label">Gestión</div>
-    <div class="nav-empresa-wrap" id="navEmpresaWrap" style="display:none">
-      <div class="nav-empresa-btn"><span class="nav-icon">🏢</span><span id="navEmpresaNombre">—</span></div>
-    </div>
-    <div class="nav-item" data-sec="usuarios">👥 Usuarios</div>
-    <div class="nav-item" data-sec="horas">📊 Horas por empleado</div>
-    <div class="nav-item" data-sec="departamentos">🏷️ Departamentos</div>
-    <div class="nav-item" data-sec="fichajes">📋 Fichajes</div>
+    <div class="nav-item" data-sec="usuarios">Usuarios</div>
+    <div class="nav-item" data-sec="horas">Horas por empleado</div>
+    <div class="nav-item" data-sec="departamentos">Departamentos</div>
+    <div class="nav-item" data-sec="fichajes">Fichajes</div>
   </nav>
 
   <main class="main">
@@ -451,7 +444,6 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
       <div class="page-header">
         <div><div class="page-title">Fichajes</div><div class="page-sub">Registro completo con hora exacta</div></div>
         <div class="header-actions">
-          <button class="btn-filter-toggle" id="btnFallidosAlFinal">⚠️ Fallidos al final</button>
           <button class="btn-csv" id="btnExportFichajes">⬇ Exportar CSV</button>
         </div>
       </div>
@@ -634,12 +626,6 @@ var misEmpresas = Array.isArray(me.empresas) && me.empresas.length
   ? me.empresas
   : (me.empresa ? [me.empresa] : []);
 
-// Mostrar empresa en sidebar
-if (misEmpresas.length) {
-  document.getElementById('navEmpresaNombre').textContent = misEmpresas[0];
-  document.getElementById('navEmpresaWrap').style.display = '';
-}
-
 // Activar filtro por empresas y mostrar nombre en botón topbar
 if (misEmpresas.length) {
   window._misEmpresasJefe = misEmpresas;
@@ -685,7 +671,6 @@ document.getElementById('btnLogout').addEventListener('click', function() {
 // ── Listeners activos ─────────────────────────────────────────────────────
 let fichajesUnsub = null;
 let resumenUnsub  = null;
-let fichajesFallidosAlFinal = false;
 // Cache de fichajes para exportación CSV
 let _fichajesCache = [];
 let _horasCache    = [];
@@ -769,9 +754,6 @@ document.querySelectorAll('.nav-item').forEach(function(item) {
     if (sec === 'horas')         loadHorasEmpleados();
     if (sec === 'departamentos') loadDepartamentos();
     if (sec === 'fichajes') {
-      fichajesFallidosAlFinal = false;
-      var bt = document.getElementById('btnFallidosAlFinal');
-      if (bt) { bt.classList.remove('active'); bt.textContent = '⚠️ Fallidos al final'; }
       loadFichajes();
     }
   });
@@ -2148,13 +2130,6 @@ function applyFichajesFilters() {
   datos.sort(sorter);
   if (_fltState.dir === 'desc') datos.reverse();
 
-  if (fichajesFallidosAlFinal) {
-    datos = [
-      ...datos.filter(function(f) { return !isFallidoFichaje(f); }),
-      ...datos.filter(function(f) { return isFallidoFichaje(f); })
-    ];
-  }
-
   renderTablaFichajes(datos);
 }
 
@@ -2365,18 +2340,6 @@ document.querySelectorAll('.nav-item').forEach(function(item) {
   item.addEventListener('click', function() {
     document.querySelector('.sidebar').classList.remove('open');
   });
-});
-
-// ── Filtro: Fallidos al final ──────────────────────────────────────────────
-function isFallidoFichaje(f) {
-  return !!(f.locError || f.exito === false || f.fallido === true || f.valido === false);
-}
-
-document.getElementById('btnFallidosAlFinal').addEventListener('click', function() {
-  fichajesFallidosAlFinal = !fichajesFallidosAlFinal;
-  this.classList.toggle('active', fichajesFallidosAlFinal);
-  this.textContent = fichajesFallidosAlFinal ? '⚠️ Fallidos al final (activo)' : '⚠️ Fallidos al final';
-  applyFichajesFilters();
 });
 
 // ─────────────────────────────────────────────────────────────────────────
