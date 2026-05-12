@@ -108,8 +108,14 @@ async function doLogin() {
 
   errorEl.classList.remove('show');
 
+  var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email || !password) {
     errorEl.textContent = 'Rellena email y contraseña';
+    errorEl.classList.add('show');
+    return;
+  }
+  if (!emailRegex.test(email)) {
+    errorEl.textContent = 'El email no tiene un formato válido';
     errorEl.classList.add('show');
     return;
   }
