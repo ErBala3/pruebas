@@ -630,12 +630,13 @@ var misEmpresas = Array.isArray(me.empresas) && me.empresas.length
 if (misEmpresas.length) {
   window._misEmpresasJefe = misEmpresas;
   _soloMiEmpresa = true;
+  _empresaIdx = -1;
   var btnEmp = document.getElementById('btnMiEmpresa');
   if (btnEmp) {
     btnEmp.classList.add('active');
     btnEmp.textContent = misEmpresas.length === 1
       ? '🏢 ' + misEmpresas[0]
-      : '🏢 ' + misEmpresas[0] + ' (+' + (misEmpresas.length - 1) + ')';
+      : '🏢 ' + misEmpresas.slice(0, 2).join(' · ') + (misEmpresas.length > 2 ? ' (+' + (misEmpresas.length - 2) + ')' : '');
   }
 }
 
@@ -679,6 +680,7 @@ let _horasCache    = [];
 var _filtroEmpresa = '';  // '' = todas
 var _filtroDept    = '';  // '' = todos
 var _soloMiEmpresa = false;
+var _empresaIdx    = -1;  // -1 = todas las mías; 0..N-1 = empresa concreta
 
 // ── Días laborables ───────────────────────────────────────────────────────
 function diasLaborablesHastaHoy(anio) {
@@ -1357,9 +1359,12 @@ function popularFiltrosResumen(allDocs) {
 // Helper: texto del botón con nombre de empresa
 function _btnEmpresaLabel() {
   if (!misEmpresas.length) return '🏢 Mis empresas';
-  return misEmpresas.length === 1
-    ? '🏢 ' + misEmpresas[0]
-    : '🏢 ' + misEmpresas[0] + ' (+' + (misEmpresas.length - 1) + ')';
+  if (_empresaIdx >= 0 && _empresaIdx < misEmpresas.length) {
+    return '🏢 ' + misEmpresas[_empresaIdx];
+  }
+  // Estado "todas mis empresas" (índice -1)
+  if (misEmpresas.length === 1) return '🏢 ' + misEmpresas[0];
+  return '🏢 ' + misEmpresas.slice(0, 2).join(' · ') + (misEmpresas.length > 2 ? ' (+' + (misEmpresas.length - 2) + ')' : '');
 }
 
 // Listeners de los selects del Resumen
@@ -1367,6 +1372,7 @@ function _btnEmpresaLabel() {
   document.getElementById('rFiltroEmpresa').addEventListener('change', function() {
     _filtroEmpresa = this.value;
     _soloMiEmpresa = false;
+    _empresaIdx = -1;
     var btn = document.getElementById('btnMiEmpresa');
     btn.classList.remove('active');
     btn.textContent = _btnEmpresaLabel();
@@ -1381,22 +1387,45 @@ function _btnEmpresaLabel() {
 // Botón empresa en la topbar
 document.getElementById('btnMiEmpresa').addEventListener('click', function() {
   var btn = this;
-  if (_soloMiEmpresa) {
-    // Desactivar filtro
-    _soloMiEmpresa = false;
-    _filtroEmpresa = '';
-    btn.classList.remove('active');
-    btn.textContent = _btnEmpresaLabel();
-    document.getElementById('rFiltroEmpresa').value = '';
+  if (!misEmpresas.length) { alert('Tu usuario no tiene empresa asignada.'); return; }
+
+  if (misEmpresas.length === 1) {
+    // Una sola empresa: alternar filtro activo/inactivo
+    if (_soloMiEmpresa) {
+      _soloMiEmpresa = false;
+      _filtroEmpresa = '';
+      _empresaIdx = -1;
+      btn.classList.remove('active');
+      document.getElementById('rFiltroEmpresa').value = '';
+    } else {
+      _soloMiEmpresa = true;
+      window._misEmpresasJefe = misEmpresas;
+      _filtroEmpresa = misEmpresas[0];
+      _empresaIdx = 0;
+      btn.classList.add('active');
+      document.getElementById('rFiltroEmpresa').value = '';
+    }
   } else {
-    if (!misEmpresas.length) { alert('Tu usuario no tiene empresa asignada.'); return; }
-    _soloMiEmpresa = true;
-    window._misEmpresasJefe = misEmpresas;
-    _filtroEmpresa = misEmpresas[0];
-    btn.classList.add('active');
-    btn.textContent = _btnEmpresaLabel();
-    document.getElementById('rFiltroEmpresa').value = '';
+    // Varias empresas: ciclar  -1 → 0 → 1 → … → N-1 → -1
+    var nextIdx = _empresaIdx + 1;
+    if (nextIdx >= misEmpresas.length) nextIdx = -1;
+    _empresaIdx = nextIdx;
+
+    if (_empresaIdx === -1) {
+      // Estado "todas mis empresas"
+      _soloMiEmpresa = true;
+      _filtroEmpresa = '';
+      btn.classList.add('active');
+      document.getElementById('rFiltroEmpresa').value = '';
+    } else {
+      // Empresa concreta
+      _soloMiEmpresa = false;
+      _filtroEmpresa = misEmpresas[_empresaIdx];
+      btn.classList.add('active');
+      document.getElementById('rFiltroEmpresa').value = misEmpresas[_empresaIdx];
+    }
   }
+  btn.textContent = _btnEmpresaLabel();
   loadResumen();
 });
 
