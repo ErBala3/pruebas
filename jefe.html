@@ -158,6 +158,19 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
 .toast.ok { background: #1e1e1e; border-left: 3px solid #2d7a4f; color: #f0f0f0; }
 .toast.err { background: #1e1e1e; border-left: 3px solid #c0392b; color: #f0f0f0; }
 .toast.warn { background: #1e1e1e; border-left: 3px solid #8a6800; color: #f0f0f0; }
+/* ── Empresa nav button ── */
+.nav-empresa-wrap { padding: 4px 14px 10px; }
+.nav-empresa-btn { display: flex; align-items: center; gap: 8px; padding: 9px 13px; background: rgba(251,191,36,.07); border: 1px solid rgba(251,191,36,.22); border-radius: 8px; color: #d4a017; font-size: 12px; font-weight: 600; word-break: break-all; line-height: 1.3; }
+.nav-empresa-btn .nav-icon { font-size: 15px; flex-shrink: 0; }
+/* ── Horario partido btn ── */
+.btn-partidos { padding: 8px; background: transparent; border: 1px solid rgba(251,191,36,.3); border-radius: 7px; color: #d4a017; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s; text-align: center; width: 100%; margin-top: 6px; }
+.btn-partidos:hover { background: rgba(251,191,36,.08); }
+/* ── Filter toggle btn ── */
+.btn-filter-toggle { padding: 7px 14px; background: transparent; border: 1px solid rgba(138,104,0,.4); border-radius: 7px; color: var(--text-secondary); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s, border-color .15s, color .15s; white-space: nowrap; }
+.btn-filter-toggle:hover { background: rgba(138,104,0,.08); border-color: #8a6800; }
+.btn-filter-toggle.active { border-color: #8a6800; color: var(--warn); background: rgba(138,104,0,.12); }
+/* ── Horario partido indicator on QR card ── */
+.hp-badge { display: inline-block; font-size: 10px; color: #d4a017; background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.2); border-radius: 5px; padding: 2px 7px; margin-top: 2px; }
 /* ── Hamburger button (mobile only) ── */
 .btn-menu { display:none; background:transparent; border:1px solid var(--border); border-radius:7px; color:var(--text); padding:5px 10px; font-size:18px; cursor:pointer; line-height:1; }
 /* ── Responsive breakpoints ── */
@@ -230,9 +243,13 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
     <div class="nav-label">Panel</div>
     <div class="nav-item active" data-sec="resumen">Resumen</div>
     <div class="nav-label">Mi Empresa</div>
-    <div class="nav-item" data-sec="usuarios">Usuarios</div>
-    <div class="nav-item" data-sec="departamentos">Departamentos</div>
-    <div class="nav-item" data-sec="fichajes">Fichajes</div>
+    <div class="nav-empresa-wrap">
+      <div class="nav-empresa-btn"><span class="nav-icon">🏢</span><span id="navEmpresaNombre">—</span></div>
+    </div>
+    <div class="nav-item" data-sec="usuarios">👥 Usuarios</div>
+    <div class="nav-item" data-sec="departamentos">🏷️ Departamentos</div>
+    <div class="nav-item" data-sec="fichajes">📋 Fichajes</div>
+    <div class="nav-item" data-sec="horas-empleados">📊 Horas por empleados</div>
   </nav>
   <main class="main">
     <!-- RESUMEN -->
@@ -283,6 +300,7 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
     <div class="section" id="sec-fichajes">
       <div class="page-header">
         <div><div class="page-title">Fichajes</div><div class="page-sub">Registro completo de tu empresa</div></div>
+        <button class="btn-filter-toggle" id="btnFallidosAlFinal">⚠️ Fallidos al final</button>
       </div>
       <div class="empresa-banner">🏢 Mostrando solo fichajes de: <strong id="bannerEmpresaFichajes">—</strong></div>
       <div class="tcard">
@@ -291,6 +309,17 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
           <span class="pagination-info" id="paginationFichajesInfo"></span>
           <div class="pagination-btns" id="paginationFichajesBtns"></div>
         </div>
+      </div>
+    </div>
+    <!-- HORAS POR EMPLEADOS -->
+    <div class="section" id="sec-horas-empleados">
+      <div class="page-header">
+        <div><div class="page-title">Horas por empleados</div><div class="page-sub">Resumen de horas trabajadas por empleado de tu empresa</div></div>
+        <button class="btn-primary" id="btnRefreshHoras" onclick="loadHorasEmpleados()">↻ Actualizar</button>
+      </div>
+      <div class="empresa-banner">🏢 Mostrando solo empleados de: <strong id="bannerEmpresaHoras">—</strong></div>
+      <div class="tcard">
+        <div id="tablaHorasContent"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
       </div>
     </div>
   </main>
@@ -345,6 +374,23 @@ font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s,
     </div>
   </div>
 </div>
+<!-- Modal horario partido -->
+<div class="overlay" id="ovHorarioPartido">
+  <div class="modal">
+    <div class="modal-title">🕐 Horario partido — <span id="hpDeptNombre"></span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="field"><label>Entrada mañana</label><input type="time" id="hpMananaEntrada"></div>
+      <div class="field"><label>Salida mañana</label><input type="time" id="hpMananaSalida"></div>
+      <div class="field"><label>Entrada tarde</label><input type="time" id="hpTardeEntrada"></div>
+      <div class="field"><label>Salida tarde</label><input type="time" id="hpTardeSalida"></div>
+    </div>
+    <div class="modal-err" id="modalHpErr"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="btnCancelHp">Cancelar</button>
+      <button class="btn-primary" id="btnGuardarHp">Guardar horario</button>
+    </div>
+  </div>
+</div>
 <!-- User profile drawer -->
 <div class="drawer-overlay" id="drawerOverlay"></div>
 <div class="drawer" id="userDrawer">
@@ -378,8 +424,9 @@ const me = JSON.parse(userRaw);
 if (me.rol !== 'jefe') location.href = me.rol === 'admin' ? 'admin.html' : 'dashboard.html';
 document.getElementById('jefeName').textContent = me.nombre || me.email;
 document.getElementById('empresaBadge').textContent = me.empresa || '(sin empresa)';
+document.getElementById('navEmpresaNombre').textContent = me.empresa || '(sin empresa)';
 // Fill empresa banners
-['bannerEmpresaResumen','bannerEmpresaUsuarios','bannerEmpresaDepts','bannerEmpresaFichajes'].forEach(id => {
+['bannerEmpresaResumen','bannerEmpresaUsuarios','bannerEmpresaDepts','bannerEmpresaFichajes','bannerEmpresaHoras'].forEach(id => {
   document.getElementById(id).textContent = me.empresa || '(sin empresa)';
 });
 
@@ -459,7 +506,13 @@ document.querySelectorAll('.nav-item').forEach(item => {
     if (sec === 'resumen') loadResumen();
     if (sec === 'usuarios') loadUsuarios();
     if (sec === 'departamentos') loadDepartamentos();
-    if (sec === 'fichajes') loadFichajes();
+    if (sec === 'fichajes') {
+      fichajesFallidosAlFinal = false;
+      var bt = document.getElementById('btnFallidosAlFinal');
+      if (bt) { bt.classList.remove('active'); bt.textContent = '⚠️ Fallidos al final'; }
+      loadFichajes();
+    }
+    if (sec === 'horas-empleados') loadHorasEmpleados();
   });
 });
 
@@ -665,11 +718,13 @@ function renderQRCard(id, data) {
   card.innerHTML = `
     <div class="qr-dept">${data.nombre}</div>
     <div class="qr-empresa">${data.empresa||''}</div>
+    ${data.horarioPartido && data.horarioPartido.mananaEntrada ? `<div class="hp-badge">⏰ ${data.horarioPartido.mananaEntrada}–${data.horarioPartido.mananaSalida} / ${data.horarioPartido.tardeEntrada}–${data.horarioPartido.tardeSalida}</div>` : ''}
     <div class="qr-box" id="qrbox-${id}"></div>
     <div class="qr-actions">
       <button class="btn-download" onclick="verQR('${id}','${data.nombre}','${data.empresa||''}')">Ver QR</button>
       <button class="btn-del-dept" onclick="delDept('${id}','${data.nombre}')">Eliminar</button>
-    </div>`;
+    </div>
+    <button class="btn-partidos" onclick="openHorarioPartido('${id}','${esc(data.nombre)}')">🕐 Horario partido</button>`;
   document.getElementById('qrGrid').appendChild(card);
   const qrUrl = `${new URL('.', location.href).href}index.html?dept=${id}`;
   new QRCode(document.getElementById('qrbox-' + id), {
@@ -850,6 +905,180 @@ function escAttr(str) {
 
 // ── Carga inicial ─────────────────────────────────────────────────────────
 loadResumen();
+
+// ── Filtro: Fallidos al final ──────────────────────────────────────────────
+let fichajesFallidosAlFinal = false;
+
+function isFallidoFichaje(d) {
+  const f = d.data ? d.data() : d;
+  return !!(f.locError || f.exito === false || f.fallido === true || f.valido === false);
+}
+
+document.getElementById('btnFallidosAlFinal').addEventListener('click', function() {
+  fichajesFallidosAlFinal = !fichajesFallidosAlFinal;
+  this.classList.toggle('active', fichajesFallidosAlFinal);
+  this.textContent = fichajesFallidosAlFinal ? '⚠️ Fallidos al final (activo)' : '⚠️ Fallidos al final';
+  if (fichajesFallidosAlFinal) {
+    fichajesAllDocs = [
+      ...fichajesAllDocs.filter(d => !isFallidoFichaje(d)),
+      ...fichajesAllDocs.filter(d => isFallidoFichaje(d))
+    ];
+  } else {
+    fichajesAllDocs = sortByTsDesc(fichajesAllDocs);
+  }
+  fichajesPage = 1;
+  renderFichajesPage(1);
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// HORAS POR EMPLEADOS — filtrado por empresa
+// ─────────────────────────────────────────────────────────────────────────
+async function loadHorasEmpleados() {
+  document.getElementById('tablaHorasContent').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
+  try {
+    const [uSnap, fSnap] = await Promise.all([
+      db.collection('usuarios').where('empresa', '==', me.empresa).get(),
+      db.collection('fichajes').where('empresa', '==', me.empresa).limit(2000).get()
+    ]);
+
+    if (uSnap.empty) {
+      document.getElementById('tablaHorasContent').innerHTML = '<div class="empty">Sin empleados en esta empresa</div>';
+      return;
+    }
+
+    // Group fichajes by userId
+    const fichajesByUser = {};
+    fSnap.docs.forEach(d => {
+      const f = d.data();
+      if (!f.userId) return;
+      if (!fichajesByUser[f.userId]) fichajesByUser[f.userId] = [];
+      fichajesByUser[f.userId].push(f);
+    });
+
+    const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+    const mesInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+
+    const rows = uSnap.docs.map(d => {
+      const u = d.data();
+      const fichajes = fichajesByUser[d.id] || [];
+      const hNorm = fichajes.reduce((s, f) => s + (f.horasNormales || 0), 0);
+      const hExtra = fichajes.reduce((s, f) => s + (f.horasExtra || 0), 0);
+      const hoyCount = fichajes.filter(f => f.timestamp && f.timestamp.toDate && f.timestamp.toDate() >= hoy).length;
+      const mesCount = fichajes.filter(f => f.timestamp && f.timestamp.toDate && f.timestamp.toDate() >= mesInicio).length;
+      const total = fichajes.length;
+
+      // Determine current status from last fichaje
+      const sorted = fichajes.slice().sort((a, b) => {
+        const da = a.timestamp && a.timestamp.toDate ? a.timestamp.toDate() : new Date(0);
+        const dateB = b.timestamp && b.timestamp.toDate ? b.timestamp.toDate() : new Date(0);
+        return dateB - da;
+      });
+      const lastTipo = sorted.length ? (sorted[0].tipo || '—') : '—';
+      const estadoBadge = lastTipo === 'entrada'
+        ? '<span class="pill pill-entrada">Dentro</span>'
+        : lastTipo === 'salida'
+          ? '<span class="pill pill-salida">Fuera</span>'
+          : '<span style="color:var(--muted)">—</span>';
+
+      return `<tr>
+        <td><span style="cursor:pointer;color:var(--accent)" onclick="openUserDrawerById('${d.id}')">${esc(u.nombre || '—')}</span></td>
+        <td style="color:var(--muted)">${esc(u.email || '—')}</td>
+        <td style="color:var(--muted)">${esc(u.departamento || '—')}</td>
+        <td style="color:var(--text);text-align:center">${hoyCount}</td>
+        <td style="color:var(--text);text-align:center">${mesCount}</td>
+        <td style="color:var(--text);text-align:center">${total}</td>
+        <td style="color:var(--success)">${hNorm.toFixed(1)}h</td>
+        <td style="color:var(--warn)">${hExtra.toFixed(1)}h</td>
+        <td>${estadoBadge}</td>
+      </tr>`;
+    }).join('');
+
+    document.getElementById('tablaHorasContent').innerHTML = `
+      <table>
+        <thead><tr>
+          <th>Nombre</th><th>Email</th><th>Departamento</th>
+          <th style="text-align:center">Fichajes hoy</th><th style="text-align:center">Este mes</th><th style="text-align:center">Total</th>
+          <th>H. Normales</th><th>H. Extra</th><th>Estado</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch (e) {
+    document.getElementById('tablaHorasContent').innerHTML = '<div class="empty">Error al cargar: ' + e.message + '</div>';
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// HORARIOS PARTIDOS — por departamento
+// ─────────────────────────────────────────────────────────────────────────
+let currentHpDeptId = null;
+
+function openHorarioPartido(deptId, deptNombre) {
+  currentHpDeptId = deptId;
+  document.getElementById('hpDeptNombre').textContent = deptNombre;
+  document.getElementById('hpMananaEntrada').value = '';
+  document.getElementById('hpMananaSalida').value = '';
+  document.getElementById('hpTardeEntrada').value = '';
+  document.getElementById('hpTardeSalida').value = '';
+  document.getElementById('modalHpErr').classList.remove('show');
+  // Load existing schedule if any
+  db.collection('departamentos').doc(deptId).get().then(doc => {
+    if (doc.exists && doc.data().horarioPartido) {
+      const hp = doc.data().horarioPartido;
+      if (hp.mananaEntrada) document.getElementById('hpMananaEntrada').value = hp.mananaEntrada;
+      if (hp.mananaSalida) document.getElementById('hpMananaSalida').value = hp.mananaSalida;
+      if (hp.tardeEntrada) document.getElementById('hpTardeEntrada').value = hp.tardeEntrada;
+      if (hp.tardeSalida) document.getElementById('hpTardeSalida').value = hp.tardeSalida;
+    }
+  });
+  document.getElementById('ovHorarioPartido').classList.add('show');
+}
+
+document.getElementById('btnCancelHp').addEventListener('click', () => {
+  document.getElementById('ovHorarioPartido').classList.remove('show');
+});
+
+document.getElementById('btnGuardarHp').addEventListener('click', async () => {
+  const btn = document.getElementById('btnGuardarHp');
+  const errEl = document.getElementById('modalHpErr');
+  errEl.classList.remove('show');
+  const mananaEntrada = document.getElementById('hpMananaEntrada').value;
+  const mananaSalida = document.getElementById('hpMananaSalida').value;
+  const tardeEntrada = document.getElementById('hpTardeEntrada').value;
+  const tardeSalida = document.getElementById('hpTardeSalida').value;
+  if (!mananaEntrada || !mananaSalida || !tardeEntrada || !tardeSalida) {
+    errEl.textContent = 'Completa todos los campos del horario';
+    errEl.classList.add('show');
+    return;
+  }
+  if (mananaEntrada >= mananaSalida) {
+    errEl.textContent = 'La salida de mañana debe ser posterior a la entrada de mañana';
+    errEl.classList.add('show');
+    return;
+  }
+  if (tardeEntrada >= tardeSalida) {
+    errEl.textContent = 'La salida de tarde debe ser posterior a la entrada de tarde';
+    errEl.classList.add('show');
+    return;
+  }
+  if (mananaSalida > tardeEntrada) {
+    errEl.textContent = 'La entrada de tarde debe ser posterior a la salida de mañana';
+    errEl.classList.add('show');
+    return;
+  }
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try {
+    await db.collection('departamentos').doc(currentHpDeptId).update({
+      horarioPartido: { mananaEntrada, mananaSalida, tardeEntrada, tardeSalida }
+    });
+    toast('Horario partido guardado');
+    document.getElementById('ovHorarioPartido').classList.remove('show');
+    loadDepartamentos();
+  } catch (e) {
+    errEl.textContent = 'Error: ' + e.message;
+    errEl.classList.add('show');
+  }
+  btn.disabled = false; btn.textContent = 'Guardar horario';
+});
 
 // ── Delegated click listener for Resumen → Fichajes filtered ─────────────
 document.getElementById('recentFichajes').addEventListener('click', function(e) {
