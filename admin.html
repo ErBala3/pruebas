@@ -629,28 +629,27 @@ document.getElementById('adminName').textContent = me.nombre || me.email;
 var esJefe = (me.rol === 'jefe');
 document.getElementById('rolBadge').textContent = esJefe ? 'Jefe' : 'Admin';
 
-// Mostrar empresa en sidebar para jefes
-if (esJefe && (me.empresa || (me.empresas && me.empresas.length))) {
-  var empNombre = me.empresa || (me.empresas && me.empresas[0]) || '(sin empresa)';
-  document.getElementById('navEmpresaNombre').textContent = empNombre;
+// Mis empresas (admin o jefe)
+var misEmpresas = Array.isArray(me.empresas) && me.empresas.length
+  ? me.empresas
+  : (me.empresa ? [me.empresa] : []);
+
+// Mostrar empresa en sidebar
+if (misEmpresas.length) {
+  document.getElementById('navEmpresaNombre').textContent = misEmpresas[0];
   document.getElementById('navEmpresaWrap').style.display = '';
 }
 
-// Los jefes pueden ver usuarios Y gestionar departamentos de sus empresas
-if (esJefe) {
-  // Para jefes: activar filtro por sus empresas automáticamente
-  var misEmpresas = Array.isArray(me.empresas) && me.empresas.length
-    ? me.empresas
-    : (me.empresa ? [me.empresa] : []);
-  if (misEmpresas.length) {
-    // Guardar el array de empresas del jefe para filtrar
-    window._misEmpresasJefe = misEmpresas;
-    _soloMiEmpresa = true;
-    var btnEmp = document.getElementById('btnMiEmpresa');
-    if (btnEmp) {
-      btnEmp.classList.add('active');
-      btnEmp.textContent = '🏢 Mis empresas (' + misEmpresas.length + ')';
-    }
+// Activar filtro por empresas y mostrar nombre en botón topbar
+if (misEmpresas.length) {
+  window._misEmpresasJefe = misEmpresas;
+  _soloMiEmpresa = true;
+  var btnEmp = document.getElementById('btnMiEmpresa');
+  if (btnEmp) {
+    btnEmp.classList.add('active');
+    btnEmp.textContent = misEmpresas.length === 1
+      ? '🏢 ' + misEmpresas[0]
+      : '🏢 ' + misEmpresas[0] + ' (+' + (misEmpresas.length - 1) + ')';
   }
 }
 
@@ -882,9 +881,15 @@ async function loadHorasEmpleados() {
     const inicio = new Date(anio, 0, 1);
     const fin    = new Date(anio + 1, 0, 1);
 
+    var misEmps = window._misEmpresasJefe && window._misEmpresasJefe.length
+      ? window._misEmpresasJefe : [];
     const [uSnap, fSnap] = await Promise.all([
-      db.collection('usuarios').get(),
-      db.collection('fichajes').get()
+      misEmps.length
+        ? db.collection('usuarios').where('empresa', 'in', misEmps.slice(0, 30)).get()
+        : db.collection('usuarios').get(),
+      misEmps.length
+        ? db.collection('fichajes').where('empresa', 'in', misEmps.slice(0, 30)).get()
+        : db.collection('fichajes').get()
     ]);
 
     // Agrupar fichajes por userId y filtrar por año
@@ -1367,6 +1372,14 @@ function popularFiltrosResumen(allDocs) {
   _filtroDept    = selDept.value;
 }
 
+// Helper: texto del botón con nombre de empresa
+function _btnEmpresaLabel() {
+  if (!misEmpresas.length) return '🏢 Mis empresas';
+  return misEmpresas.length === 1
+    ? '🏢 ' + misEmpresas[0]
+    : '🏢 ' + misEmpresas[0] + ' (+' + (misEmpresas.length - 1) + ')';
+}
+
 // Listeners de los selects del Resumen
 (function() {
   document.getElementById('rFiltroEmpresa').addEventListener('change', function() {
@@ -1374,7 +1387,7 @@ function popularFiltrosResumen(allDocs) {
     _soloMiEmpresa = false;
     var btn = document.getElementById('btnMiEmpresa');
     btn.classList.remove('active');
-    btn.textContent = '🏢 Mis empresas';
+    btn.textContent = _btnEmpresaLabel();
     loadResumen();
   });
   document.getElementById('rFiltroDept').addEventListener('change', function() {
@@ -1383,7 +1396,7 @@ function popularFiltrosResumen(allDocs) {
   });
 })();
 
-// Botón "Mi empresa" en la topbar
+// Botón empresa en la topbar
 document.getElementById('btnMiEmpresa').addEventListener('click', function() {
   var btn = this;
   if (_soloMiEmpresa) {
@@ -1391,17 +1404,15 @@ document.getElementById('btnMiEmpresa').addEventListener('click', function() {
     _soloMiEmpresa = false;
     _filtroEmpresa = '';
     btn.classList.remove('active');
-    btn.textContent = '🏢 Mis empresas';
+    btn.textContent = _btnEmpresaLabel();
     document.getElementById('rFiltroEmpresa').value = '';
   } else {
-    var misEmps = Array.isArray(me.empresas) && me.empresas.length
-      ? me.empresas : (me.empresa ? [me.empresa] : []);
-    if (!misEmps.length) { alert('Tu usuario no tiene empresa asignada.'); return; }
+    if (!misEmpresas.length) { alert('Tu usuario no tiene empresa asignada.'); return; }
     _soloMiEmpresa = true;
-    window._misEmpresasJefe = misEmps;
-    _filtroEmpresa = misEmps[0]; // usar la primera para el select
+    window._misEmpresasJefe = misEmpresas;
+    _filtroEmpresa = misEmpresas[0];
     btn.classList.add('active');
-    btn.textContent = '🏢 Mis empresas (' + misEmps.length + ')';
+    btn.textContent = _btnEmpresaLabel();
     document.getElementById('rFiltroEmpresa').value = '';
   }
   loadResumen();
@@ -2113,6 +2124,13 @@ function applyFichajesFilters() {
   var dHasta = fHasta ? new Date(fHasta + 'T23:59:59') : null;
 
   var datos = _fichajesCache.slice();
+
+  // Filtrar por empresas del usuario
+  if (window._misEmpresasJefe && window._misEmpresasJefe.length) {
+    datos = datos.filter(function(f) {
+      return window._misEmpresasJefe.indexOf(f.empresa || '') >= 0;
+    });
+  }
 
   if (fNombre) datos = datos.filter(function(f){ return (f.nombre||'').toLowerCase().includes(fNombre)||(f.email||'').toLowerCase().includes(fNombre); });
   if (fDept)   datos = datos.filter(function(f){ return (f.departamento||'').toLowerCase().includes(fDept); });
