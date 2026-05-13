@@ -162,15 +162,6 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .toast.ok   { background: #1e1e1e; border-left: 3px solid #2d7a4f; color: #f0f0f0; }
 .toast.err  { background: #1e1e1e; border-left: 3px solid #c0392b; color: #f0f0f0; }
 .toast.warn { background: #1e1e1e; border-left: 3px solid #8a6800; color: #f0f0f0; }
-/* ── Horario partido btn ── */
-.btn-partidos { padding: 8px; background: transparent; border: 1px solid rgba(251,191,36,.3); border-radius: 7px; color: #d4a017; font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s; text-align: center; width: 100%; margin-top: 6px; }
-.btn-partidos:hover { background: rgba(251,191,36,.08); }
-/* ── Filter toggle btn ── */
-.btn-filter-toggle { padding: 7px 14px; background: transparent; border: 1px solid rgba(138,104,0,.4); border-radius: 7px; color: var(--text-secondary); font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 500; cursor: pointer; transition: background .15s, border-color .15s, color .15s; white-space: nowrap; }
-.btn-filter-toggle:hover { background: rgba(138,104,0,.08); border-color: #8a6800; }
-.btn-filter-toggle.active { border-color: #8a6800; color: var(--warn); background: rgba(138,104,0,.12); }
-/* ── Horario partido indicator on QR card ── */
-.hp-badge { display: inline-block; font-size: 10px; color: #d4a017; background: rgba(251,191,36,.08); border: 1px solid rgba(251,191,36,.2); border-radius: 5px; padding: 2px 7px; margin-top: 2px; }
 /* ── Responsive – tablet ── */
 @media (max-width: 900px) {
   .charts-grid { grid-template-columns: 1fr; }
@@ -455,6 +446,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
             <option value="">Todos</option>
             <option value="entrada">Entrada</option>
             <option value="salida">Salida</option>
+            <option value="fallido">Fallido</option>
           </select>
           <input  class="filter-input filter-date" type="date" id="fltFechaDesde" title="Desde">
           <input  class="filter-input filter-date" type="date" id="fltFechaHasta" title="Hasta">
@@ -555,23 +547,6 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
   </div>
 </div>
 
-<!-- Modal horario partido -->
-<div class="overlay" id="ovHorarioPartido">
-  <div class="modal">
-    <div class="modal-title">🕐 Horario partido — <span id="hpDeptNombre"></span></div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="field"><label>Entrada mañana</label><input type="time" id="hpMananaEntrada"></div>
-      <div class="field"><label>Salida mañana</label><input type="time" id="hpMananaSalida"></div>
-      <div class="field"><label>Entrada tarde</label><input type="time" id="hpTardeEntrada"></div>
-      <div class="field"><label>Salida tarde</label><input type="time" id="hpTardeSalida"></div>
-    </div>
-    <div class="modal-err" id="modalHpErr"></div>
-    <div class="modal-actions">
-      <button class="btn-cancel" id="btnCancelHp">Cancelar</button>
-      <button class="btn-primary" id="btnGuardarHp">Guardar horario</button>
-    </div>
-  </div>
-</div>
 <!-- User profile drawer -->
 <div class="drawer-overlay" id="drawerOverlay"></div>
 <div class="drawer" id="userDrawer">
@@ -621,21 +596,21 @@ document.getElementById('adminName').textContent = me.nombre || me.email;
 var esJefe = (me.rol === 'jefe');
 document.getElementById('rolBadge').textContent = esJefe ? 'Jefe' : 'Admin';
 
-// Mis empresas (admin o jefe)
-var misEmpresas = Array.isArray(me.empresas) && me.empresas.length
-  ? me.empresas
-  : (me.empresa ? [me.empresa] : []);
-
-// Activar filtro por empresas y mostrar nombre en botón topbar
-if (misEmpresas.length) {
-  window._misEmpresasJefe = misEmpresas;
-  _soloMiEmpresa = true;
-  var btnEmp = document.getElementById('btnMiEmpresa');
-  if (btnEmp) {
-    btnEmp.classList.add('active');
-    btnEmp.textContent = misEmpresas.length === 1
-      ? '🏢 ' + misEmpresas[0]
-      : '🏢 ' + misEmpresas[0] + ' (+' + (misEmpresas.length - 1) + ')';
+// Los jefes pueden ver usuarios Y gestionar departamentos de sus empresas
+if (esJefe) {
+  // Para jefes: activar filtro por sus empresas automáticamente
+  var misEmpresas = Array.isArray(me.empresas) && me.empresas.length
+    ? me.empresas
+    : (me.empresa ? [me.empresa] : []);
+  if (misEmpresas.length) {
+    window._misEmpresasJefe = misEmpresas;
+    _soloMiEmpresa = true;
+    _empresaIdx    = -1; // empezar en "Todas mis empresas"
+    var btnEmp = document.getElementById('btnMiEmpresa');
+    if (btnEmp) {
+      btnEmp.classList.add('active');
+      btnEmp.textContent = '🏢 Todas mis empresas';
+    }
   }
 }
 
@@ -676,9 +651,10 @@ let _fichajesCache = [];
 let _horasCache    = [];
 
 // ── Filtros globales activos ──────────────────────────────────────────────
-var _filtroEmpresa = '';  // '' = todas
-var _filtroDept    = '';  // '' = todos
-var _soloMiEmpresa = false;
+var _filtroEmpresa   = '';  // '' = todas
+var _filtroDept      = '';  // '' = todos
+var _soloMiEmpresa   = false;
+var _empresaIdx      = -1;  // -1 = todas mis empresas, 0,1,2... = empresa individual
 
 // ── Días laborables ───────────────────────────────────────────────────────
 function diasLaborablesHastaHoy(anio) {
@@ -753,9 +729,7 @@ document.querySelectorAll('.nav-item').forEach(function(item) {
     if (sec === 'usuarios')      loadUsuarios();
     if (sec === 'horas')         loadHorasEmpleados();
     if (sec === 'departamentos') loadDepartamentos();
-    if (sec === 'fichajes') {
-      loadFichajes();
-    }
+    if (sec === 'fichajes')      loadFichajes();
   });
 });
 
@@ -863,16 +837,27 @@ async function loadHorasEmpleados() {
     const inicio = new Date(anio, 0, 1);
     const fin    = new Date(anio + 1, 0, 1);
 
-    var misEmps = window._misEmpresasJefe && window._misEmpresasJefe.length
-      ? window._misEmpresasJefe : [];
     const [uSnap, fSnap] = await Promise.all([
-      misEmps.length
-        ? db.collection('usuarios').where('empresa', 'in', misEmps.slice(0, 30)).get()
-        : db.collection('usuarios').get(),
-      misEmps.length
-        ? db.collection('fichajes').where('empresa', 'in', misEmps.slice(0, 30)).get()
-        : db.collection('fichajes').get()
+      db.collection('usuarios').get(),
+      db.collection('fichajes').get()
     ]);
+
+    // Filtrar usuarios por empresa activa
+    var misEmps = window._misEmpresasJefe || [];
+    var uDocsFiltrados = uSnap.docs.filter(function(d) {
+      var u = d.data();
+      if (esJefe) {
+        if (u.rol === 'admin') return false;
+        var uEmps = Array.isArray(u.empresas) ? u.empresas : (u.empresa ? [u.empresa] : []);
+        if (!misEmps.some(function(e){ return uEmps.indexOf(e) >= 0; })) return false;
+      }
+      // Filtro empresa activo (individual)
+      if (_filtroEmpresa) {
+        var uEmps = Array.isArray(u.empresas) ? u.empresas : (u.empresa ? [u.empresa] : []);
+        if (uEmps.indexOf(_filtroEmpresa) < 0) return false;
+      }
+      return true;
+    });
 
     // Agrupar fichajes por userId y filtrar por año
     const fichajesPorUser = {};
@@ -887,7 +872,7 @@ async function loadHorasEmpleados() {
     });
 
     const filas = [];
-    uSnap.docs.forEach(function(d) {
+    uDocsFiltrados.forEach(function(d) {
       const u        = d.data();
       const fich     = fichajesPorUser[d.id] || [];
       const bal      = calcularBalanceAnual(fich);
@@ -1354,23 +1339,21 @@ function popularFiltrosResumen(allDocs) {
   _filtroDept    = selDept.value;
 }
 
-// Helper: texto del botón con nombre de empresa
-function _btnEmpresaLabel() {
-  if (!misEmpresas.length) return '🏢 Mis empresas';
-  return misEmpresas.length === 1
-    ? '🏢 ' + misEmpresas[0]
-    : '🏢 ' + misEmpresas[0] + ' (+' + (misEmpresas.length - 1) + ')';
-}
-
 // Listeners de los selects del Resumen
 (function() {
   document.getElementById('rFiltroEmpresa').addEventListener('change', function() {
     _filtroEmpresa = this.value;
     _soloMiEmpresa = false;
+    _empresaIdx    = -1; // resetear ciclo
     var btn = document.getElementById('btnMiEmpresa');
-    btn.classList.remove('active');
-    btn.textContent = _btnEmpresaLabel();
-    loadResumen();
+    if (this.value) {
+      btn.classList.add('active');
+      btn.textContent = '🏢 ' + this.value;
+    } else {
+      btn.classList.remove('active');
+      btn.textContent = '🏢 Todas mis empresas';
+    }
+    aplicarFiltroEmpresaGlobal();
   });
   document.getElementById('rFiltroDept').addEventListener('change', function() {
     _filtroDept = this.value;
@@ -1378,26 +1361,55 @@ function _btnEmpresaLabel() {
   });
 })();
 
-// Botón empresa en la topbar
-document.getElementById('btnMiEmpresa').addEventListener('click', function() {
-  var btn = this;
-  if (_soloMiEmpresa) {
-    // Desactivar filtro
-    _soloMiEmpresa = false;
-    _filtroEmpresa = '';
-    btn.classList.remove('active');
-    btn.textContent = _btnEmpresaLabel();
-    document.getElementById('rFiltroEmpresa').value = '';
-  } else {
-    if (!misEmpresas.length) { alert('Tu usuario no tiene empresa asignada.'); return; }
-    _soloMiEmpresa = true;
-    window._misEmpresasJefe = misEmpresas;
-    _filtroEmpresa = misEmpresas[0];
-    btn.classList.add('active');
-    btn.textContent = _btnEmpresaLabel();
-    document.getElementById('rFiltroEmpresa').value = '';
-  }
+// Botón "Mi empresa" en la topbar
+// ── Aplicar filtro empresa a todos los apartados ─────────────────────────
+function aplicarFiltroEmpresaGlobal() {
+  // Resumen (siempre activo)
   loadResumen();
+  // Propagar al apartado activo si no es resumen
+  var secActiva = document.querySelector('.nav-item.active');
+  var sec = secActiva ? secActiva.dataset.sec : 'resumen';
+  if (sec === 'usuarios')      loadUsuarios();
+  if (sec === 'horas')         loadHorasEmpleados();
+  if (sec === 'departamentos') loadDepartamentos();
+  if (sec === 'fichajes') {
+    if (_fichajesCache.length) applyFichajesFilters();
+    else loadFichajes();
+  }
+}
+
+// ── Botón "Mis empresas": cicla Todas → emp1 → emp2 → ... → Todas ────────
+document.getElementById('btnMiEmpresa').addEventListener('click', function() {
+  var btn    = this;
+  var misEmps = Array.isArray(me.empresas) && me.empresas.length
+    ? me.empresas : (me.empresa ? [me.empresa] : []);
+
+  if (!misEmps.length) { alert('Tu usuario no tiene empresa asignada.'); return; }
+
+  // Avanzar índice: -1(todas) → 0 → 1 → ... → N-1 → -1(todas)
+  _empresaIdx = (_empresaIdx + 1 < misEmps.length) ? _empresaIdx + 1 : -1;
+
+  if (_empresaIdx === -1) {
+    // Todas las empresas del jefe
+    _soloMiEmpresa = true;
+    _filtroEmpresa = '';
+    window._misEmpresasJefe = misEmps;
+    btn.classList.add('active');
+    btn.textContent = '🏢 Todas mis empresas';
+  } else {
+    // Empresa individual
+    var emp = misEmps[_empresaIdx];
+    _soloMiEmpresa = false;
+    _filtroEmpresa = emp;
+    btn.classList.add('active');
+    btn.textContent = '🏢 ' + emp;
+  }
+
+  // Sincronizar select del resumen
+  var sel = document.getElementById('rFiltroEmpresa');
+  if (sel) sel.value = _filtroEmpresa;
+
+  aplicarFiltroEmpresaGlobal();
 });
 
 function loadResumen() {
@@ -1826,14 +1838,12 @@ function renderQRCard(id, data) {
     '<div class="qr-dept">'    + esc(data.nombre)        + '</div>' +
     '<div class="qr-empresa">' + esc(data.empresa || '') + '</div>' +
     (horarioTxt ? '<div class="qr-horario">⏰ ' + esc(horarioTxt) + '</div>' : '') +
-    (data.horarioPartido && data.horarioPartido.mananaEntrada ? '<div class="hp-badge">⏰ ' + esc(data.horarioPartido.mananaEntrada) + '–' + esc(data.horarioPartido.mananaSalida) + ' / ' + esc(data.horarioPartido.tardeEntrada) + '–' + esc(data.horarioPartido.tardeSalida) + '</div>' : '') +
     '<div class="qr-box" id="qrbox-' + id + '"></div>' +
     '<div class="qr-actions">' +
       '<button class="btn-edit-dept" onclick="editDept(\'' + id + '\')">Editar</button>' +
       '<button class="btn-download"  onclick="verQR(\'' + id + '\',\'' + escAttr(data.nombre) + '\',\'' + escAttr(data.empresa||'') + '\')">Ver QR</button>' +
       '<button class="btn-del-dept"  onclick="delDept(\'' + id + '\',\'' + escAttr(data.nombre) + '\')">Eliminar</button>' +
-    '</div>' +
-    '<button class="btn-partidos" onclick="openHorarioPartido(\'' + id + '\',\'' + escAttr(data.nombre) + '\')">🕐 Horario partido</button>';
+    '</div>';
   document.getElementById('qrGrid').appendChild(card);
   const qrUrl = new URL('.', location.href).href + 'index.html?dept=' + id;
   new QRCode(document.getElementById('qrbox-'+id), { text: qrUrl, width: 140, height: 140, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
@@ -2098,19 +2108,24 @@ function applyFichajesFilters() {
   var fNombre = document.getElementById('fltNombre').value.trim().toLowerCase();
   var fDept   = document.getElementById('fltDept').value.trim().toLowerCase();
   var fTipo   = document.getElementById('fltTipo').value;
-  var fDesde  = document.getElementById('fltFechaDesde').value; // 'YYYY-MM-DD' o ''
+  var fDesde  = document.getElementById('fltFechaDesde').value;
   var fHasta  = document.getElementById('fltFechaHasta').value;
 
-  // Convertir fechas a objetos Date (inicio del día / fin del día)
   var dDesde = fDesde ? new Date(fDesde + 'T00:00:00') : null;
   var dHasta = fHasta ? new Date(fHasta + 'T23:59:59') : null;
 
   var datos = _fichajesCache.slice();
 
-  // Filtrar por empresas del usuario
-  if (window._misEmpresasJefe && window._misEmpresasJefe.length) {
+  // Filtro empresa global (botón topbar)
+  if (_soloMiEmpresa && window._misEmpresasJefe && window._misEmpresasJefe.length) {
     datos = datos.filter(function(f) {
-      return window._misEmpresasJefe.indexOf(f.empresa || '') >= 0;
+      var emp = Array.isArray(f.empresas) ? f.empresas : (f.empresa ? [f.empresa] : []);
+      return window._misEmpresasJefe.some(function(e){ return emp.indexOf(e) >= 0; });
+    });
+  } else if (_filtroEmpresa) {
+    datos = datos.filter(function(f) {
+      var emp = Array.isArray(f.empresas) ? f.empresas : (f.empresa ? [f.empresa] : []);
+      return emp.indexOf(_filtroEmpresa) >= 0;
     });
   }
 
@@ -2126,11 +2141,18 @@ function applyFichajesFilters() {
     return ts && ts <= dHasta;
   });
 
-  var sorter = _sortCols[_fltState.col] || _sortCols.timestamp;
-  datos.sort(sorter);
-  if (_fltState.dir === 'desc') datos.reverse();
+  // Separar fallidos (tipo no es 'entrada' ni 'salida') y ponerlos siempre al final
+  var normales = datos.filter(function(f){ return f.tipo === 'entrada' || f.tipo === 'salida'; });
+  var fallidos = datos.filter(function(f){ return f.tipo !== 'entrada' && f.tipo !== 'salida'; });
 
-  renderTablaFichajes(datos);
+  var sorter = _sortCols[_fltState.col] || _sortCols.timestamp;
+  normales.sort(sorter);
+  if (_fltState.dir === 'desc') normales.reverse();
+  // Fallidos también ordenados entre sí pero siempre detrás
+  fallidos.sort(sorter);
+  if (_fltState.dir === 'desc') fallidos.reverse();
+
+  renderTablaFichajes(normales.concat(fallidos));
 }
 
 function loadFichajes() {
@@ -2340,78 +2362,6 @@ document.querySelectorAll('.nav-item').forEach(function(item) {
   item.addEventListener('click', function() {
     document.querySelector('.sidebar').classList.remove('open');
   });
-});
-
-// ─────────────────────────────────────────────────────────────────────────
-// HORARIOS PARTIDOS — por departamento
-// ─────────────────────────────────────────────────────────────────────────
-let currentHpDeptId = null;
-
-function openHorarioPartido(deptId, deptNombre) {
-  currentHpDeptId = deptId;
-  document.getElementById('hpDeptNombre').textContent = deptNombre;
-  document.getElementById('hpMananaEntrada').value = '';
-  document.getElementById('hpMananaSalida').value = '';
-  document.getElementById('hpTardeEntrada').value = '';
-  document.getElementById('hpTardeSalida').value = '';
-  document.getElementById('modalHpErr').classList.remove('show');
-  db.collection('departamentos').doc(deptId).get().then(function(doc) {
-    if (doc.exists && doc.data().horarioPartido) {
-      var hp = doc.data().horarioPartido;
-      if (hp.mananaEntrada) document.getElementById('hpMananaEntrada').value = hp.mananaEntrada;
-      if (hp.mananaSalida) document.getElementById('hpMananaSalida').value = hp.mananaSalida;
-      if (hp.tardeEntrada) document.getElementById('hpTardeEntrada').value = hp.tardeEntrada;
-      if (hp.tardeSalida) document.getElementById('hpTardeSalida').value = hp.tardeSalida;
-    }
-  });
-  document.getElementById('ovHorarioPartido').classList.add('show');
-}
-
-document.getElementById('btnCancelHp').addEventListener('click', function() {
-  document.getElementById('ovHorarioPartido').classList.remove('show');
-});
-
-document.getElementById('btnGuardarHp').addEventListener('click', async function() {
-  var btn = document.getElementById('btnGuardarHp');
-  var errEl = document.getElementById('modalHpErr');
-  errEl.classList.remove('show');
-  var mananaEntrada = document.getElementById('hpMananaEntrada').value;
-  var mananaSalida = document.getElementById('hpMananaSalida').value;
-  var tardeEntrada = document.getElementById('hpTardeEntrada').value;
-  var tardeSalida = document.getElementById('hpTardeSalida').value;
-  if (!mananaEntrada || !mananaSalida || !tardeEntrada || !tardeSalida) {
-    errEl.textContent = 'Completa todos los campos del horario';
-    errEl.classList.add('show');
-    return;
-  }
-  if (mananaEntrada >= mananaSalida) {
-    errEl.textContent = 'La salida de mañana debe ser posterior a la entrada de mañana';
-    errEl.classList.add('show');
-    return;
-  }
-  if (tardeEntrada >= tardeSalida) {
-    errEl.textContent = 'La salida de tarde debe ser posterior a la entrada de tarde';
-    errEl.classList.add('show');
-    return;
-  }
-  if (mananaSalida > tardeEntrada) {
-    errEl.textContent = 'La entrada de tarde debe ser posterior a la salida de mañana';
-    errEl.classList.add('show');
-    return;
-  }
-  btn.disabled = true; btn.textContent = 'Guardando...';
-  try {
-    await db.collection('departamentos').doc(currentHpDeptId).update({
-      horarioPartido: { mananaEntrada, mananaSalida, tardeEntrada, tardeSalida }
-    });
-    toast('Horario partido guardado');
-    document.getElementById('ovHorarioPartido').classList.remove('show');
-    loadDepartamentos();
-  } catch (e) {
-    errEl.textContent = 'Error: ' + e.message;
-    errEl.classList.add('show');
-  }
-  btn.disabled = false; btn.textContent = 'Guardar horario';
 });
 
 // ── Inicio ────────────────────────────────────────────────────────────────
