@@ -94,6 +94,16 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .dias-wrap { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px; }
 .dia-btn { padding:5px 9px; border-radius:6px; border:1px solid var(--border); background:transparent; color:var(--text-secondary); font-family:'Inter',sans-serif; font-size:12px; font-weight:600; cursor:pointer; transition:background .15s,border-color .15s,color .15s; }
 .dia-btn.on { background:rgba(90,173,126,.18); border-color:rgba(90,173,126,.5); color:#6ab88a; }
+/* Horario partido */
+.horario-partido-wrap { margin-top:8px; display:none; }
+.horario-partido-wrap.show { display:block; }
+.horario-partido-title { font-size:10px; color:var(--muted); margin-bottom:6px; font-weight:500; }
+/* Horario especial usuario */
+.horario-esp-wrap { margin-top:8px; border:1px solid var(--border); border-radius:8px; padding:10px 12px; background:var(--surface2); }
+.horario-esp-title { font-size:11px; font-weight:600; color:var(--text-secondary); margin-bottom:8px; }
+.horario-esp-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.horario-esp-row input[type=time] { padding:7px 10px; background:var(--bg); border:1px solid var(--border); border-radius:7px; color:var(--text); font-family:'Inter',sans-serif; font-size:12px; outline:none; color-scheme:dark; width:110px; }
+.horario-esp-row .horario-sep { font-size:11px; color:var(--muted); }
 .qr-horario { font-size:11px; color:var(--text-secondary); margin-top:2px; }
 .qr-dept    { font-size: 15px; font-weight: 600; color: var(--text); text-align: center; }
 .qr-empresa { font-size: 11px; color: var(--text-secondary); }
@@ -412,7 +422,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
       <div class="page-header">
         <div>
           <div class="page-title">Horas por empleado</div>
-          <div class="page-sub">Balance anual individual · convenio <span id="convenioLabel">1792</span>h</div>
+          <div class="page-sub">Balance mensual individual · convenio <span id="convenioLabel">—</span>h/mes</div>
         </div>
         <div class="header-actions">
           <button class="btn-csv" id="btnExportHoras">⬇ Exportar CSV</button>
@@ -491,6 +501,19 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
         <div class="dept-empty">Añade una empresa primero</div>
       </div>
     </div>
+    <!-- Horario especial: visible solo para empleados -->
+    <div class="field" id="horarioEspField" style="display:none">
+      <label>Horario especial <span style="font-size:10px;color:var(--muted)">(deja vacío para usar el del departamento)</span></label>
+      <div class="horario-esp-wrap">
+        <div class="horario-esp-title">Rango permitido de fichaje</div>
+        <div class="horario-esp-row">
+          <input type="time" id="fHorEspEntrada" placeholder="Entrada">
+          <span class="horario-sep">→</span>
+          <input type="time" id="fHorEspSalida" placeholder="Salida">
+        </div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">Fichar fuera de este rango generará un fichaje fallido. Las horas dentro del rango cuentan como normales; las de fuera, como extra.</div>
+      </div>
+    </div>
     <div class="modal-err" id="modalUserErr"></div>
     <div class="modal-actions">
       <button class="btn-cancel"  id="btnCancelUser">Cancelar</button>
@@ -512,7 +535,17 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
         <span class="horario-sep">→</span>
         <input type="time" id="fDeptHoraSalida" value="14:00">
       </div>
-      <div class="dias-wrap" id="diasSemana">
+      <!-- Horario partido: solo visible al crear, no al editar -->
+      <div class="horario-partido-wrap" id="horarioPartidoWrap">
+        <div class="horario-partido-title">Horario partido (tramo tarde)</div>
+        <div class="horario-row">
+          <input type="time" id="fDeptHoraEntrada2" value="16:00">
+          <span class="horario-sep">→</span>
+          <input type="time" id="fDeptHoraSalida2" value="18:00">
+        </div>
+      </div>
+      <button type="button" id="btnHorarioPartido" style="margin-top:8px;padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:7px;color:var(--text-secondary);font-family:'Inter',sans-serif;font-size:11px;cursor:pointer;">+ Añadir horario partido</button>
+      <div class="dias-wrap" id="diasSemana" style="margin-top:10px">
         <button type="button" class="dia-btn on" data-dia="1">L</button>
         <button type="button" class="dia-btn on" data-dia="2">M</button>
         <button type="button" class="dia-btn on" data-dia="3">X</button>
@@ -673,20 +706,36 @@ function diasLaborablesAnio(anio) {
 }
 
 // ── Calcular balance anual para un userId dado sus fichajes ───────────────
-function calcularBalanceAnual(fichajesDelAnio) {
-  const anio     = new Date().getFullYear();
-  let horasTrab  = 0;
-  fichajesDelAnio.forEach(function(f) {
+function calcularBalanceMes(fichajesMes) {
+  const ahora   = new Date();
+  const anio    = ahora.getFullYear();
+  const mes     = ahora.getMonth();
+  const diaHoy  = ahora.getDate();
+  let horasTrab = 0;
+  fichajesMes.forEach(function(f) {
     if (f.tipo !== 'salida') return;
     horasTrab += (f.horasNormales || 0) + (f.horasExtra || 0);
   });
-  const diasLab      = diasLaborablesHastaHoy(anio);
-  const diasLabAnio  = diasLaborablesAnio(anio);
-  const horasTeoHoy  = diasLab * (HORAS_ANUALES_CONVENIO / diasLabAnio);
-  const balance      = horasTrab - horasTeoHoy;
-  const pct          = (horasTrab / HORAS_ANUALES_CONVENIO) * 100;
+  // Horas teóricas: días laborables hasta hoy en el mes
+  var diasActivos  = [1,2,3,4,5]; // L-V por defecto
+  var horasPorDia  = HORAS_JORNADA_NORMAL;
+  var diasLab      = 0;
+  var diasLabMes   = 0;
+  for (var d = 1; d <= new Date(anio, mes+1, 0).getDate(); d++) {
+    var dow = new Date(anio, mes, d).getDay();
+    if (diasActivos.indexOf(dow) >= 0) {
+      diasLabMes++;
+      if (d <= diaHoy) diasLab++;
+    }
+  }
+  const horasTeoHoy = diasLab * horasPorDia;
+  const horasMes    = diasLabMes * horasPorDia;
+  const balance     = horasTrab - horasTeoHoy;
+  const pct         = diasLabMes > 0 ? (horasTrab / horasMes) * 100 : 0;
   return { horasTrab, horasTeoHoy, balance, pct };
 }
+// Mantener alias para compatibilidad
+var calcularBalanceAnual = calcularBalanceMes;
 
 // ── Mensaje de balance ────────────────────────────────────────────────────
 function balanceMsg(bal) {
@@ -816,7 +865,7 @@ document.getElementById('btnExportHoras').addEventListener('click', function() {
       r.horasTrab.toFixed(2),
       r.horasTeoHoy.toFixed(2),
       r.balance.toFixed(2),
-      r.pct.toFixed(1) + '%',
+      r.pct.toFixed(1)+'%',
       r.horasExtra.toFixed(2),
       estado
     ];
@@ -859,14 +908,17 @@ async function loadHorasEmpleados() {
       return true;
     });
 
-    // Agrupar fichajes por userId y filtrar por año
+    // Agrupar fichajes por userId – filtrar por MES actual
+    const ahora     = new Date();
+    const mesInicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+    const mesFin    = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 1);
     const fichajesPorUser = {};
     fSnap.docs.forEach(function(d) {
       const f  = d.data();
       const ts = f.timestamp;
       if (!ts || !ts.toDate) return;
       const fecha = ts.toDate();
-      if (fecha < inicio || fecha >= fin) return;
+      if (fecha < mesInicio || fecha >= mesFin) return;
       if (!fichajesPorUser[f.userId]) fichajesPorUser[f.userId] = [];
       fichajesPorUser[f.userId].push(f);
     });
@@ -875,7 +927,7 @@ async function loadHorasEmpleados() {
     uDocsFiltrados.forEach(function(d) {
       const u        = d.data();
       const fich     = fichajesPorUser[d.id] || [];
-      const bal      = calcularBalanceAnual(fich);
+      const bal      = calcularBalanceMes(fich);
       const horasExtra = fich.reduce(function(s, f) { return s + (f.tipo === 'salida' ? (f.horasExtra || 0) : 0); }, 0);
       filas.push({
         id: d.id,
@@ -920,19 +972,28 @@ async function loadHorasEmpleados() {
           '<span style="font-size:11px;color:var(--text-secondary);white-space:nowrap">' + r.pct.toFixed(1) + '%</span>' +
           '</div>' +
         '</td>' +
-        '<td style="color:var(--warn)">' + (r.horasExtra > 0 ? '+' + r.horasExtra.toFixed(1) + 'h' : '—') + '</td>' +
+        '<td style="color:var(--warn)">' + (r.horasExtra > 0 ? hhmm(r.horasExtra) : '—') + '</td>' +
         '</tr>';
     }).join('');
 
     document.getElementById('tablaHoras').innerHTML =
       '<table><thead><tr>' +
-      '<th>Empleado</th><th>Empresa</th><th>Trabajadas</th><th>Objetivo hoy</th><th>Balance</th><th>Progreso anual</th><th>H. Extra</th>' +
+      '<th>Empleado</th><th>Empresa</th><th>H. Trabajadas (mes)</th><th>Objetivo hoy</th><th>Balance</th><th>Progreso mes</th><th>H. Extra</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
 
   } catch(e) {
     console.error(e);
     document.getElementById('tablaHoras').innerHTML = '<div class="empty">Error al calcular horas.</div>';
   }
+}
+
+// ── Helper: horas decimales → "Xh Ym" ──────────────────────────────────────
+function hhmm(hDecimal) {
+  if (hDecimal == null || isNaN(hDecimal)) return '—';
+  var total = Math.round(hDecimal * 60);
+  var h = Math.floor(total / 60);
+  var m = total % 60;
+  return m > 0 ? h + 'h ' + m + 'm' : h + 'h';
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1308,6 +1369,12 @@ function popularFiltrosResumen(allDocs) {
     emps.forEach(function(e){ if (e) empresas[e] = 1; });
     deps.forEach(function(d){ if (d) depts[d] = 1; });
   });
+  // Cargar info de departamentos para filtrar por empresa
+  db.collection('departamentos').get().then(function(snap) {
+    window._allDeptsResumen = snap.docs.map(function(d) {
+      return { nombre: d.data().nombre, empresa: d.data().empresa || '' };
+    });
+  });
   // Para jefes: mostrar solo sus empresas en el desplegable
   if (window._misEmpresasJefe && window._misEmpresasJefe.length) {
     var filtered = {};
@@ -1328,7 +1395,15 @@ function popularFiltrosResumen(allDocs) {
     if (e === prevEmp) o.selected = true;
     selEmp.appendChild(o);
   });
+  // Si hay empresa activa, filtrar departamentos por esa empresa
+  var empActivaParaDepts = _filtroEmpresa ||
+    (window._misEmpresasJefe && window._misEmpresasJefe.length === 1 ? window._misEmpresasJefe[0] : '');
   Object.keys(depts).sort().forEach(function(d) {
+    // Si hay empresa activa filtrar depts de esa empresa usando _allDeptsResumen
+    if (empActivaParaDepts && window._allDeptsResumen) {
+      var deptObj = window._allDeptsResumen.find(function(a){ return a.nombre === d; });
+      if (deptObj && deptObj.empresa !== empActivaParaDepts) return;
+    }
     var o = document.createElement('option'); o.value = d; o.textContent = d;
     if (d === prevDept) o.selected = true;
     selDept.appendChild(o);
@@ -1346,6 +1421,8 @@ function popularFiltrosResumen(allDocs) {
     _soloMiEmpresa = false;
     _empresaIdx    = -1; // resetear ciclo
     var btn = document.getElementById('btnMiEmpresa');
+    _filtroDept = ''; // resetear dept al cambiar empresa
+    document.getElementById('rFiltroDept').value = '';
     if (this.value) {
       btn.classList.add('active');
       btn.textContent = '🏢 ' + this.value;
@@ -1405,9 +1482,12 @@ document.getElementById('btnMiEmpresa').addEventListener('click', function() {
     btn.textContent = '🏢 ' + emp;
   }
 
-  // Sincronizar select del resumen
+  // Sincronizar select del resumen y resetear dept
   var sel = document.getElementById('rFiltroEmpresa');
   if (sel) sel.value = _filtroEmpresa;
+  _filtroDept = '';
+  var selD = document.getElementById('rFiltroDept');
+  if (selD) selD.value = '';
 
   aplicarFiltroEmpresaGlobal();
 });
@@ -1687,6 +1767,18 @@ async function openUserModal(title, data) {
   }
   fRolEl.value = data.rol || 'empleado';
 
+  // Mostrar horario especial solo para empleados
+  function actualizarHorarioEsp() {
+    var rolVal = document.getElementById('fRol').value;
+    document.getElementById('horarioEspField').style.display = rolVal === 'empleado' ? 'block' : 'none';
+  }
+  fRolEl.onchange = actualizarHorarioEsp;
+  actualizarHorarioEsp();
+
+  // Rellenar horario especial si existe
+  document.getElementById('fHorEspEntrada').value = data.horarioEsp && data.horarioEsp.entrada ? data.horarioEsp.entrada : '';
+  document.getElementById('fHorEspSalida').value  = data.horarioEsp && data.horarioEsp.salida  ? data.horarioEsp.salida  : '';
+
   // Cargar empresas y departamentos seleccionados del usuario
   _modalEmpresas = Array.isArray(data.empresas) && data.empresas.length
     ? data.empresas.slice()
@@ -1768,12 +1860,20 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
       // No hay colección separada de empresas; se usan las que aparecen en usuarios/depts
     }
 
+    // Horario especial (solo empleados)
+    var horarioEsp = null;
+    if (rol === 'empleado') {
+      var espEnt = document.getElementById('fHorEspEntrada').value;
+      var espSal = document.getElementById('fHorEspSalida').value;
+      if (espEnt && espSal) horarioEsp = { entrada: espEnt, salida: espSal };
+    }
     const datos = {
       nombre, email, rol,
-      empresa:       _modalEmpresas[0] || '',     // compatibilidad backward
+      empresa:       _modalEmpresas[0] || '',
       empresas:      _modalEmpresas.slice(),
-      departamento:  _modalDepts[0]   || '',      // compatibilidad backward
-      departamentos: _modalDepts.slice()
+      departamento:  _modalDepts[0]   || '',
+      departamentos: _modalDepts.slice(),
+      horarioEsp:    horarioEsp
     };
     if (password) datos.password = await hashPassword(password);
     if (editingUserId) {
@@ -1857,6 +1957,17 @@ document.getElementById('diasSemana').addEventListener('click', function(e) {
   if (btn) btn.classList.toggle('on');
 });
 
+// Botón horario partido
+document.getElementById('btnHorarioPartido').addEventListener('click', function() {
+  var wrap = document.getElementById('horarioPartidoWrap');
+  var show = wrap.classList.toggle('show');
+  this.textContent = show ? '– Quitar horario partido' : '+ Añadir horario partido';
+  if (!show) {
+    document.getElementById('fDeptHoraEntrada2').value = '16:00';
+    document.getElementById('fDeptHoraSalida2').value  = '18:00';
+  }
+});
+
 document.getElementById('btnNuevoDept').addEventListener('click', function() {
   _editingDeptId = null;
   document.getElementById('modalDept').querySelector('.modal-title').textContent = 'Nuevo departamento';
@@ -1879,6 +1990,14 @@ document.getElementById('btnNuevoDept').addEventListener('click', function() {
   document.getElementById('fDeptLng').value      = '';
   document.getElementById('fDeptHoraEntrada').value = '08:00';
   document.getElementById('fDeptHoraSalida').value  = '14:00';
+  // Mostrar botón y ocultar horario partido (solo en creación)
+  var btnPart = document.getElementById('btnHorarioPartido');
+  btnPart.style.display = 'block';
+  btnPart.textContent = '+ Añadir horario partido';
+  var wrapPart = document.getElementById('horarioPartidoWrap');
+  wrapPart.classList.remove('show');
+  document.getElementById('fDeptHoraEntrada2').value = '16:00';
+  document.getElementById('fDeptHoraSalida2').value  = '18:00';
   // Resetear días: L-V activos, S-D inactivos
   document.querySelectorAll('#diasSemana .dia-btn').forEach(function(b) {
     var dia = parseInt(b.dataset.dia);
@@ -1920,10 +2039,24 @@ document.getElementById('btnGuardarDept').addEventListener('click', async functi
     });
     var hE = parseInt(horaEntrada.split(':')[0]), mE = parseInt(horaEntrada.split(':')[1]);
     var hS = parseInt(horaSalida.split(':')[0]),  mS = parseInt(horaSalida.split(':')[1]);
-    var horasDia = ((hS * 60 + mS) - (hE * 60 + mE)) / 60;
+    var minutosDia = (hS * 60 + mS) - (hE * 60 + mE);
+    // Horario partido (solo en creación)
+    var horaEntrada2 = null, horaSalida2 = null;
+    var wrapPart = document.getElementById('horarioPartidoWrap');
+    if (!_editingDeptId && wrapPart && wrapPart.classList.contains('show')) {
+      horaEntrada2 = document.getElementById('fDeptHoraEntrada2').value || null;
+      horaSalida2  = document.getElementById('fDeptHoraSalida2').value  || null;
+      if (horaEntrada2 && horaSalida2) {
+        var hE2 = parseInt(horaEntrada2.split(':')[0]), mE2 = parseInt(horaEntrada2.split(':')[1]);
+        var hS2 = parseInt(horaSalida2.split(':')[0]),  mS2 = parseInt(horaSalida2.split(':')[1]);
+        minutosDia += (hS2 * 60 + mS2) - (hE2 * 60 + mE2);
+      }
+    }
+    var horasDia = minutosDia / 60;
     var datos = {
       nombre, empresa, lat:latDept, lng:lngDept,
       horaEntrada, horaSalida, diasActivos,
+      horaEntrada2: horaEntrada2, horaSalida2: horaSalida2,
       horasDia: parseFloat(horasDia.toFixed(2))
     };
     if (_editingDeptId) {
@@ -1960,6 +2093,21 @@ async function editDept(id) {
   document.getElementById('fDeptLng').value = d.lng  != null ? d.lng  : '';
   document.getElementById('fDeptHoraEntrada').value = d.horaEntrada || '08:00';
   document.getElementById('fDeptHoraSalida').value  = d.horaSalida  || '14:00';
+  // Mostrar botón horario partido también al editar y rellenar si existe
+  var btnPart2 = document.getElementById('btnHorarioPartido');
+  var wrapPart2 = document.getElementById('horarioPartidoWrap');
+  btnPart2.style.display = 'block';
+  if (d.horaEntrada2 && d.horaSalida2) {
+    wrapPart2.classList.add('show');
+    btnPart2.textContent = '– Quitar horario partido';
+    document.getElementById('fDeptHoraEntrada2').value = d.horaEntrada2;
+    document.getElementById('fDeptHoraSalida2').value  = d.horaSalida2;
+  } else {
+    wrapPart2.classList.remove('show');
+    btnPart2.textContent = '+ Añadir horario partido';
+    document.getElementById('fDeptHoraEntrada2').value = '16:00';
+    document.getElementById('fDeptHoraSalida2').value  = '18:00';
+  }
 
   // Días activos
   var diasGuardados = Array.isArray(d.diasActivos) ? d.diasActivos : [1,2,3,4,5];
@@ -2021,8 +2169,8 @@ var _sortCols = {
 
 function fichajeRowHtml(f) {
   var jornada = f.duracionMin!=null ? Math.floor(f.duracionMin/60)+'h '+(f.duracionMin%60)+'m' : '—';
-  var hNorm   = f.horasNormales!=null ? f.horasNormales.toFixed(2)+'h' : '—';
-  var hExtra  = f.horasExtra!=null    ? f.horasExtra.toFixed(2)+'h'    : '—';
+  var hNorm   = f.horasNormales!=null ? hhmm(f.horasNormales) : '—';
+  var hExtra  = f.horasExtra!=null    ? hhmm(f.horasExtra)    : '—';
   var ubicacion = '—';
   if (f.lat!=null && f.lng!=null) {
     var dist = f.distanciaDept!=null ? ' ('+Math.round(f.distanciaDept)+'m)' : '';
