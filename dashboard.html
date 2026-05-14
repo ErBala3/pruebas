@@ -380,10 +380,10 @@ async function buildCalendario() {
       txtResumen = 'Sin registros';
     } else if (hTrabajadas >= hTeoricas - 0.5) {
       clsMes     = 'c-ok';
-      txtResumen = hTrabajadas.toFixed(1) + 'h / ' + hTeoricas.toFixed(1) + 'h';
+      txtResumen = hhmm(hTrabajadas) + ' / ' + hhmm(hTeoricas);
     } else {
       clsMes     = 'c-err';
-      txtResumen = hTrabajadas.toFixed(1) + 'h / ' + hTeoricas.toFixed(1) + 'h';
+      txtResumen = hhmm(hTrabajadas) + ' / ' + hhmm(hTeoricas);
     }
 
     // Construir ítem mes
@@ -454,17 +454,17 @@ function buildCalGrid(anio, mes, hoy, horasPorDia) {
       horasTxt = '';
     } else if (!esFinSemana && horas >= hMinDia - 0.25) {
       cls      = 'ok';
-      horasTxt = horas.toFixed(1) + 'h';
+      horasTxt = hhmm(horas);
     } else if (horas > 0) {
       cls      = 'err';
-      horasTxt = horas.toFixed(1) + 'h';
+      horasTxt = hhmm(horas);
     } else {
       cls      = 'sin-datos';
       horasTxt = '';
     }
     if (esHoy) cls += ' hoy';
 
-    html += '<div class="cal-dia ' + cls + '" title="' + key + (horas ? ' · ' + horas.toFixed(1) + 'h' : '') + '">' +
+    html += '<div class="cal-dia ' + cls + '" title="' + key + (horas ? ' · ' + hhmm(horas) : '') + '">' +
               '<span class="dia-num">' + d + '</span>' +
               (horasTxt ? '<span class="dia-h">' + horasTxt + '</span>' : '') +
             '</div>';
@@ -472,6 +472,15 @@ function buildCalGrid(anio, mes, hoy, horasPorDia) {
 
   html += '</div>';
   return html;
+}
+
+// ── Helper: horas decimales → "Xh Ym" ────────────────────────────────────
+function hhmm(hDecimal) {
+  if (hDecimal == null || isNaN(hDecimal)) return '—';
+  var total = Math.round(hDecimal * 60);
+  var h = Math.floor(total / 60);
+  var m = total % 60;
+  return m > 0 ? h + 'h ' + m + 'm' : h + 'h';
 }
 
 // ── Helpers horario departamento ─────────────────────────────────────────
@@ -553,8 +562,8 @@ async function cargarPanelHoras() {
     // Actualizar label total
     document.getElementById('hpAnualTotal').textContent = horasTeoricasMes.toFixed(0);
 
-    document.getElementById('hpTrabajadas').textContent = horasTrabajadas.toFixed(1) + 'h';
-    document.getElementById('hpTeoricas').textContent   = horasTeoricas.toFixed(1) + 'h';
+    document.getElementById('hpTrabajadas').textContent = hhmm(horasTrabajadas);
+    document.getElementById('hpTeoricas').textContent   = hhmm(horasTeoricas);
 
     const balEl = document.getElementById('hpBalance');
     balEl.textContent = (balance >= 0 ? '+' : '') + balance.toFixed(1) + 'h';
@@ -570,7 +579,7 @@ async function cargarPanelHoras() {
     // Mensaje personalizado
     const msgEl = document.getElementById('hpMsg');
     let cls, titulo, detalle;
-    const horarioTxt = horaEntradaTxt + '–' + horaSalidaTxt + ' (' + horasDia + 'h/día)';
+    const horarioTxt = horaEntradaTxt + '–' + horaSalidaTxt + ' (' + hhmm(horasDia) + '/día)';
     const faltanMes  = horasTeoricasMes - horasTrabajadas;
 
     if (horasTrabajadas === 0) {
@@ -678,6 +687,42 @@ async function registrarFichaje(deptId, modoAuto) {
 
     setReaderMsg('<span class="spinner"></span>Guardando fichaje...');
 
+    // ── Obtener horario del empleado (especial > departamento > defecto) ──
+    let horarioEntrada = '08:00', horarioSalida = '14:00';
+    let horarioEntrada2 = null, horarioSalida2 = null;
+
+    // 1. Cargar horario del departamento
+    if (dept.horaEntrada) horarioEntrada  = dept.horaEntrada;
+    if (dept.horaSalida)  horarioSalida   = dept.horaSalida;
+    if (dept.horaEntrada2) horarioEntrada2 = dept.horaEntrada2;
+    if (dept.horaSalida2)  horarioSalida2  = dept.horaSalida2;
+
+    // 2. Horario especial del usuario sobreescribe el del departamento
+    const userSnap = await db.collection('usuarios').doc(user.id).get();
+    const userData  = userSnap.exists ? userSnap.data() : {};
+    const horEsp    = userData.horarioEsp || null;
+    if (horEsp && horEsp.entrada && horEsp.salida) {
+      horarioEntrada  = horEsp.entrada;
+      horarioSalida   = horEsp.salida;
+      horarioEntrada2 = null; horarioSalida2 = null; // especial no tiene partido
+    }
+
+    // ── Helper: ¿minutos "ahora" está dentro de un rango HH:MM–HH:MM? ──
+    function minutosHora(hhmm) {
+      var p = hhmm.split(':'); return parseInt(p[0])*60 + parseInt(p[1]);
+    }
+    var ahoraMin = ahora.getHours()*60 + ahora.getMinutes();
+    var entMin   = minutosHora(horarioEntrada);
+    var salMin   = minutosHora(horarioSalida);
+    var ent2Min  = horarioEntrada2 ? minutosHora(horarioEntrada2) : null;
+    var sal2Min  = horarioSalida2  ? minutosHora(horarioSalida2)  : null;
+
+    function dentroDeFranja(m) {
+      if (m >= entMin && m <= salMin) return true;
+      if (ent2Min !== null && sal2Min !== null && m >= ent2Min && m <= sal2Min) return true;
+      return false;
+    }
+
     const ultimoSnap = await db.collection('fichajes')
       .where('userId', '==', user.id)
       .orderBy('timestamp', 'desc')
@@ -685,15 +730,58 @@ async function registrarFichaje(deptId, modoAuto) {
 
     let tipo = 'entrada';
     let duracionMin = null, horasNormales = null, horasExtra = null;
+    let motivoFallido = null;
 
     if (!ultimoSnap.empty && ultimoSnap.docs[0].data().tipo === 'entrada') {
+      // ── SALIDA: siempre permitida ──
       tipo = 'salida';
       const uts = ultimoSnap.docs[0].data().timestamp;
       if (uts && uts.toDate) {
-        duracionMin   = Math.round((ahora - uts.toDate()) / 60000);
-        const dh      = duracionMin / 60;
-        horasNormales = Math.min(dh, HORAS_JORNADA_NORMAL);
-        horasExtra    = Math.max(0, dh - HORAS_JORNADA_NORMAL);
+        const entradaDate = uts.toDate();
+        duracionMin = Math.round((ahora - entradaDate) / 60000);
+        const durH  = duracionMin / 60;
+        // Calcular horas normales = minutos dentro del rango / 60
+        var entradaMin = entradaDate.getHours()*60 + entradaDate.getMinutes();
+        var minutosNorm = 0;
+        for (var mm = entradaMin; mm < entradaMin + duracionMin; mm++) {
+          var mWrapped = mm % (24*60);
+          if (dentroDeFranja(mWrapped)) minutosNorm++;
+        }
+        horasNormales = minutosNorm / 60;
+        horasExtra    = Math.max(0, durH - horasNormales);
+      }
+    } else {
+      // ── ENTRADA: validar horario ──
+      tipo = 'entrada';
+      var dentroDeFranjaEntrada = dentroDeFranja(ahoraMin);
+
+      if (!dentroDeFranjaEntrada) {
+        // Comprobar si ya trabajó hoy dentro del horario (para permitir entrada extra)
+        const hoyInicio = new Date(ahora); hoyInicio.setHours(0,0,0,0);
+        const fichajesHoySnap = await db.collection('fichajes')
+          .where('userId', '==', user.id)
+          .get();
+        const trabajoHoyEnHorario = fichajesHoySnap.docs.some(function(d) {
+          const f = d.data();
+          const ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate() : null;
+          if (!ts || ts < hoyInicio) return false;
+          if (f.tipo !== 'entrada' && f.tipo !== 'salida') return false;
+          // Hubo entrada dentro de horario hoy
+          if (f.tipo === 'entrada') {
+            var fMin = ts.getHours()*60 + ts.getMinutes();
+            return dentroDeFranja(fMin);
+          }
+          return false;
+        });
+        if (!trabajoHoyEnHorario) {
+          // Marcar como fallido
+          tipo = 'fallido';
+          motivoFallido = 'Entrada fuera de horario (' + horarioEntrada + '–' + horarioSalida +
+            (horarioEntrada2 ? ' / ' + horarioEntrada2 + '–' + horarioSalida2 : '') + ')';
+        } else {
+          // Entrada extra fuera de horario: cuenta como horas extra
+          tipo = 'entrada';
+        }
       }
     }
 
@@ -701,6 +789,7 @@ async function registrarFichaje(deptId, modoAuto) {
       userId: user.id, email: user.email,
       nombre: user.nombre || '', empresa: user.empresa || '',
       departamento: dept.nombre, departamentoId: deptId, tipo,
+      motivoFallido: motivoFallido || null,
       timestamp: firebase.firestore.FieldValue.serverTimestamp(),
       timestampCliente: ahora.toISOString(),
       lat: empLat, lng: empLng, locError,
@@ -715,9 +804,12 @@ async function registrarFichaje(deptId, modoAuto) {
     setReaderMsg('');
     const sb         = document.getElementById('statusBox');
     const isNoCoords = dept.lat == null || dept.lng == null;
-    sb.className = isNoCoords ? 'status-box warn' : 'status-box ok';
+    sb.className = tipo === 'fallido' ? 'status-box err' : (isNoCoords ? 'status-box warn' : 'status-box ok');
 
-    document.getElementById('statusMsg').textContent   = (isNoCoords ? 'Fichaje de ' + tipo + ' (sin validación de proximidad) · ' : 'Fichaje de ' + tipo + ' registrado · ') + dept.nombre;
+    var msgBase = tipo === 'fallido'
+      ? 'Fichaje fallido · ' + (motivoFallido || '') + ' · ' + dept.nombre
+      : (isNoCoords ? 'Fichaje de ' + tipo + ' (sin validación de proximidad) · ' : 'Fichaje de ' + tipo + ' registrado · ') + dept.nombre;
+    document.getElementById('statusMsg').textContent = msgBase;
     document.getElementById('fichajeHora').textContent = horaStr;
     document.getElementById('fichajeDate').textContent = fechaStr;
 
@@ -725,8 +817,8 @@ async function registrarFichaje(deptId, modoAuto) {
     if (distanciaDept != null) details.push('a ' + distanciaDept + 'm del departamento');
     if (tipo === 'salida' && duracionMin != null) {
       details.push('Jornada: ' + Math.floor(duracionMin/60) + 'h ' + (duracionMin%60) + 'm');
-      if (horasNormales != null) details.push('Normales: ' + horasNormales.toFixed(2) + 'h');
-      if (horasExtra != null && horasExtra > 0) details.push('Extra: ' + horasExtra.toFixed(2) + 'h');
+      if (horasNormales != null) details.push('Normales: ' + hhmm(horasNormales));
+      if (horasExtra != null && horasExtra > 0) details.push('Extra: ' + hhmm(horasExtra));
     }
     document.getElementById('fichajeDetail').innerHTML = details.join('<br>');
 
