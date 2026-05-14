@@ -878,6 +878,15 @@ document.getElementById('btnExportHoras').addEventListener('click', function() {
 // ─────────────────────────────────────────────────────────────────────────
 // HORAS POR EMPLEADO
 // ─────────────────────────────────────────────────────────────────────────
+// ── Helper: horas decimales → "Xh Ym" ──────────────────────────────────────
+function hhmm(hDecimal) {
+  if (hDecimal == null || isNaN(hDecimal)) return '—';
+  var total = Math.round(hDecimal * 60);
+  var h = Math.floor(total / 60);
+  var m = total % 60;
+  return m > 0 ? h + 'h ' + m + 'm' : h + 'h';
+}
+
 async function loadHorasEmpleados() {
   document.getElementById('tablaHoras').innerHTML = '<div class="loading"><span class="spinner"></span>Calculando horas...</div>';
   _horasCache = [];
@@ -946,7 +955,7 @@ async function loadHorasEmpleados() {
     _horasCache = filas;
 
     if (!filas.length) {
-      document.getElementById('tablaHoras').innerHTML = '<div class="empty">Sin empleados</div>';
+      document.getElementById('tablaHoras').innerHTML = '<div class="empty"><div class="empty-icon">👥</div>Todavía no se ha registrado ningún empleado</div>';
       return;
     }
 
@@ -961,8 +970,8 @@ async function loadHorasEmpleados() {
       return '<tr>' +
         '<td><span style="cursor:pointer;color:var(--accent)" onclick="openUserDrawerById(\'' + r.id + '\')">' + esc(r.nombre) + '</span></td>' +
         '<td style="color:var(--muted)">' + esc(r.empresa) + '</td>' +
-        '<td style="font-weight:600">' + r.horasTrab.toFixed(1) + 'h</td>' +
-        '<td style="color:var(--muted)">' + r.horasTeoHoy.toFixed(1) + 'h</td>' +
+        '<td style="font-weight:600">' + hhmm(r.horasTrab) + '</td>' +
+        '<td style="color:var(--muted)">' + hhmm(r.horasTeoHoy) + '</td>' +
         '<td><span class="pill ' + balPill + '">' + balSign + r.balance.toFixed(1) + 'h</span></td>' +
         '<td>' +
           '<div style="display:flex;align-items:center;gap:8px">' +
@@ -985,15 +994,6 @@ async function loadHorasEmpleados() {
     console.error(e);
     document.getElementById('tablaHoras').innerHTML = '<div class="empty">Error al calcular horas.</div>';
   }
-}
-
-// ── Helper: horas decimales → "Xh Ym" ──────────────────────────────────────
-function hhmm(hDecimal) {
-  if (hDecimal == null || isNaN(hDecimal)) return '—';
-  var total = Math.round(hDecimal * 60);
-  var h = Math.floor(total / 60);
-  var m = total % 60;
-  return m > 0 ? h + 'h ' + m + 'm' : h + 'h';
 }
 
 // ─────────────────────────────────────────────────────────────────────────
