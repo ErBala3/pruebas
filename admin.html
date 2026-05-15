@@ -527,7 +527,25 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
   <div class="modal" id="modalDept">
     <div class="modal-title">Nuevo departamento</div>
     <div class="field"><label>Nombre del departamento</label><input type="text" id="fDeptNombre" placeholder="Ej: Almacén, Oficina, Producción..."></div>
-    <div class="field"><label>Empresa</label><input type="text" id="fDeptEmpresa" placeholder="Mi Empresa SL"></div>
+    <div class="field">
+      <label>Empresa</label>
+      <!-- Modo admin: select con existentes + opción nueva -->
+      <div id="deptEmpAdminWrap">
+        <select id="fDeptEmpresaSel" style="width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;margin-bottom:6px;">
+          <option value="">— Selecciona empresa —</option>
+        </select>
+        <input type="text" id="fDeptEmpresaNueva" placeholder="O escribe una nueva empresa..." style="width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;">
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Selecciona una existente o escribe el nombre de una nueva.</div>
+      </div>
+      <!-- Modo jefe: solo sus empresas -->
+      <div id="deptEmpJefeWrap" style="display:none">
+        <select id="fDeptEmpresaJefe" style="width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;">
+          <option value="">— Selecciona empresa —</option>
+        </select>
+      </div>
+      <!-- Campo oculto usado por el resto del código -->
+      <input type="hidden" id="fDeptEmpresa">
+    </div>
     <div class="field">
       <label>Horario de trabajo</label>
       <div class="horario-row">
@@ -629,22 +647,25 @@ document.getElementById('adminName').textContent = me.nombre || me.email;
 var esJefe = (me.rol === 'jefe');
 document.getElementById('rolBadge').textContent = esJefe ? 'Jefe' : 'Admin';
 
-// Los jefes pueden ver usuarios Y gestionar departamentos de sus empresas
-if (esJefe) {
-  // Para jefes: activar filtro por sus empresas automáticamente
-  var misEmpresas = Array.isArray(me.empresas) && me.empresas.length
-    ? me.empresas
-    : (me.empresa ? [me.empresa] : []);
-  if (misEmpresas.length) {
-    window._misEmpresasJefe = misEmpresas;
-    _soloMiEmpresa = true;
-    _empresaIdx    = -1; // empezar en "Todas mis empresas"
-    var btnEmp = document.getElementById('btnMiEmpresa');
-    if (btnEmp) {
-      btnEmp.classList.add('active');
-      btnEmp.textContent = '🏢 Todas mis empresas';
-    }
+// Activar filtro de empresa automáticamente al login para todos los roles
+var misEmpresasLogin = Array.isArray(me.empresas) && me.empresas.length
+  ? me.empresas
+  : (me.empresa ? [me.empresa] : []);
+
+if (misEmpresasLogin.length) {
+  window._misEmpresasJefe = misEmpresasLogin;
+  _soloMiEmpresa = true;
+  _empresaIdx    = -1;
+  var btnEmp = document.getElementById('btnMiEmpresa');
+  if (btnEmp) {
+    btnEmp.classList.add('active');
+    btnEmp.textContent = '🏢 Todas mis empresas';
   }
+}
+
+// Los jefes: ocultar departamentos del sidebar
+if (esJefe) {
+  // (permisos de sidebar ya aplicados más arriba si los hubiera)
 }
 
 // ── Firebase ──────────────────────────────────────────────────────────────
@@ -706,21 +727,21 @@ function diasLaborablesAnio(anio) {
 }
 
 // ── Calcular balance anual para un userId dado sus fichajes ───────────────
-function calcularBalanceMes(fichajesMes) {
-  const ahora   = new Date();
-  const anio    = ahora.getFullYear();
-  const mes     = ahora.getMonth();
-  const diaHoy  = ahora.getDate();
+// horasPorDia y diasActivos opcionales: si no se pasan se usan valores por defecto
+function calcularBalanceMes(fichajesMes, horasPorDia, diasActivos) {
+  horasPorDia  = horasPorDia  || 8;          // 8h por defecto
+  diasActivos  = diasActivos  || [1,2,3,4,5]; // L-V por defecto
+  const ahora  = new Date();
+  const anio   = ahora.getFullYear();
+  const mes    = ahora.getMonth();
+  const diaHoy = ahora.getDate();
   let horasTrab = 0;
   fichajesMes.forEach(function(f) {
     if (f.tipo !== 'salida') return;
     horasTrab += (f.horasNormales || 0) + (f.horasExtra || 0);
   });
-  // Horas teóricas: días laborables hasta hoy en el mes
-  var diasActivos  = [1,2,3,4,5]; // L-V por defecto
-  var horasPorDia  = HORAS_JORNADA_NORMAL;
-  var diasLab      = 0;
-  var diasLabMes   = 0;
+  var diasLab    = 0;
+  var diasLabMes = 0;
   for (var d = 1; d <= new Date(anio, mes+1, 0).getDate(); d++) {
     var dow = new Date(anio, mes, d).getDay();
     if (diasActivos.indexOf(dow) >= 0) {
@@ -728,14 +749,13 @@ function calcularBalanceMes(fichajesMes) {
       if (d <= diaHoy) diasLab++;
     }
   }
-  const horasTeoHoy = diasLab * horasPorDia;
+  const horasTeoHoy = diasLab    * horasPorDia;
   const horasMes    = diasLabMes * horasPorDia;
   const balance     = horasTrab - horasTeoHoy;
   const pct         = diasLabMes > 0 ? (horasTrab / horasMes) * 100 : 0;
-  return { horasTrab, horasTeoHoy, balance, pct };
+  return { horasTrab, horasTeoHoy, horasMes, balance, pct };
 }
-// Mantener alias para compatibilidad
-var calcularBalanceAnual = calcularBalanceMes;
+var calcularBalanceAnual = calcularBalanceMes; // alias
 
 // ── Mensaje de balance ────────────────────────────────────────────────────
 function balanceMsg(bal) {
@@ -932,22 +952,61 @@ async function loadHorasEmpleados() {
       fichajesPorUser[f.userId].push(f);
     });
 
+    // Cargar todos los departamentos para obtener sus horarios
+    const deptSnap = await db.collection('departamentos').get();
+    const deptMap  = {};
+    deptSnap.docs.forEach(function(d) {
+      deptMap[d.data().nombre] = d.data();
+    });
+
     const filas = [];
     uDocsFiltrados.forEach(function(d) {
-      const u        = d.data();
-      const fich     = fichajesPorUser[d.id] || [];
-      const bal      = calcularBalanceMes(fich);
-      const horasExtra = fich.reduce(function(s, f) { return s + (f.tipo === 'salida' ? (f.horasExtra || 0) : 0); }, 0);
+      const u    = d.data();
+      const fich = fichajesPorUser[d.id] || [];
+
+      // Determinar horario del usuario:
+      // 1. Horario especial personal si existe
+      // 2. Horario del departamento asignado
+      // 3. Por defecto 8h L-V
+      var horasPorDia = 8;
+      var diasActivos = [1,2,3,4,5];
+
+      var horEsp  = u.horarioEsp || null;
+      var deptNom = Array.isArray(u.departamentos) && u.departamentos.length
+        ? u.departamentos[0] : (u.departamento || null);
+      var deptData = deptNom ? deptMap[deptNom] : null;
+
+      if (horEsp && horEsp.entrada && horEsp.salida) {
+        // Horario personal: calcular horas del rango
+        var hE = parseInt(horEsp.entrada.split(':')[0]),
+            mE = parseInt(horEsp.entrada.split(':')[1]);
+        var hS = parseInt(horEsp.salida.split(':')[0]),
+            mS = parseInt(horEsp.salida.split(':')[1]);
+        horasPorDia = ((hS * 60 + mS) - (hE * 60 + mE)) / 60;
+      } else if (deptData && deptData.horasDia) {
+        horasPorDia = deptData.horasDia;
+        if (Array.isArray(deptData.diasActivos) && deptData.diasActivos.length) {
+          diasActivos = deptData.diasActivos;
+        }
+      }
+
+      const bal        = calcularBalanceMes(fich, horasPorDia, diasActivos);
+      const horasExtra = fich.reduce(function(s, f) {
+        return s + (f.tipo === 'salida' ? (f.horasExtra || 0) : 0);
+      }, 0);
+
       filas.push({
-        id: d.id,
-        nombre:      u.nombre    || '—',
-        email:       u.email     || '—',
-        empresa:     u.empresa   || '—',
+        id:          d.id,
+        nombre:      u.nombre  || '—',
+        email:       u.email   || '—',
+        empresa:     u.empresa || '—',
         horasTrab:   bal.horasTrab,
         horasTeoHoy: bal.horasTeoHoy,
+        horasMes:    bal.horasMes,
         balance:     bal.balance,
         pct:         bal.pct,
-        horasExtra
+        horasExtra,
+        deptNom:     deptNom   || '—'
       });
     });
 
@@ -1835,6 +1894,8 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
   var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!nombre || !email) { errEl.textContent = 'Nombre y email son obligatorios'; errEl.classList.add('show'); return; }
   if (!emailRegex.test(email)) { errEl.textContent = 'El email no tiene un formato válido (ej: usuario@empresa.com)'; errEl.classList.add('show'); return; }
+  // Jefes: al menos un departamento obligatorio
+  if (esJefe && _modalDepts.length === 0) { errEl.textContent = 'Debes seleccionar al menos un departamento'; errEl.classList.add('show'); return; }
   // Validar contraseña: mínimo 6 caracteres, al menos una mayúscula, una minúscula y un número
   if (!editingUserId && !password) { errEl.textContent = 'La contraseña es obligatoria'; errEl.classList.add('show'); return; }
   if (password) {
@@ -1951,6 +2012,70 @@ function renderQRCard(id, data) {
 // ID del departamento en edición (null = nuevo)
 var _editingDeptId = null;
 
+// ── Inicializar selector de empresa del modal departamento ───────────────
+async function initDeptEmpresaSelector(empActual) {
+  var adminWrap = document.getElementById('deptEmpAdminWrap');
+  var jefeWrap  = document.getElementById('deptEmpJefeWrap');
+
+  if (esJefe) {
+    adminWrap.style.display = 'none';
+    jefeWrap.style.display  = 'block';
+    var selJefe = document.getElementById('fDeptEmpresaJefe');
+    var misEmps = window._misEmpresasJefe || [];
+    selJefe.innerHTML = '<option value="">— Selecciona empresa —</option>';
+    misEmps.forEach(function(e) {
+      var o = document.createElement('option');
+      o.value = e; o.textContent = e;
+      if (e === empActual) o.selected = true;
+      selJefe.appendChild(o);
+    });
+    // Si solo tiene una empresa, seleccionarla automáticamente
+    if (misEmps.length === 1) selJefe.value = misEmps[0];
+    selJefe.onchange = function() {
+      document.getElementById('fDeptEmpresa').value = this.value;
+    };
+    document.getElementById('fDeptEmpresa').value = selJefe.value;
+  } else {
+    adminWrap.style.display = 'block';
+    jefeWrap.style.display  = 'none';
+    // Cargar empresas existentes desde usuarios y departamentos
+    var empresasSet = new Set();
+    try {
+      var uSnap = await db.collection('usuarios').get();
+      uSnap.docs.forEach(function(d) {
+        var u = d.data();
+        var emps = Array.isArray(u.empresas) ? u.empresas : (u.empresa ? [u.empresa] : []);
+        emps.forEach(function(e){ if (e) empresasSet.add(e); });
+      });
+      var dSnap = await db.collection('departamentos').get();
+      dSnap.docs.forEach(function(d) {
+        if (d.data().empresa) empresasSet.add(d.data().empresa);
+      });
+    } catch(_) {}
+    var sel = document.getElementById('fDeptEmpresaSel');
+    sel.innerHTML = '<option value="">— Selecciona empresa —</option>';
+    Array.from(empresasSet).sort().forEach(function(e) {
+      var o = document.createElement('option');
+      o.value = e; o.textContent = e;
+      if (e === empActual) o.selected = true;
+      sel.appendChild(o);
+    });
+    // Al elegir del select, limpiar el texto libre y actualizar hidden
+    sel.onchange = function() {
+      document.getElementById('fDeptEmpresaNueva').value = '';
+      document.getElementById('fDeptEmpresa').value = this.value;
+    };
+    // Al escribir en el campo nuevo, limpiar el select y actualizar hidden
+    document.getElementById('fDeptEmpresaNueva').oninput = function() {
+      sel.value = '';
+      document.getElementById('fDeptEmpresa').value = this.value.trim();
+    };
+    document.getElementById('fDeptEmpresaSel').value    = empActual || '';
+    document.getElementById('fDeptEmpresaNueva').value  = '';
+    document.getElementById('fDeptEmpresa').value       = empActual || '';
+  }
+}
+
 // Toggle días de la semana en el modal
 document.getElementById('diasSemana').addEventListener('click', function(e) {
   var btn = e.target.closest('.dia-btn');
@@ -1976,16 +2101,7 @@ document.getElementById('btnNuevoDept').addEventListener('click', function() {
   // Jefes: pre-rellenar con su empresa y no dejar cambiarla
   var misEmps = window._misEmpresasJefe && window._misEmpresasJefe.length
     ? window._misEmpresasJefe : [];
-  var empInput = document.getElementById('fDeptEmpresa');
-  if (esJefe && misEmps.length) {
-    empInput.value    = misEmps[0];
-    empInput.readOnly = true;
-    empInput.style.opacity = '.6';
-  } else {
-    empInput.value    = me.empresa || '';
-    empInput.readOnly = false;
-    empInput.style.opacity = '';
-  }
+  initDeptEmpresaSelector(esJefe && misEmps.length ? misEmps[0] : (me.empresa || ''));
   document.getElementById('fDeptLat').value      = '';
   document.getElementById('fDeptLng').value      = '';
   document.getElementById('fDeptHoraEntrada').value = '08:00';
@@ -2018,7 +2134,7 @@ document.getElementById('btnUsarUbicacion').addEventListener('click', function()
 });
 document.getElementById('btnGuardarDept').addEventListener('click', async function() {
   const nombre  = document.getElementById('fDeptNombre').value.trim();
-  const empresa = document.getElementById('fDeptEmpresa').value.trim();
+  // empresa ya leída arriba en la validación
   const latVal  = document.getElementById('fDeptLat').value;
   const lngVal  = document.getElementById('fDeptLng').value;
   const latDept = latVal !== '' ? parseFloat(latVal) : null;
@@ -2026,7 +2142,9 @@ document.getElementById('btnGuardarDept').addEventListener('click', async functi
   const errEl   = document.getElementById('modalDeptErr');
   const btn     = document.getElementById('btnGuardarDept');
   errEl.classList.remove('show');
+  var empresa = document.getElementById('fDeptEmpresa').value.trim();
   if (!nombre) { errEl.textContent='El nombre es obligatorio'; errEl.classList.add('show'); return; }
+  if (!empresa) { errEl.textContent='Debes seleccionar o escribir una empresa'; errEl.classList.add('show'); return; }
   if (latDept!==null && (isNaN(latDept)||latDept<-90||latDept>90))   { errEl.textContent='Latitud inválida'; errEl.classList.add('show'); return; }
   if (lngDept!==null && (isNaN(lngDept)||lngDept<-180||lngDept>180)) { errEl.textContent='Longitud inválida'; errEl.classList.add('show'); return; }
   btn.disabled=true; btn.textContent='Creando...';
@@ -2084,10 +2202,7 @@ async function editDept(id) {
 
   document.getElementById('fDeptNombre').value = d.nombre || '';
 
-  var empInput = document.getElementById('fDeptEmpresa');
-  empInput.value    = d.empresa || '';
-  if (esJefe) { empInput.readOnly = true; empInput.style.opacity = '.6'; }
-  else        { empInput.readOnly = false; empInput.style.opacity = ''; }
+  initDeptEmpresaSelector(d.empresa || '');
 
   document.getElementById('fDeptLat').value = d.lat  != null ? d.lat  : '';
   document.getElementById('fDeptLng').value = d.lng  != null ? d.lng  : '';
