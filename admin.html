@@ -1397,23 +1397,44 @@ function renderResumenPagina(pagina) {
 // FILTRO GLOBAL (empresa + departamento)
 // ─────────────────────────────────────────────────────────────────────────
 
-// Filtra un array de {data()} docs según _filtroEmpresa y _filtroDept
+// Filtra un array de docs (fichajes, usuarios, etc.) según empresa y dept activos
 function filtrarDocs(docs) {
+  // Si no hay filtro activo, devolver todo
+  if (!_soloMiEmpresa && !_filtroEmpresa && !_filtroDept) return docs;
+
   return docs.filter(function(d) {
     var f = d.data ? d.data() : d;
-    // Soporte multi-empresa: el jefe tiene _misEmpresasJefe[]
+
+    // ── Filtro empresa ──
+    // Los fichajes guardan 'empresa' como string; los usuarios pueden tener 'empresas' array
+    var empDoc = f.empresa || '';  // campo string en fichajes y usuarios legacy
+
     if (_soloMiEmpresa && window._misEmpresasJefe && window._misEmpresasJefe.length) {
-      var emp = Array.isArray(f.empresas) ? f.empresas : (f.empresa ? [f.empresa] : []);
-      var coincide = window._misEmpresasJefe.some(function(e) { return emp.indexOf(e) >= 0; });
+      var misEmps = window._misEmpresasJefe;
+      // Comprobar empresa string O array empresas
+      var coincide = misEmps.indexOf(empDoc) >= 0;
+      if (!coincide && Array.isArray(f.empresas)) {
+        coincide = f.empresas.some(function(e){ return misEmps.indexOf(e) >= 0; });
+      }
       if (!coincide) return false;
     } else if (_filtroEmpresa) {
-      var emp = Array.isArray(f.empresas) ? f.empresas : (f.empresa ? [f.empresa] : []);
-      if (emp.indexOf(_filtroEmpresa) < 0) return false;
+      var coincide2 = (empDoc === _filtroEmpresa);
+      if (!coincide2 && Array.isArray(f.empresas)) {
+        coincide2 = f.empresas.indexOf(_filtroEmpresa) >= 0;
+      }
+      if (!coincide2) return false;
     }
+
+    // ── Filtro departamento ──
     if (_filtroDept) {
-      var depts = Array.isArray(f.departamentos) ? f.departamentos : (f.departamento ? [f.departamento] : []);
-      if (depts.indexOf(_filtroDept) < 0) return false;
+      var deptDoc = f.departamento || '';
+      var coincideDept = (deptDoc === _filtroDept);
+      if (!coincideDept && Array.isArray(f.departamentos)) {
+        coincideDept = f.departamentos.indexOf(_filtroDept) >= 0;
+      }
+      if (!coincideDept) return false;
     }
+
     return true;
   });
 }
@@ -2656,11 +2677,11 @@ document.getElementById('btnHamburger').addEventListener('click', function() {
     });
   }
 });
-// Cerrar sidebar al navegar (móvil)
-document.querySelectorAll('.nav-item').forEach(function(item) {
-  item.addEventListener('click', function() {
+// Cerrar sidebar al navegar (móvil) — usando evento delegado para no duplicar
+document.querySelector('.sidebar').addEventListener('click', function(e) {
+  if (e.target.closest('.nav-item')) {
     document.querySelector('.sidebar').classList.remove('open');
-  });
+  }
 });
 
 // ── Inicio ────────────────────────────────────────────────────────────────
