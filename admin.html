@@ -505,12 +505,22 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="field" id="horarioEspField" style="display:none">
       <label>Horario especial <span style="font-size:10px;color:var(--muted)">(deja vacío para usar el del departamento)</span></label>
       <div class="horario-esp-wrap">
-        <div class="horario-esp-title">Rango permitido de fichaje</div>
+        <div class="horario-esp-title">Tramo mañana</div>
         <div class="horario-esp-row">
           <input type="time" id="fHorEspEntrada" placeholder="Entrada">
           <span class="horario-sep">→</span>
           <input type="time" id="fHorEspSalida" placeholder="Salida">
         </div>
+        <!-- Tramo tarde (horario partido) -->
+        <div id="horEspPartidoWrap" style="display:none;margin-top:8px">
+          <div class="horario-esp-title">Tramo tarde</div>
+          <div class="horario-esp-row">
+            <input type="time" id="fHorEspEntrada2" placeholder="Entrada tarde">
+            <span class="horario-sep">→</span>
+            <input type="time" id="fHorEspSalida2" placeholder="Salida tarde">
+          </div>
+        </div>
+        <button type="button" id="btnHorEspPartido" style="margin-top:8px;padding:5px 12px;background:transparent;border:1px solid var(--border);border-radius:7px;color:var(--text-secondary);font-family:'Inter',sans-serif;font-size:11px;cursor:pointer;">+ Añadir tramo tarde</button>
         <div style="font-size:10px;color:var(--muted);margin-top:6px">Fichar fuera de este rango generará un fichaje fallido. Las horas dentro del rango cuentan como normales; las de fuera, como extra.</div>
       </div>
     </div>
@@ -647,26 +657,7 @@ document.getElementById('adminName').textContent = me.nombre || me.email;
 var esJefe = (me.rol === 'jefe');
 document.getElementById('rolBadge').textContent = esJefe ? 'Jefe' : 'Admin';
 
-// Activar filtro de empresa automáticamente al login para todos los roles
-var misEmpresasLogin = Array.isArray(me.empresas) && me.empresas.length
-  ? me.empresas
-  : (me.empresa ? [me.empresa] : []);
-
-if (misEmpresasLogin.length) {
-  window._misEmpresasJefe = misEmpresasLogin;
-  _soloMiEmpresa = true;
-  _empresaIdx    = -1;
-  var btnEmp = document.getElementById('btnMiEmpresa');
-  if (btnEmp) {
-    btnEmp.classList.add('active');
-    btnEmp.textContent = '🏢 Todas mis empresas';
-  }
-}
-
-// Los jefes: ocultar departamentos del sidebar
-if (esJefe) {
-  // (permisos de sidebar ya aplicados más arriba si los hubiera)
-}
+// (el filtro de empresa se activa al final del script, cuando todas las variables ya están definidas)
 
 // ── Firebase ──────────────────────────────────────────────────────────────
 if (!firebase.apps.length) {
@@ -977,12 +968,21 @@ async function loadHorasEmpleados() {
       var deptData = deptNom ? deptMap[deptNom] : null;
 
       if (horEsp && horEsp.entrada && horEsp.salida) {
-        // Horario personal: calcular horas del rango
+        // Horario personal: calcular horas del rango (tramo 1)
         var hE = parseInt(horEsp.entrada.split(':')[0]),
             mE = parseInt(horEsp.entrada.split(':')[1]);
         var hS = parseInt(horEsp.salida.split(':')[0]),
             mS = parseInt(horEsp.salida.split(':')[1]);
-        horasPorDia = ((hS * 60 + mS) - (hE * 60 + mE)) / 60;
+        var mins = (hS * 60 + mS) - (hE * 60 + mE);
+        // Tramo tarde si existe
+        if (horEsp.entrada2 && horEsp.salida2) {
+          var hE2 = parseInt(horEsp.entrada2.split(':')[0]),
+              mE2 = parseInt(horEsp.entrada2.split(':')[1]);
+          var hS2 = parseInt(horEsp.salida2.split(':')[0]),
+              mS2 = parseInt(horEsp.salida2.split(':')[1]);
+          mins += (hS2 * 60 + mS2) - (hE2 * 60 + mE2);
+        }
+        horasPorDia = mins / 60;
       } else if (deptData && deptData.horasDia) {
         horasPorDia = deptData.horasDia;
         if (Array.isArray(deptData.diasActivos) && deptData.diasActivos.length) {
@@ -1693,6 +1693,18 @@ async function loadUsuarios() {
 
 // ── Modal usuario ─────────────────────────────────────────────────────────
 let editingUserId = null;
+// ── Botón horario partido del horario especial de usuario ────────────────
+document.getElementById('btnHorEspPartido').addEventListener('click', function() {
+  var wrap = document.getElementById('horEspPartidoWrap');
+  var show = wrap.style.display === 'none' ? true : false;
+  wrap.style.display = show ? 'block' : 'none';
+  this.textContent   = show ? '– Quitar tramo tarde' : '+ Añadir tramo tarde';
+  if (!show) {
+    document.getElementById('fHorEspEntrada2').value = '';
+    document.getElementById('fHorEspSalida2').value  = '';
+  }
+});
+
 // ── Estado del modal de usuario ─────────────────────────────────────────
 var _modalEmpresas = [];   // array de strings
 var _allDepts      = [];   // todos los docs de departamentos {id, nombre, empresa}
@@ -1835,8 +1847,23 @@ async function openUserModal(title, data) {
   actualizarHorarioEsp();
 
   // Rellenar horario especial si existe
-  document.getElementById('fHorEspEntrada').value = data.horarioEsp && data.horarioEsp.entrada ? data.horarioEsp.entrada : '';
-  document.getElementById('fHorEspSalida').value  = data.horarioEsp && data.horarioEsp.salida  ? data.horarioEsp.salida  : '';
+  document.getElementById('fHorEspEntrada').value = data.horarioEsp && data.horarioEsp.entrada  ? data.horarioEsp.entrada  : '';
+  document.getElementById('fHorEspSalida').value  = data.horarioEsp && data.horarioEsp.salida   ? data.horarioEsp.salida   : '';
+  // Tramo tarde
+  var tienePartido = data.horarioEsp && data.horarioEsp.entrada2 && data.horarioEsp.salida2;
+  var partWrap = document.getElementById('horEspPartidoWrap');
+  var btnPart  = document.getElementById('btnHorEspPartido');
+  if (tienePartido) {
+    partWrap.style.display = 'block';
+    btnPart.textContent    = '– Quitar tramo tarde';
+    document.getElementById('fHorEspEntrada2').value = data.horarioEsp.entrada2;
+    document.getElementById('fHorEspSalida2').value  = data.horarioEsp.salida2;
+  } else {
+    partWrap.style.display = 'none';
+    btnPart.textContent    = '+ Añadir tramo tarde';
+    document.getElementById('fHorEspEntrada2').value = '';
+    document.getElementById('fHorEspSalida2').value  = '';
+  }
 
   // Cargar empresas y departamentos seleccionados del usuario
   _modalEmpresas = Array.isArray(data.empresas) && data.empresas.length
@@ -1924,9 +1951,18 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
     // Horario especial (solo empleados)
     var horarioEsp = null;
     if (rol === 'empleado') {
-      var espEnt = document.getElementById('fHorEspEntrada').value;
-      var espSal = document.getElementById('fHorEspSalida').value;
-      if (espEnt && espSal) horarioEsp = { entrada: espEnt, salida: espSal };
+      var espEnt  = document.getElementById('fHorEspEntrada').value;
+      var espSal  = document.getElementById('fHorEspSalida').value;
+      var espEnt2 = document.getElementById('fHorEspEntrada2').value;
+      var espSal2 = document.getElementById('fHorEspSalida2').value;
+      var tienePartidoEsp = document.getElementById('horEspPartidoWrap').style.display !== 'none';
+      if (espEnt && espSal) {
+        horarioEsp = { entrada: espEnt, salida: espSal };
+        if (tienePartidoEsp && espEnt2 && espSal2) {
+          horarioEsp.entrada2 = espEnt2;
+          horarioEsp.salida2  = espSal2;
+        }
+      }
     }
     const datos = {
       nombre, email, rol,
@@ -2628,6 +2664,26 @@ document.querySelectorAll('.nav-item').forEach(function(item) {
 });
 
 // ── Inicio ────────────────────────────────────────────────────────────────
+// Activar filtro empresa al arrancar (solo si tiene empresas asignadas)
+(function() {
+  var misEmps = Array.isArray(me.empresas) && me.empresas.length
+    ? me.empresas
+    : (me.empresa ? [me.empresa] : []);
+
+  if (misEmps.length) {
+    window._misEmpresasJefe = misEmps;
+    // Para jefes: filtro obligatorio y activo por defecto
+    // Para admins: filtro activo si tienen empresa asignada
+    _soloMiEmpresa = true;
+    _empresaIdx    = -1;
+    var btn = document.getElementById('btnMiEmpresa');
+    if (btn) {
+      btn.classList.add('active');
+      btn.textContent = '🏢 Todas mis empresas';
+    }
+  }
+  // Admins sin empresa asignada: ven todo sin filtro
+})();
 loadResumen();
 </script>
 </body>
