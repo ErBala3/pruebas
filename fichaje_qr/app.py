@@ -17,8 +17,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "cambiar_en_produccion_" + uuid.uuid4().hex)
 
-DB_PATH   = "fichaje.db"
-QR_FOLDER = "static/qr_codes"
+BASE_DIR  = os.path.abspath(os.path.dirname(__file__))
+DB_PATH   = os.path.join(BASE_DIR, "fichaje.db")
+QR_FOLDER = os.path.join(BASE_DIR, "static", "qr_codes")
 
 # ─────────────────────────────────────────────
 # BASE DE DATOS
@@ -57,7 +58,8 @@ def init_db():
                 id       INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL UNIQUE,
                 password TEXT NOT NULL,
-                rol      TEXT NOT NULL DEFAULT 'empleado'
+                rol      TEXT NOT NULL DEFAULT 'empleado',
+                employee_id INTEGER REFERENCES employees(id)
             );
 
             CREATE TABLE IF NOT EXISTS login_log (
@@ -73,6 +75,11 @@ def init_db():
         # Migración: añadir weekly_hours si no existe (para BDs existentes)
         try:
             conn.execute("ALTER TABLE employees ADD COLUMN weekly_hours REAL NOT NULL DEFAULT 40.0")
+        except sqlite3.OperationalError:
+            pass  # La columna ya existe
+
+        try:
+            conn.execute("ALTER TABLE users ADD COLUMN employee_id INTEGER REFERENCES employees(id)")
         except sqlite3.OperationalError:
             pass  # La columna ya existe
 
@@ -211,6 +218,7 @@ def api_login():
     if not username or not password:
         return jsonify({"error": "Usuario y contraseña requeridos"}), 400
 
+    qr_token = None
     with get_db() as conn:
         user = conn.execute(
             "SELECT * FROM users WHERE username=?", (username,)
@@ -223,16 +231,27 @@ def api_login():
             "INSERT INTO login_log (username, rol, lat, lng) VALUES (?,?,?,?)",
             (username, user["rol"], lat, lng)
         )
+        if user["employee_id"]:
+            emp = conn.execute(
+                "SELECT qr_token FROM employees WHERE id=?", (user["employee_id"],)
+            ).fetchone()
+            if emp:
+                qr_token = emp["qr_token"]
 
     session["username"]   = username
     session["rol"]        = user["rol"]
+    session["employee_id"] = user["employee_id"]
     session["login_time"] = datetime.now().strftime("%d/%m/%Y %H:%M")
 
-    return jsonify({
+    response = {
         "username":   username,
         "rol":        user["rol"],
         "login_time": session["login_time"]
-    })
+    }
+    if qr_token:
+        response["qr_token"] = qr_token
+
+    return jsonify(response)
 
 
 @app.route("/api/auth/logout", methods=["POST"])
@@ -245,11 +264,19 @@ def api_logout():
 def api_me():
     if "username" not in session:
         return jsonify({"error": "No autenticado"}), 401
-    return jsonify({
+    response = {
         "username":   session["username"],
         "rol":        session["rol"],
         "login_time": session.get("login_time", "")
-    })
+    }
+    if session.get("employee_id"):
+        with get_db() as conn:
+            emp = conn.execute(
+                "SELECT qr_token FROM employees WHERE id=?", (session["employee_id"],)
+            ).fetchone()
+            if emp:
+                response["qr_token"] = emp["qr_token"]
+    return jsonify(response)
 
 
 # ─────────────────────────────────────────────
@@ -283,7 +310,10 @@ def create_employee():
     """Crea un empleado y genera su QR."""
     data         = request.get_json(silent=True) or {}
     name         = (data.get("name") or "").strip()
-    weekly_hours = float(data.get("weekly_hours") or 40.0)
+    try:
+        weekly_hours = float(data.get("weekly_hours") or 40.0)
+    except (TypeError, ValueError):
+        return jsonify({"error": "weekly_hours debe ser un número"}), 400
     weekly_hours = max(1.0, min(80.0, weekly_hours))
 
     if not name:
@@ -487,7 +517,12 @@ def delete_checkin(checkin_id):
 def list_users():
     with get_db() as conn:
         rows = conn.execute(
-            "SELECT id, username, rol FROM users ORDER BY username"
+            """
+            SELECT u.id, u.username, u.rol, u.employee_id, e.name AS employee_name
+            FROM users u
+            LEFT JOIN employees e ON e.id = u.employee_id
+            ORDER BY u.username
+            """
         ).fetchall()
     return jsonify([dict(r) for r in rows])
 
@@ -499,17 +534,31 @@ def create_user():
     username = (data.get("username") or "").strip()
     password = (data.get("password") or "").strip()
     rol      = data.get("rol", "empleado")
+    employee_id = data.get("employee_id")
 
     if not username or not password:
         return jsonify({"error": "username y password son obligatorios"}), 400
     if rol not in ("admin", "empleado"):
         return jsonify({"error": "rol inválido"}), 400
+    if employee_id in ("", None):
+        employee_id = None
+    else:
+        try:
+            employee_id = int(employee_id)
+        except (TypeError, ValueError):
+            return jsonify({"error": "employee_id inválido"}), 400
 
     try:
         with get_db() as conn:
+            if employee_id is not None:
+                emp = conn.execute(
+                    "SELECT id FROM employees WHERE id=?", (employee_id,)
+                ).fetchone()
+                if not emp:
+                    return jsonify({"error": "Empleado no encontrado"}), 404
             conn.execute(
-                "INSERT INTO users (username, password, rol) VALUES (?,?,?)",
-                (username, generate_password_hash(password), rol)
+                "INSERT INTO users (username, password, rol, employee_id) VALUES (?,?,?,?)",
+                (username, generate_password_hash(password), rol, employee_id)
             )
     except sqlite3.IntegrityError:
         return jsonify({"error": "El usuario ya existe"}), 409
