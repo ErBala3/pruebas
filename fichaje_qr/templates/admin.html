@@ -390,13 +390,19 @@
             <option value="admin">Admin</option>
           </select>
         </div>
+        <div class="form-field">
+          <label>Empleado vinculado</label>
+          <select id="uEmpleado">
+            <option value="">Sin vincular</option>
+          </select>
+        </div>
         <button class="btn-add" onclick="crearUsuario()">+ Crear</button>
       </div>
     </div>
     <div class="card">
       <table>
-        <thead><tr><th>Usuario</th><th>Rol</th><th></th></tr></thead>
-        <tbody id="tbUsuarios"><tr class="empty-row"><td colspan="3">Cargando...</td></tr></tbody>
+        <thead><tr><th>Usuario</th><th>Rol</th><th>Empleado</th><th></th></tr></thead>
+        <tbody id="tbUsuarios"><tr class="empty-row"><td colspan="4">Cargando...</td></tr></tbody>
       </table>
     </div>
   </div>
@@ -483,6 +489,18 @@
         sel.appendChild(o);
       });
       sel.value = prev;
+
+      const userSel = document.getElementById('uEmpleado');
+      if (userSel) {
+        const userPrev = userSel.value;
+        userSel.innerHTML = '<option value="">Sin vincular</option>';
+        empleadosCache.forEach(e => {
+          const o = document.createElement('option');
+          o.value = e.id; o.textContent = e.name;
+          userSel.appendChild(o);
+        });
+        userSel.value = userPrev;
+      }
 
       if (!empleadosCache.length) {
         tbody.innerHTML = '<tr class="empty-row"><td colspan="6">Sin empleados</td></tr>';
@@ -619,23 +637,24 @@
   // ── USUARIOS ─────────────────────────────────────────────
   async function cargarUsuarios() {
     const tbody = document.getElementById('tbUsuarios');
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="3">Cargando...</td></tr>';
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Cargando...</td></tr>';
     try {
       const res   = await fetch('/api/users');
       const users = await res.json();
       if (!users.length) {
-        tbody.innerHTML = '<tr class="empty-row"><td colspan="3">Sin usuarios</td></tr>';
+        tbody.innerHTML = '<tr class="empty-row"><td colspan="4">Sin usuarios</td></tr>';
         return;
       }
       tbody.innerHTML = users.map(u => `
         <tr>
           <td>${esc(u.username)}</td>
           <td><span class="badge ${u.rol==='admin'?'badge-admin':'badge-emp'}">${u.rol}</span></td>
+          <td>${u.employee_name ? esc(u.employee_name) : '<span style="color:var(--muted);font-size:11px;">sin vincular</span>'}</td>
           <td>${u.username !== 'admin' ? `<button class="btn-del" onclick="eliminarUsuario(${u.id},'${esc(u.username)}')">Eliminar</button>` : '<span style="color:var(--muted);font-size:11px;">protegido</span>'}</td>
         </tr>
       `).join('');
     } catch(err) {
-      tbody.innerHTML = `<tr class="empty-row"><td colspan="3">Error: ${esc(err.message)}</td></tr>`;
+      tbody.innerHTML = `<tr class="empty-row"><td colspan="4">Error: ${esc(err.message)}</td></tr>`;
     }
   }
 
@@ -643,16 +662,18 @@
     const username = document.getElementById('uNombre').value.trim();
     const password = document.getElementById('uPass').value;
     const rol      = document.getElementById('uRol').value;
+    const employee_id = document.getElementById('uEmpleado').value || null;
     if (!username || !password) { toast('Rellena usuario y contraseña', 'err'); return; }
     const res  = await fetch('/api/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password, rol })
+      body: JSON.stringify({ username, password, rol, employee_id })
     });
     const data = await res.json();
     if (res.ok) {
       document.getElementById('uNombre').value = '';
       document.getElementById('uPass').value   = '';
+      document.getElementById('uEmpleado').value = '';
       toast(`Usuario "${username}" creado`);
       cargarUsuarios();
     } else {
