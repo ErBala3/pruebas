@@ -409,6 +409,14 @@
         rolTag.textContent = 'Empleado';
         rolTag.className   = 'rol-tag rol-emp';
       }
+
+      if (!sessionData.qr_token) {
+        document.getElementById('btnEntrada').disabled = true;
+        document.getElementById('btnSalida').disabled = true;
+        const status = document.getElementById('statusBox');
+        status.className = 'status-box warn';
+        status.textContent = 'Usuario sin empleado vinculado. Escanea un QR o pide al administrador que vincule tu usuario.';
+      }
     } catch(_) {
       window.location.href = '/login';
     }
@@ -419,6 +427,12 @@
     const btnE   = document.getElementById('btnEntrada');
     const btnS   = document.getElementById('btnSalida');
     const status = document.getElementById('statusBox');
+
+    if (!sessionData?.qr_token) {
+      status.className = 'status-box warn';
+      status.textContent = 'Usuario sin empleado vinculado. Pide al administrador que vincule tu usuario.';
+      return;
+    }
 
     btnE.disabled = btnS.disabled = true;
     status.className   = 'status-box';
@@ -444,9 +458,9 @@
       const data = await res.json();
 
       if (res.ok) {
-        const isIn = (data.direction === 'IN' && tipo === 'entrada') || tipo === 'entrada';
+        const isIn = data.direction === 'IN';
         status.className   = 'status-box ok';
-        status.textContent = `${tipo === 'entrada' ? '✅ ENTRADA' : '🚪 SALIDA'} registrada · ${now.toLocaleTimeString('es-ES')}`;
+        status.textContent = `${isIn ? '✅ ENTRADA' : '🚪 SALIDA'} registrada · ${now.toLocaleTimeString('es-ES')}`;
       } else if (res.status === 429) {
         status.className   = 'status-box warn';
         status.textContent = '⚠️ Fichaje duplicado — espera unos segundos';
