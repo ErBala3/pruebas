@@ -18,6 +18,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "cambiar_en_produccion_" + uuid.uuid4().hex)
 
 BASE_DIR  = os.path.abspath(os.path.dirname(__file__))
+REPO_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 DB_PATH   = os.path.join(BASE_DIR, "fichaje.db")
 QR_FOLDER = os.path.join(BASE_DIR, "static", "qr_codes")
 
@@ -590,11 +591,26 @@ def kiosk():
     return render_template("kiosk.html")
 
 
+@app.route("/index.html")
+def index_html():
+    return send_file(os.path.join(REPO_ROOT, "index.html"))
+
+
+@app.route("/dashboard.html")
+def dashboard_html():
+    return send_file(os.path.join(REPO_ROOT, "dashboard.html"))
+
+
 @app.route("/admin")
 def admin():
     if session.get("rol") != "admin":
         return redirect(url_for("login_page"))
     return render_template("admin.html")
+
+
+@app.route("/admin.html")
+def admin_html():
+    return send_file(os.path.join(REPO_ROOT, "admin.html"))
 
 
 # ─────────────────────────────────────────────
