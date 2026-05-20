@@ -177,11 +177,15 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ─── Arrancar servidor ────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n🚀 QRAccess corriendo en http://localhost:${PORT}`);
-  console.log(`\n📋 Usuarios por defecto:`);
-  console.log(`   admin     / admin123  (rol: admin)`);
-  console.log(`   empleado1 / emp123    (rol: empleado)`);
-  console.log(`   empleado2 / emp123    (rol: empleado)\n`);
-});
+// ─── Arrancar servidor solo cuando se ejecuta directamente ───────────────────
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n🚀 QRAccess corriendo en http://localhost:${PORT}`);
+    console.log(`\n📋 Usuarios por defecto:`);
+    console.log(`   admin     / admin123  (rol: admin)`);
+    console.log(`   empleado1 / emp123    (rol: empleado)`);
+    console.log(`   empleado2 / emp123    (rol: empleado)\n`);
+  });
+}
+
+module.exports = app;
