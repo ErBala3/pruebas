@@ -2673,36 +2673,46 @@ async function abrirCalendarioEmpleado(userId, nombre, horasPorDia, diasActivos,
     horasPorMes[m] = (horasPorMes[m] || 0) + horasPorDiaMap[key];
   });
 
-  // Resumen anual hasta hoy
-  var yearTotalHours = snap.docs.reduce(function(sum, d) {
-    var f  = d.data();
-    var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate()
-           : (f.timestampCliente ? new Date(f.timestampCliente) : null);
-    if (!ts || ts.getFullYear() !== anio || f.tipo !== 'salida') return sum;
-    return sum + (f.horasNormales || 0) + (f.horasExtra || 0);
-  }, 0);
+  try {
+    // Resumen anual hasta hoy
+    var yearTotalHours = snap.docs.reduce(function(sum, d) {
+      var f  = d.data();
+      var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate()
+             : (f.timestampCliente ? new Date(f.timestampCliente) : null);
+      if (!ts || ts.getFullYear() !== anio || f.tipo !== 'salida') return sum;
+      return sum + (f.horasNormales || 0) + (f.horasExtra || 0);
+    }, 0);
 
-  var diasLabAnio = 0;
-  var fechaIter = new Date(anio, 0, 1);
-  while (fechaIter <= hoy) {
-    if (_calEmpleadoDias.indexOf(fechaIter.getDay()) >= 0) diasLabAnio++;
-    fechaIter.setDate(fechaIter.getDate() + 1);
+    var diasLabAnio = 0;
+    var fechaIter = new Date(anio, 0, 1);
+    while (fechaIter <= hoy) {
+      if (_calEmpleadoDias.indexOf(fechaIter.getDay()) >= 0) diasLabAnio++;
+      fechaIter.setDate(fechaIter.getDate() + 1);
+    }
+    var yearTarget = diasLabAnio * _calEmpleadoHorasDia;
+    var yearDiff   = yearTotalHours - yearTarget;
+
+    var yearWorkedEl = document.getElementById('calYearWorked');
+    var yearTargetEl = document.getElementById('calYearTarget');
+    var yearDiffEl   = document.getElementById('calYearDiff');
+    var yearBalanceEl = document.getElementById('calYearBalance');
+    var yearSummaryEl = document.getElementById('calYearSummary');
+    if (yearWorkedEl && yearTargetEl && yearDiffEl && yearBalanceEl && yearSummaryEl) {
+      yearWorkedEl.textContent = hhmm(yearTotalHours);
+      yearTargetEl.textContent = hhmm(yearTarget);
+      yearDiffEl.textContent   = (yearDiff >= 0 ? '+' : '') + yearDiff.toFixed(1) + 'h';
+      var yearTitle = yearDiff >= 0
+          ? 'Por encima del objetivo anual'
+          : (yearDiff > -10 ? 'Cerca del objetivo anual' : 'Déficit anual');
+      var yearClass = yearDiff >= 0 ? 'b-ok' : (yearDiff > -10 ? 'b-warn' : 'b-err');
+      yearBalanceEl.className = 'drawer-balance ' + yearClass;
+      yearBalanceEl.innerHTML = '<div class="db-title">' + yearTitle + '</div>' +
+        'Llevas ' + hhmm(yearTotalHours) + ' de ' + hhmm(yearTarget) + '.';
+      yearSummaryEl.style.display = 'block';
+    }
+  } catch (err) {
+    console.error('Resumen anual admin:', err);
   }
-  var yearTarget = diasLabAnio * _calEmpleadoHorasDia;
-  var yearDiff   = yearTotalHours - yearTarget;
-
-  document.getElementById('calYearWorked').textContent = hhmm(yearTotalHours);
-  document.getElementById('calYearTarget').textContent = hhmm(yearTarget);
-  document.getElementById('calYearDiff').textContent   = (yearDiff >= 0 ? '+' : '') + yearDiff.toFixed(1) + 'h';
-  var yearBalanceEl = document.getElementById('calYearBalance');
-  var yearTitle = yearDiff >= 0
-      ? 'Por encima del objetivo anual'
-      : (yearDiff > -10 ? 'Cerca del objetivo anual' : 'Déficit anual');
-  var yearClass = yearDiff >= 0 ? 'b-ok' : (yearDiff > -10 ? 'b-warn' : 'b-err');
-  yearBalanceEl.className = 'drawer-balance ' + yearClass;
-  yearBalanceEl.innerHTML = '<div class="db-title">' + yearTitle + '</div>' +
-    'Llevas ' + hhmm(yearTotalHours) + ' de ' + hhmm(yearTarget) + '.';
-  document.getElementById('calYearSummary').style.display = 'block';
 
   var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
                'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
