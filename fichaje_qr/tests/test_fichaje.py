@@ -204,3 +204,154 @@ def test_hours_summary_endpoints(client):
     assert res_all.status_code == 200
     data_all = res_all.get_json()
     assert any(e["employee_id"] == emp["id"] for e in data_all)
+
+
+# ─────────────────────────────────────────────
+# TESTS – AUTENTICACIÓN
+# ─────────────────────────────────────────────
+
+@pytest.fixture
+def anon_client(tmp_path, monkeypatch):
+    """Cliente sin sesión iniciada."""
+    db_file = str(tmp_path / "anon_test.db")
+    qr_dir  = str(tmp_path / "qr_codes")
+    os.makedirs(qr_dir, exist_ok=True)
+
+    monkeypatch.setattr(application, "DB_PATH", db_file)
+    monkeypatch.setattr(application, "QR_FOLDER", qr_dir)
+
+    application.init_db()
+    application.app.config["TESTING"] = True
+
+    with application.app.test_client() as c:
+        yield c
+
+
+def test_login_admin_ok(anon_client):
+    res = anon_client.post("/api/auth/login",
+                           json={"username": "admin", "password": "admin123"})
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["username"] == "admin"
+    assert data["rol"] == "admin"
+
+
+def test_login_password_incorrecta(anon_client):
+    res = anon_client.post("/api/auth/login",
+                           json={"username": "admin", "password": "mala"})
+    assert res.status_code == 401
+    assert "error" in res.get_json()
+
+
+def test_login_usuario_inexistente(anon_client):
+    res = anon_client.post("/api/auth/login",
+                           json={"username": "nadie", "password": "algo"})
+    assert res.status_code == 401
+
+
+def test_login_campos_vacios(anon_client):
+    res = anon_client.post("/api/auth/login", json={})
+    assert res.status_code == 400
+
+
+def test_logout_ok(client):
+    res = client.post("/api/auth/logout")
+    assert res.status_code == 200
+    assert res.get_json().get("ok") is True
+
+
+def test_me_autenticado(client):
+    res = client.get("/api/auth/me")
+    assert res.status_code == 200
+    data = res.get_json()
+    assert data["username"] == "admin"
+    assert data["rol"] == "admin"
+
+
+def test_me_sin_sesion(anon_client):
+    res = anon_client.get("/api/auth/me")
+    assert res.status_code == 401
+
+
+# ─────────────────────────────────────────────
+# TESTS – RESTRICCIÓN ADMIN
+# ─────────────────────────────────────────────
+
+@pytest.fixture
+def empleado_client(tmp_path, monkeypatch):
+    """Cliente con sesión de rol 'empleado' (sin permisos admin)."""
+    db_file = str(tmp_path / "emp_test.db")
+    qr_dir  = str(tmp_path / "qr_codes")
+    os.makedirs(qr_dir, exist_ok=True)
+
+    monkeypatch.setattr(application, "DB_PATH", db_file)
+    monkeypatch.setattr(application, "QR_FOLDER", qr_dir)
+
+    application.init_db()
+    application.app.config["TESTING"] = True
+
+    with application.app.test_client() as c:
+        with c.session_transaction() as sess:
+            sess["username"] = "empleado1"
+            sess["rol"]      = "empleado"
+        yield c
+
+
+def test_listar_empleados_requiere_admin(empleado_client):
+    res = empleado_client.get("/api/employees")
+    assert res.status_code == 403
+
+
+def test_crear_empleado_requiere_admin(empleado_client):
+    res = empleado_client.post("/api/employees",
+                               json={"name": "Test"},
+                               content_type="application/json")
+    assert res.status_code == 403
+
+
+def test_listar_checkins_requiere_admin(empleado_client):
+    res = empleado_client.get("/api/checkins")
+    assert res.status_code == 403
+
+
+def test_resumen_horas_requiere_admin(empleado_client):
+    res = empleado_client.get("/api/employees/hours-summary")
+    assert res.status_code == 403
+
+
+# ─────────────────────────────────────────────
+# TESTS – ENDPOINT QR
+# ─────────────────────────────────────────────
+
+def test_descarga_qr_empleado_ok(client):
+    res = create_emp(client, "QR User")
+    empleados = client.get("/api/employees").get_json()
+    emp = next(e for e in empleados if e["name"] == "QR User")
+
+    res_qr = client.get(f"/api/employees/{emp['id']}/qr")
+    assert res_qr.status_code == 200
+    assert res_qr.content_type == "image/png"
+
+
+def test_descarga_qr_empleado_inexistente(client):
+    res = client.get("/api/employees/99999/qr")
+    assert res.status_code == 404
+
+
+# ─────────────────────────────────────────────
+# TESTS – FICHAJE CON COORDENADAS
+# ─────────────────────────────────────────────
+
+def test_checkin_con_coordenadas(client):
+    token = get_token(client, "Geo User")
+    res = client.post("/api/checkin",
+                      json={"qr_token": token, "lat": 40.4168, "lng": -3.7038})
+    assert res.status_code == 200
+    assert res.get_json()["direction"] == "IN"
+
+
+def test_checkin_con_tienda(client):
+    token = get_token(client, "Store User")
+    res = client.post("/api/checkin",
+                      json={"qr_token": token, "store": "Tienda Centro"})
+    assert res.status_code == 200
