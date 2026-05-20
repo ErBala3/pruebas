@@ -93,6 +93,12 @@ body {
 .balance-msg.s-warn { background: rgba(138,104,0,.08);   border-color: #8a6800; color: #b8960a; }
 .balance-msg.s-err  { background: rgba(192,57,43,.08);   border-color: #c0392b; color: #c0392b; }
 .balance-msg.s-info { background: rgba(226,226,226,.04); border-color: #444;   color: var(--text-secondary); }
+.year-summary { margin-top: 16px; padding: 14px 16px; background: rgba(255,255,255,.02); border: 1px solid var(--border); border-radius: 10px; }
+.year-summary-title { font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .7px; margin-bottom: 10px; }
+.year-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.year-summary-item { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 8px; padding: 10px 12px; }
+.year-summary-item .label { font-size: 10px; color: var(--text-secondary); margin-bottom: 4px; }
+.year-summary-item .value { font-size: 14px; font-weight: 700; color: var(--text); }
 .bm-title { font-weight: 600; margin-bottom: 2px; font-size: 12px; }
 
 /* ── Card escáner ── */
@@ -211,6 +217,26 @@ body {
     </div>
     <div class="balance-msg s-info" id="hpMsg">
       <div class="bm-title">Cargando datos...</div>
+    </div>
+    <div class="year-summary" id="yearSummary" style="display:none;">
+      <div class="year-summary-title">Resumen anual</div>
+      <div class="year-summary-grid">
+        <div class="year-summary-item">
+          <div class="label">Horas trabajadas</div>
+          <div class="value" id="hsYearWorked">—</div>
+        </div>
+        <div class="year-summary-item">
+          <div class="label">Objetivo hasta hoy</div>
+          <div class="value" id="hsYearTarget">—</div>
+        </div>
+        <div class="year-summary-item">
+          <div class="label">Diferencia</div>
+          <div class="value" id="hsYearDiff">—</div>
+        </div>
+      </div>
+      <div class="balance-msg s-info" id="hsYearMsg" style="margin-top:12px;">
+        <div class="bm-title">Cargando resumen anual...</div>
+      </div>
     </div>
   </div>
 
@@ -575,6 +601,40 @@ async function cargarPanelHoras() {
     if (pctReal >= 100)   barEl.className = 'progress-fill p-over';
     else if (balance < -2) barEl.className = 'progress-fill p-warn';
     else                  barEl.className = 'progress-fill';
+
+    // Resumen anual de horas
+    const yearTotalHours = snap.docs.reduce(function(sum, d) {
+      var f = d.data();
+      var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate() : null;
+      if (!ts || ts.getFullYear() !== anio || f.tipo !== 'salida') return sum;
+      return sum + (f.horasNormales || 0) + (f.horasExtra || 0);
+    }, 0);
+    const diasHabilAnio = diasLaborablesHastaHoy(anio);
+    const hoursPerDay = HORAS_ANUALES_CONVENIO / diasLaborablesAnio(anio);
+    const yearTarget   = diasHabilAnio * hoursPerDay;
+    const yearDiff     = yearTotalHours - yearTarget;
+
+    document.getElementById('hsYearWorked').textContent = hhmm(yearTotalHours);
+    document.getElementById('hsYearTarget').textContent = hhmm(yearTarget);
+    document.getElementById('hsYearDiff').textContent   = (yearDiff >= 0 ? '+' : '') + yearDiff.toFixed(1) + 'h';
+
+    const hsMsgEl = document.getElementById('hsYearMsg');
+    let hsClass = 's-info';
+    let hsTitle = '';
+    if (yearDiff >= 0) {
+      hsClass = 's-ok';
+      hsTitle = 'Estás por encima del objetivo anual hasta hoy.';
+    } else if (yearDiff > -10) {
+      hsClass = 's-warn';
+      hsTitle = 'Estás cerca del objetivo anual, faltan algunas horas.';
+    } else {
+      hsClass = 's-err';
+      hsTitle = 'Estás por debajo del objetivo anual, hay margen de mejora.';
+    }
+    hsMsgEl.className = 'balance-msg ' + hsClass;
+    hsMsgEl.innerHTML = '<div class="bm-title">' + hsTitle + '</div>' +
+      'Horas trabajadas: ' + hhmm(yearTotalHours) + ' · Objetivo hasta hoy: ' + hhmm(yearTarget) + '.';
+    document.getElementById('yearSummary').style.display = 'block';
 
     // Mensaje personalizado
     const msgEl = document.getElementById('hpMsg');
