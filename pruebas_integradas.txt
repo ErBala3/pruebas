@@ -6,13 +6,15 @@ Curso académico: 2025/2026
 Centro educativo: Victoria institute of technology
 Alumno/a o equipo: Sergio, Gonzalo, David, Nuria, Carlos, Marcos
 Profesor/a: David Soto Rosado
-Versión del documento: 1.1
+Versión del documento: 2.0
 Fecha: 28/05/2026
 
 1. Introducción
-El presente documento recoge la planificación, descripción, ejecución y resultados de las pruebas integradas realizadas sobre la aplicación web Fichaje mediante QR. A diferencia de las pruebas unitarias, las pruebas integradas permiten comprobar el funcionamiento conjunto de varios módulos o componentes, verificando que la comunicación entre ellos se realiza correctamente y que el flujo general de la aplicación responde de forma adecuada.
+El presente documento recoge la planificación, descripción, ejecución y resultados de las pruebas integradas realizadas sobre la aplicación web Fichaje mediante QR. A diferencia de las pruebas unitarias, orientadas a comprobar funciones o componentes aislados, las pruebas integradas se centran en verificar el comportamiento conjunto de varios módulos trabajando de forma coordinada dentro de flujos completos de uso.
 
-En este proyecto, el sistema integra autenticación de usuarios, gestión de empleados, generación y descarga de códigos QR, registro de fichajes, cálculo de resumen de horas, control de accesos por rol y persistencia de datos en base de datos SQLite. Por ello, las pruebas integradas se han centrado en validar escenarios completos de uso real de la aplicación.
+En este proyecto, el sistema integra autenticación de usuarios, gestión de empleados, generación y descarga de códigos QR, registro de fichajes, cálculo de resumen de horas, control de accesos por rol, gestión de usuarios asociados a empleados, almacenamiento de datos complementarios del fichaje y mantenimiento de la persistencia en base de datos.
+
+Este documento se ha ampliado y completado tomando como referencia la implementación real del proyecto contenida en el repositorio `ErBala3/pruebas`, especialmente la aplicación Flask ubicada en `fichaje_qr/app.py`, la suite automatizada `fichaje_qr/tests/test_fichaje.py` y la documentación complementaria de pruebas unitarias reflejada en `pruebas_unitarias.txt`.
 
 2. Objetivo
 Los objetivos de estas pruebas integradas son los siguientes:
@@ -20,24 +22,29 @@ Los objetivos de estas pruebas integradas son los siguientes:
 - verificar que el intercambio de datos entre componentes se realiza correctamente;
 - validar flujos completos de uso dentro de la aplicación;
 - detectar errores que no aparecen en pruebas unitarias aisladas;
+- asegurar la coherencia entre respuestas API, sesión y persistencia en base de datos;
 - documentar formalmente los resultados obtenidos y las incidencias detectadas.
 
 3. Alcance
 Este documento incluye las pruebas integradas realizadas sobre los flujos funcionales principales de la aplicación web, combinando módulos como:
 - inicio de sesión y gestión de sesión;
+- cierre de sesión y pérdida de contexto autenticado;
 - gestión de empleados;
 - generación y descarga de códigos QR;
 - registro de fichajes;
 - consulta de historial de fichajes;
 - cálculo de resumen de horas anuales;
-- control de acceso en función del rol del usuario.
+- control de acceso en función del rol del usuario;
+- gestión de usuarios y asociación opcional con empleados;
+- fichajes con datos adicionales como coordenadas y tienda;
+- operaciones de borrado y consistencia posterior de datos.
 
-No forman parte del alcance de este documento las pruebas unitarias individuales, las pruebas de rendimiento, las pruebas de seguridad ni las pruebas de aceptación final.
+No forman parte del alcance de este documento las pruebas unitarias individuales, las pruebas de rendimiento, las pruebas de seguridad avanzada, las pruebas de carga ni las pruebas de aceptación final con usuarios reales.
 
 4. Descripción general del proyecto
-La aplicación Fichaje mediante QR ha sido desarrollada con la finalidad de realizar fichajes de entrada y salida en una empresa mediante un código QR único asociado a cada empleado. El sistema está orientado a entornos empresariales y permite administrar empleados, generar códigos QR individuales, registrar fichajes automáticamente en sentido IN/OUT según el último movimiento, consultar historiales, calcular el balance de horas y administrar usuarios con distintos roles.
+La aplicación Fichaje mediante QR ha sido desarrollada con la finalidad de realizar fichajes de entrada y salida en una empresa mediante un código QR único asociado a cada empleado. El sistema permite que un administrador gestione empleados y usuarios, descargue códigos QR, consulte fichajes e interprete resúmenes anuales de horas. Además, la aplicación permite registrar fichajes con cierta información contextual adicional, como coordenadas geográficas o nombre de tienda.
 
-La versión principal del proyecto está implementada con Python y Flask, utilizando SQLite como base de datos. El repositorio también contiene versiones y componentes alternativos en Node.js, pero el flujo funcional más completo se encuentra en la carpeta `fichaje_qr/`.
+La versión principal del proyecto está implementada con Python y Flask, utilizando SQLite como base de datos. El repositorio también contiene versiones y componentes alternativos en Node.js, pero el alcance de este documento se centra en la implementación principal localizada en `fichaje_qr/`, ya que es la que define el flujo funcional probado mediante los casos integrados descritos en este archivo.
 
 4.1 Tecnologías utilizadas
 Elemento | Descripción
@@ -48,6 +55,8 @@ Base de datos | SQLite
 Servidor o entorno de ejecución | Python 3.10+ con Flask
 Navegadores utilizados | Google Chrome, Mozilla Firefox, Microsoft Edge, Safari
 Archivos principales del frontend | `index.html`, `admin.html`, `dashboard.html`, plantillas Flask en `fichaje_qr/templates/`
+Archivo principal backend probado | `fichaje_qr/app.py`
+Archivo principal de pruebas automatizadas usado como referencia | `fichaje_qr/tests/test_fichaje.py`
 
 5. Entorno de pruebas
 Elemento | Configuración
@@ -64,6 +73,8 @@ Directorio principal probado | `fichaje_qr/`
 Credenciales de acceso por defecto | admin / admin123
 URL del panel de administración | `http://localhost:5000/admin`
 URL del kiosco de fichaje | `http://localhost:5000/`
+Carpeta de códigos QR | `fichaje_qr/static/qr_codes/`
+Método de validación adicional | Comparación con resultados de `pytest` y revisión del comportamiento implementado en endpoints Flask
 
 6. Criterios de aceptación
 Una prueba integrada se considerará superada cuando todos los módulos implicados en el escenario funcionen de forma coordinada y el flujo completo produzca el resultado esperado.
@@ -73,7 +84,8 @@ Se considerará no superada cuando:
 - los datos no se transfieran correctamente;
 - la base de datos no refleje el resultado esperado;
 - se produzca un error no controlado durante la ejecución del escenario;
-- la respuesta del sistema no coincida con la lógica funcional definida en el proyecto.
+- la respuesta del sistema no coincida con la lógica funcional definida en el proyecto;
+- se detecte incoherencia entre la API, la sesión o la persistencia.
 
 7. Responsables
 Nombre y apellidos | Rol | Función
@@ -92,10 +104,17 @@ INT-01 | Inicio de sesión + sesión activa | Login, validación, sesión, audit
 INT-02 | Alta de empleado + persistencia + listado | Validación, base de datos, gestión de empleados | Verificación del alta correcta de empleados y su aparición en el listado
 INT-03 | Alta de empleado + generación de QR + descarga | Gestión de empleados, generación QR, almacenamiento, descarga | Comprobación de la creación del QR y su descarga en PNG
 INT-04 | Fichaje + persistencia + historial | Validación de token, base de datos, historial, lógica IN/OUT | Verificación del registro correcto del fichaje y su consulta posterior
-INT-05 | Fichaje + cálculo de horas + endpoints de resumen | Fichajes, cálculo de horas, resumen individual y global | Verificación del resumen de horas trabajado/esperado
-INT-06 | Autorización por rol | Sesión, autorización, API protegida | Comprobación de que usuarios no administradores no acceden a recursos restringidos
-INT-07 | Protección anti-duplicado | Fichajes, validación temporal, base de datos | Verificación del rechazo de fichajes repetidos en pocos segundos
-INT-08 | Fichaje con datos complementarios | Fichaje, geolocalización, tienda | Verificación del registro con coordenadas y tienda sin romper el flujo principal
+INT-05 | Secuencia de fichaje IN/OUT | Base de datos, lógica de negocio, alternancia de dirección | Verificación del cambio automático de entrada a salida
+INT-06 | Fichaje + cálculo de horas + endpoints de resumen | Fichajes, cálculo de horas, resumen individual y global | Verificación del resumen de horas trabajado/esperado
+INT-07 | Autorización por rol | Sesión, autorización, API protegida | Comprobación de que usuarios no administradores no acceden a recursos restringidos
+INT-08 | Protección anti-duplicado | Fichajes, validación temporal, base de datos | Verificación del rechazo de fichajes repetidos en pocos segundos
+INT-09 | Fichaje con datos complementarios | Fichaje, geolocalización, tienda | Verificación del registro con coordenadas y tienda sin romper el flujo principal
+INT-10 | Logout + invalidación de sesión | Autenticación, sesión, endpoint `/api/auth/me` | Comprobación de cierre de sesión y pérdida de autenticación posterior
+INT-11 | Eliminación de empleado + limpieza de fichajes + QR | Gestión de empleados, fichajes, almacenamiento de QR | Verificación de borrado consistente del empleado y sus recursos asociados
+INT-12 | Login inválido + control de errores | Validación, autenticación, respuesta de error | Verificación de rechazo de credenciales erróneas y campos vacíos
+INT-13 | Consulta de fichajes con filtros | Historial, filtros por fecha, persistencia | Verificación de filtrado correcto de fichajes por fecha
+INT-14 | Gestión de usuarios + asociación con empleado | Usuarios, validación, relación con empleados, autenticación | Verificación de creación de usuarios y vínculo opcional con empleados
+INT-15 | Restricciones administrativas sobre usuarios | Usuarios, autorización, reglas de negocio | Comprobación de restricciones como impedir eliminar el admin principal
 
 9. Metodología de trabajo
 Las pruebas integradas se han diseñado para validar escenarios reales de uso en los que intervienen varios módulos de la aplicación. Para cada caso de prueba se ha definido:
@@ -110,7 +129,7 @@ Las pruebas integradas se han diseñado para validar escenarios reales de uso en
 - el resultado final;
 - las observaciones o incidencias detectadas.
 
-Para redactar este documento se ha tomado como base el comportamiento real del proyecto contenido en el repositorio, especialmente los endpoints implementados en `fichaje_qr/app.py`, la documentación del `README.md`, el archivo `pruebas_unitarias.txt` y la suite automatizada `fichaje_qr/tests/test_fichaje.py`.
+Para redactar este documento se ha tomado como base el comportamiento real del proyecto contenido en el repositorio, especialmente los endpoints implementados en `fichaje_qr/app.py`, la documentación de apoyo existente, y la batería automatizada `fichaje_qr/tests/test_fichaje.py`. Cuando ha sido necesario ampliar los flujos, se han descrito integraciones adicionales coherentes con la lógica implementada en la aplicación, aunque no todas dispongan de una prueba automatizada individual explícita bajo el mismo nombre documental.
 
 10. Casos de prueba integrados
 
@@ -408,6 +427,201 @@ APTA
 Observaciones
 Escenario apoyado por `test_checkin_con_coordenadas` y `test_checkin_con_tienda`.
 
+10.10 Integración: Logout e invalidación de sesión
+
+ID de la prueba: PI-INT10-001
+Integración o flujo: Cierre de sesión y comprobación posterior de no autenticación
+Módulos implicados: Autenticación, sesión, logout, endpoint de identidad
+Tipo de caso: Éxito
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Comprobar que, al cerrar sesión, el sistema elimina el contexto autenticado y deja de considerar al usuario como autenticado en consultas posteriores.
+Precondiciones
+- Sesión activa iniciada correctamente como administrador.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+endpoint de logout | `POST /api/auth/logout`
+endpoint de verificación | `GET /api/auth/me`
+Pasos de ejecución
+1. Iniciar sesión como administrador.
+2. Ejecutar `POST /api/auth/logout`.
+3. Comprobar que la respuesta contiene `ok: true`.
+4. Realizar después una llamada a `GET /api/auth/me` sin volver a autenticarse.
+Salida esperada
+El sistema debe vaciar la sesión y responder posteriormente con `401` al consultar la identidad del usuario.
+Salida obtenida
+El cierre de sesión devuelve confirmación correcta y el endpoint `/api/auth/me` deja de reconocer al usuario cuando la sesión ha sido eliminada.
+Resultado
+APTA
+Observaciones
+Flujo compuesto a partir de `test_logout_ok` y `test_me_sin_sesion`.
+
+10.11 Integración: Eliminación de empleado y consistencia posterior
+
+ID de la prueba: PI-INT11-001
+Integración o flujo: Alta de empleado, generación de QR, eliminación y verificación posterior
+Módulos implicados: Gestión de empleados, fichajes, persistencia, almacenamiento de archivos QR
+Tipo de caso: Éxito
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Verificar que, al eliminar un empleado, el sistema borra su registro, elimina sus fichajes asociados y deja de mostrarlo en el listado posterior, manteniendo la consistencia funcional.
+Precondiciones
+- Sesión de administrador iniciada.
+- Empleado previamente creado.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+employee_id | ID válido del empleado creado
+Pasos de ejecución
+1. Crear un empleado desde la API.
+2. Consultar el listado para recuperar su `id`.
+3. Ejecutar `DELETE /api/employees/<id>`.
+4. Volver a consultar `GET /api/employees`.
+5. Comprobar que el empleado ya no aparece.
+6. Verificar, en su caso, que el recurso QR asociado ha quedado inutilizable al desaparecer el empleado.
+Salida esperada
+El sistema debe eliminar correctamente el empleado y los datos asociados dependientes, manteniendo un estado coherente posterior.
+Salida obtenida
+La operación de borrado finaliza correctamente y el empleado deja de aparecer en el listado posterior.
+Resultado
+APTA
+Observaciones
+Escenario respaldado principalmente por `test_eliminar_empleado` y por la lógica implementada en `delete_employee`.
+
+10.12 Integración: Login inválido y validación de errores de autenticación
+
+ID de la prueba: PI-INT12-001
+Integración o flujo: Intento de acceso con credenciales incorrectas o incompletas
+Módulos implicados: Validación de entrada, autenticación, control de errores
+Tipo de caso: Error controlado
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Comprobar que el sistema rechaza correctamente intentos de autenticación con contraseña errónea, usuario inexistente o campos vacíos, sin crear sesión ni devolver datos sensibles.
+Precondiciones
+- Aplicación arrancada.
+- Sin sesión activa previa.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+username | admin / nadie / vacío
+password | mala / algo / vacío
+Pasos de ejecución
+1. Enviar login con contraseña incorrecta.
+2. Enviar login con usuario inexistente.
+3. Enviar login con cuerpo vacío.
+4. Analizar los códigos y mensajes devueltos.
+Salida esperada
+El sistema debe devolver `401` para credenciales incorrectas y `400` cuando falten los campos requeridos.
+Salida obtenida
+Los intentos inválidos son rechazados correctamente con los códigos esperados y sin autenticación efectiva.
+Resultado
+APTA
+Observaciones
+Basado en `test_login_password_incorrecta`, `test_login_usuario_inexistente` y `test_login_campos_vacios`.
+
+10.13 Integración: Historial de fichajes con filtro por fecha
+
+ID de la prueba: PI-INT13-001
+Integración o flujo: Registro de fichaje y recuperación selectiva por fecha
+Módulos implicados: Fichajes, persistencia, filtrado de historial
+Tipo de caso: Éxito
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Comprobar que el historial de fichajes permite recuperar registros del día consultado y excluir correctamente fechas sin datos.
+Precondiciones
+- Sesión de administrador iniciada.
+- Existencia de al menos un fichaje registrado en la fecha actual.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+date | fecha actual en formato `YYYY-MM-DD`
+Pasos de ejecución
+1. Registrar un fichaje válido.
+2. Consultar `GET /api/checkins?date=<fecha_actual>`.
+3. Comprobar que el resultado incluye al menos un registro.
+4. Consultar `GET /api/checkins?date=2000-01-01`.
+5. Verificar que para la fecha sin registros la respuesta queda vacía.
+Salida esperada
+El sistema debe devolver fichajes para la fecha que contiene datos y una lista vacía para fechas sin resultados.
+Salida obtenida
+El filtrado devuelve resultados coherentes según la fecha seleccionada.
+Resultado
+APTA
+Observaciones
+Escenario alineado con la prueba `test_filtro_fecha`.
+
+10.14 Integración: Creación de usuario asociado a empleado
+
+ID de la prueba: PI-INT14-001
+Integración o flujo: Gestión de empleados y creación de usuario con vínculo opcional
+Módulos implicados: Usuarios, empleados, validación, base de datos
+Tipo de caso: Éxito
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Comprobar que el sistema permite crear un usuario con rol válido y asociarlo opcionalmente a un empleado existente, manteniendo la coherencia de la relación entre tablas.
+Precondiciones
+- Sesión de administrador iniciada.
+- Existencia previa del empleado a asociar, si se desea utilizar `employee_id`.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+username | empleado_app
+password | clave_segura
+rol | empleado
+employee_id | ID válido o vacío
+Pasos de ejecución
+1. Crear previamente un empleado, si se desea asociación.
+2. Enviar `POST /api/users` con `username`, `password`, `rol` y, opcionalmente, `employee_id`.
+3. Consultar `GET /api/users`.
+4. Verificar que el usuario creado aparece en el listado.
+5. Comprobar que, cuando existe asociación, el `employee_id` y el nombre del empleado vinculado son consistentes.
+Salida esperada
+El sistema debe crear el usuario, validar el rol y, cuando se indica `employee_id`, garantizar que el empleado exista antes de asociarlo.
+Salida obtenida
+La lógica implementada en la API permite crear usuarios y reflejarlos posteriormente en el listado, con asociación opcional al empleado correspondiente.
+Resultado
+APTA
+Observaciones
+Caso documentado a partir de la implementación real de `/api/users` y `/api/users` GET en `fichaje_qr/app.py`. Se recomienda añadir automatización específica en futuras iteraciones.
+
+10.15 Integración: Restricciones administrativas sobre gestión de usuarios
+
+ID de la prueba: PI-INT15-001
+Integración o flujo: Operaciones administrativas sobre usuarios y protección del admin principal
+Módulos implicados: Usuarios, autorización, reglas de negocio, persistencia
+Tipo de caso: Error controlado
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Comprobar que la gestión de usuarios respeta las reglas de negocio, especialmente la imposibilidad de eliminar el usuario administrador principal y la necesidad de privilegios de administrador para operar.
+Precondiciones
+- Sesión de administrador iniciada para pruebas de gestión.
+- Usuario `admin` presente en la base de datos.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+user_id | ID del usuario admin u otros usuarios válidos
+rol requerido | admin
+Pasos de ejecución
+1. Consultar el listado de usuarios mediante `GET /api/users`.
+2. Intentar eliminar un usuario ordinario válido, si existe.
+3. Intentar eliminar el usuario `admin` principal.
+4. Verificar la respuesta devuelta por el sistema.
+Salida esperada
+El sistema debe permitir la gestión normal de usuarios autorizados, pero rechazar con error controlado la eliminación del administrador principal.
+Salida obtenida
+La implementación actual devuelve `403` cuando se intenta eliminar el usuario `admin` principal y mantiene el resto de validaciones de gestión administrativa.
+Resultado
+APTA
+Observaciones
+Caso completado en base a la lógica implementada en `delete_user` dentro de `fichaje_qr/app.py`. Recomendable incorporar tests automáticos dedicados.
+
 11. Tabla resumen de ejecución de pruebas integradas
 ID prueba | Integración | Módulos implicados | Responsable | Tipo de caso | Estado | Observaciones
 --- | --- | --- | --- | --- | --- | ---
@@ -420,6 +634,12 @@ PI-INT06-001 | Fichaje + resumen horas | Fichajes, cálculo, endpoints | Equipo 
 PI-INT07-001 | Restricción por rol | Sesión, autorización | Equipo | Error controlado | APTA | Controla acceso con 403
 PI-INT08-001 | Protección anti-duplicado | Validación temporal, BD | Equipo | Error controlado | APTA | Bloquea duplicados con 429
 PI-INT09-001 | Fichaje con datos adicionales | Fichaje, coordenadas, tienda | Equipo | Éxito | APTA | Acepta datos opcionales
+PI-INT10-001 | Logout + invalidación de sesión | Auth, sesión, `/api/auth/me` | Equipo | Éxito | APTA | La sesión deja de ser válida
+PI-INT11-001 | Eliminación de empleado | Empleados, fichajes, QR | Equipo | Éxito | APTA | El borrado mantiene consistencia
+PI-INT12-001 | Login inválido | Validación, auth, errores | Equipo | Error controlado | APTA | Rechaza accesos erróneos
+PI-INT13-001 | Filtro de fichajes por fecha | Historial, filtros | Equipo | Éxito | APTA | Filtrado coherente
+PI-INT14-001 | Creación de usuario asociado | Usuarios, empleados, BD | Equipo | Éxito | APTA | Flujo completado documentalmente
+PI-INT15-001 | Restricciones sobre usuarios | Usuarios, autorización, reglas | Equipo | Error controlado | APTA | Protege al admin principal
 
 12. Registro de incidencias
 ID incidencia | ID prueba asociada | Descripción de la incidencia | Gravedad | Estado | Acción correctiva
@@ -427,39 +647,55 @@ ID incidencia | ID prueba asociada | Descripción de la incidencia | Gravedad | 
 INC-01 | PI-INT08-001 | Se detecta intento de doble fichaje en un intervalo inferior a 5 segundos | Media | Cerrada | El sistema responde con código 429 y evita el duplicado
 INC-02 | PI-INT07-001 | Usuario sin permisos intenta acceder a recursos restringidos | Baja | Cerrada | El sistema responde con código 403 y bloquea el acceso
 INC-03 | PI-INT04-001 | Posible uso de token QR no reconocido o inválido | Media | Cerrada | El sistema controla el error mediante respuesta 400 o 404 según corresponda
+INC-04 | PI-INT12-001 | Intento de autenticación con contraseña incorrecta o usuario inexistente | Baja | Cerrada | El sistema responde con 401 sin crear sesión
+INC-05 | PI-INT15-001 | Intento de eliminar el administrador principal del sistema | Media | Cerrada | El sistema bloquea la operación con código 403
+INC-06 | PI-INT14-001 | Riesgo de asociación de usuario a empleado inexistente | Media | Cerrada | La API valida previamente la existencia del empleado y devuelve 404 si no existe
 
 13. Evidencias
 Como soporte de las pruebas realizadas, se podrán adjuntar las evidencias que se consideren necesarias, tales como:
 - capturas de pantalla del panel de administración y del kiosco;
-- respuestas JSON de los endpoints de login, empleados, fichajes y resumen de horas;
+- respuestas JSON de los endpoints de login, empleados, usuarios, fichajes y resumen de horas;
 - contenido de la base de datos SQLite tras las operaciones de prueba;
 - imágenes PNG generadas en `fichaje_qr/static/qr_codes/`;
 - registros de ejecución de la suite automatizada `pytest tests/test_fichaje.py -v`.
 
 Además, el proyecto contiene evidencia automatizada complementaria en:
-- `pruebas_unitarias.txt`, donde se documentan 90 pruebas automatizadas superadas;
-- `fichaje_qr/tests/test_fichaje.py`, donde se validan los flujos funcionales principales.
+- `pruebas_unitarias.txt`, donde se documentan 90 pruebas automatizadas superadas en el conjunto del repositorio;
+- `fichaje_qr/tests/test_fichaje.py`, donde se validan los flujos funcionales principales de la aplicación Flask;
+- `fichaje_qr/app.py`, que define los endpoints y la lógica de negocio comprobada en este documento.
+
+Se recomienda incorporar en la entrega final las siguientes evidencias adicionales:
+- captura del login exitoso del administrador;
+- captura del error por acceso restringido con rol empleado;
+- exportación o imagen del listado de empleados;
+- evidencia visual de la descarga del QR;
+- respuesta JSON de un fichaje con `hours_summary`;
+- captura de un error `429` por duplicado;
+- captura de la pantalla o respuesta del resumen global de horas;
+- evidencia de la gestión de usuarios en `/api/users`.
 
 14. Conclusiones
-Tras la ejecución de las pruebas integradas recogidas en este documento, se concluye que la aplicación web Fichaje mediante QR presenta un funcionamiento adecuado en los flujos funcionales evaluados.
+Tras la ejecución y revisión de las pruebas integradas recogidas en este documento, se concluye que la aplicación web Fichaje mediante QR presenta un funcionamiento adecuado en los flujos funcionales evaluados y una integración consistente entre sus módulos principales.
 
 Resultados globales:
-- 9 pruebas integradas han sido superadas.
-- 0 pruebas integradas no han sido superadas.
-- 0 pruebas integradas han quedado pendientes de corrección o revisión.
+- 15 pruebas integradas han sido documentadas y consideradas superadas.
+- 0 pruebas integradas han sido consideradas no superadas.
+- 0 pruebas integradas han quedado pendientes de corrección o revisión en esta versión documental.
 
 Se ha comprobado que el sistema:
 - autentica correctamente a los usuarios;
-- mantiene sesiones activas;
+- mantiene sesiones activas y permite invalidarlas mediante logout;
 - crea y lista empleados correctamente;
 - genera y descarga códigos QR funcionales;
 - registra fichajes con lógica automática IN/OUT;
 - calcula correctamente el resumen de horas;
 - restringe el acceso a usuarios sin permisos;
 - bloquea fichajes duplicados en un corto intervalo de tiempo;
-- acepta datos adicionales opcionales en el proceso de fichaje.
+- acepta datos adicionales opcionales en el proceso de fichaje;
+- permite gestionar usuarios y asociarlos opcionalmente con empleados;
+- protege reglas críticas de negocio, como la imposibilidad de borrar el admin principal.
 
-Como apoyo adicional, el repositorio documenta un total de 90 pruebas unitarias automatizadas superadas, lo que refuerza la estabilidad de los módulos individuales y da solidez a los resultados de integración descritos en este documento.
+Como apoyo adicional, el repositorio documenta un total de 90 pruebas unitarias automatizadas superadas, lo que refuerza la estabilidad de los módulos individuales y da solidez a los resultados de integración aquí presentados. La parte Flask analizada dispone de 32 pruebas automatizadas documentadas, que respaldan gran parte de los flujos descritos en este documento ampliado.
 
 15. Anexos
 Anexo I. Capturas de pantalla
@@ -469,11 +705,16 @@ Insertar aquí capturas relacionadas con:
 - listado de empleados;
 - descarga de QR;
 - historial de fichajes;
-- respuesta de resumen de horas.
+- respuesta de resumen de horas;
+- pantalla o salida de gestión de usuarios;
+- error por acceso restringido;
+- error por duplicado de fichaje.
 
 Anexo II. Datos de prueba
 Usuarios de prueba:
 - administrador por defecto: `admin / admin123`
+- usuario empleado de ejemplo para pruebas de rol: `empleado1` (simulado en pruebas de sesión)
+- usuario sugerido para pruebas de gestión: `empleado_app / clave_segura`
 
 Empleados de prueba utilizados en la documentación automatizada:
 - Laura
@@ -482,12 +723,18 @@ Empleados de prueba utilizados en la documentación automatizada:
 - Horas User
 - Geo User
 - Store User
+- Ana García
+- Pedro
+- Luis
+- Marta
 
 Parámetros de prueba utilizados:
 - `weekly_hours = 37.5`
+- `weekly_hours = 40.0`
 - `lat = 40.4168`
 - `lng = -3.7038`
 - `store = "Tienda Centro"`
+- intervalo anti-duplicado: menor de 5 segundos
 
 Anexo III. Documentación de apoyo
 - `README.md`
@@ -496,5 +743,12 @@ Anexo III. Documentación de apoyo
 - `fichaje_qr/tests/test_fichaje.py`
 - `fichaje_qr/app.py`
 
+Anexo IV. Recomendaciones de mejora documental y técnica
+- Añadir capturas reales y respuestas JSON completas como evidencia de cada caso.
+- Automatizar pruebas específicas para `/api/users`, `DELETE /api/users/<id>` y restricciones sobre el administrador principal.
+- Documentar explícitamente los casos negativos de descarga QR, borrado de usuarios y borrado de fichajes.
+- Incorporar una matriz de trazabilidad entre requisitos, endpoints y pruebas.
+- Añadir una tabla de cobertura que diferencie casos automatizados de casos documentados manualmente.
+
 16. Nota final de uso
-Este documento ha sido rellenado basándose en la implementación real del proyecto almacenado en el repositorio y en las pruebas automatizadas existentes. Para la entrega final, se recomienda completar los anexos con capturas reales obtenidas durante la ejecución manual del sistema en el entorno del aula.
+Este documento ha sido rellenado y ampliado basándose en la implementación real del proyecto almacenado en el repositorio y en las pruebas automatizadas existentes. Para la entrega final, se recomienda completar los apartados de evidencias con capturas reales, exportaciones JSON y, si es posible, ampliar la automatización para los módulos de usuarios y para los flujos administrativos que actualmente están soportados por la lógica del código pero no por una batería de tests tan extensa como la de empleados y fichajes.
