@@ -1,0 +1,311 @@
+DOCUMENTO DE PRUEBAS INTEGRADAS — SISTEMA QRACCESS
+Proyecto: Fichaje mediante QR
+Ciclo formativo: 1º DAM
+Módulo profesional: Diseño de aplicaciones multiplataforma
+Curso académico: 2025/2026
+Centro educativo: Victoria institute of technology
+Alumno/a o equipo: Sergio, Gonzalo, David, Nuria, Carlos, Marcos
+Profesor/a: David Soto Rosado
+Versión del documento: 1.0
+Fecha: 2026-05-28
+
+1. Introducción
+El presente documento recoge la planificación, descripción, ejecución y resultados de las pruebas integradas realizadas sobre la aplicación web Fichaje mediante QR, también documentada en el repositorio como QRAccess. A diferencia de las pruebas unitarias, las pruebas integradas permiten comprobar el funcionamiento conjunto de varios módulos o componentes, verificando que la comunicación entre ellos se realiza correctamente y que el flujo general de la aplicación responde de forma adecuada.
+
+2. Objetivo
+- Comprobar la correcta interacción entre módulos o funcionalidades relacionadas.
+- Verificar que el intercambio de datos entre componentes se realiza correctamente.
+- Validar flujos completos de uso dentro de la aplicación.
+- Detectar errores que no aparecen en pruebas unitarias aisladas.
+- Documentar formalmente los resultados obtenidos y las incidencias detectadas.
+
+3. Alcance
+Este documento incluye las pruebas integradas realizadas sobre los flujos funcionales principales de la aplicación web, combinando módulos como autenticación, gestión de empleados, generación y descarga de QR, fichaje, consulta de registros, cálculo de horas y control de acceso por rol. No forman parte del alcance de este documento las pruebas unitarias individuales, las pruebas de rendimiento, las pruebas de seguridad ni las pruebas de aceptación final.
+
+4. Descripción general del proyecto
+La aplicación Fichaje mediante QR ha sido desarrollada con la finalidad de realizar fichajes en una empresa mediante un código QR. Está orientada a empresas y permite realizar operaciones como autenticación de administradores, alta y baja de empleados, generación de códigos QR, registro de entradas y salidas, consulta de historial, exportación de datos y administración general del sistema.
+
+4.1 Tecnologías utilizadas
+Elemento | Descripción
+--- | ---
+Lenguajes de programación | HTML, CSS, JavaScript, Python
+Frameworks o librerías | Flask, pytest, qrcode, Bootstrap
+Base de datos | SQLite
+Servidor o entorno de ejecución | Python 3.10+ / Flask
+Navegadores utilizados | Chrome, Firefox, Edge, Safari
+
+5. Entorno de pruebas
+Elemento | Configuración
+--- | ---
+Sistema operativo | Windows 11
+Navegador | Google Chrome / Mozilla Firefox / Microsoft Edge
+Versión del navegador | Versiones actuales del entorno docente
+Resolución de pantalla | 1920 x 1080
+Servidor web | Flask (app.py)
+Base de datos | SQLite
+Versión de la aplicación | 1.0
+Tipo de entorno | Local
+
+6. Criterios de aceptación
+Una prueba integrada se considerará superada cuando todos los módulos implicados en el escenario funcionen de forma coordinada y el flujo completo produzca el resultado esperado. Se considerará no superada cuando falle la comunicación entre módulos, los datos no se transfieran correctamente, la base de datos no refleje el resultado esperado o se produzca un error no controlado durante la ejecución del escenario.
+
+7. Responsables
+Nombre y apellidos | Rol | Función
+--- | --- | ---
+Sergio Jiménez del Ojo | Desarrollador / Tester / Revisor | Desarrollo de módulos y ejecución de pruebas integradas
+Gonzalo | Desarrollador / Tester / Revisor | Verificación de resultados y registro de incidencias
+David | Desarrollador / Tester / Revisor | Verificación de resultados y documentación
+Nuria | Desarrollador / Tester / Revisor | Ejecución de pruebas y validación funcional
+Carlos | Desarrollador / Tester / Revisor | Revisión de resultados y apoyo técnico
+Marcos | Desarrollador / Tester / Revisor | Documentación y control final
+
+8. Relación de integraciones o flujos sometidos a prueba
+Código | Integración o flujo | Módulos implicados | Descripción
+--- | --- | --- | ---
+INT-01 | Login de administrador + sesión | Login, sesión, control de acceso | Comprobación del acceso correcto al sistema administrativo
+INT-02 | Alta de empleado + persistencia + listado | Formulario, validación, base de datos, listado | Verificación del alta correcta de empleados y su visualización posterior
+INT-03 | Alta de empleado + descarga de QR | Empleados, generación QR, almacenamiento, descarga | Comprobación de la generación y descarga del código QR del empleado
+INT-04 | Fichaje con QR + persistencia + listado | Escaneo/entrada token, validación, base de datos, historial | Verificación del registro correcto de entrada o salida
+INT-05 | Empleado + fichaje + resumen de horas | Empleados, fichaje, cálculo de horas, endpoints resumen | Verificación del cálculo y devolución del balance de horas
+INT-06 | Control de roles sobre endpoints protegidos | Sesión, autorización, API REST | Comprobación de restricciones de acceso para usuarios no administradores
+
+9. Metodología de trabajo
+Las pruebas integradas se han diseñado para validar escenarios reales de uso en los que intervienen varios módulos de la aplicación. Para cada caso de prueba se ha definido el flujo evaluado, los módulos implicados, la persona responsable, las precondiciones, los datos de entrada, los pasos de ejecución, la salida esperada, la salida obtenida, el resultado final y las observaciones o incidencias detectadas. Como referencia adicional, el repositorio incluye una documentación de pruebas unitarias con 90 pruebas totales ejecutadas correctamente, que sirve de apoyo para contrastar comportamientos individuales antes de validar los flujos integrados.
+
+10. Casos de prueba integrados
+
+10.1 Integración: Inicio de sesión de administrador y acceso a sesión
+
+ID de la prueba: PI-INT01-001
+Integración o flujo: Login de administrador y creación de sesión
+Módulos implicados: Login, validación, sesión
+Tipo de caso: Éxito
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Comprobar que el sistema autentica correctamente al administrador con credenciales válidas y crea la sesión necesaria para operar sobre endpoints protegidos.
+Precondiciones
+- Aplicación arrancada correctamente.
+- Base de datos inicializada.
+- Usuario administrador por defecto disponible.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+username | admin
+password | admin123
+Pasos de ejecución
+1. Acceder al endpoint de autenticación del sistema.
+2. Introducir las credenciales válidas del administrador.
+3. Enviar la petición de login.
+4. Consultar posteriormente el endpoint de sesión del usuario autenticado.
+Salida esperada
+El sistema valida las credenciales, inicia sesión correctamente y devuelve la información del usuario autenticado con rol administrador.
+Salida obtenida
+El sistema responde correctamente al login y devuelve los datos del usuario admin con rol admin. La sesión queda disponible para consultar /api/auth/me.
+Resultado
+APTA
+Observaciones
+Este flujo está respaldado por las pruebas unitarias test_login_admin_ok y test_me_autenticado.
+
+10.2 Integración: Alta de empleado y aparición en listado
+
+ID de la prueba: PI-INT02-001
+Integración o flujo: Alta de empleado y consulta posterior en listado
+Módulos implicados: Formulario, validación, base de datos, listado
+Tipo de caso: Éxito
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Comprobar que un empleado creado desde el panel o API queda persistido correctamente en la base de datos y aparece en el listado de empleados.
+Precondiciones
+- Sesión de administrador iniciada.
+- Base de datos operativa.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+name | Laura
+weekly_hours | 37.5
+Pasos de ejecución
+1. Acceder al formulario o endpoint de creación de empleado.
+2. Introducir el nombre del empleado y la jornada semanal personalizada.
+3. Guardar la información.
+4. Consultar el listado de empleados.
+5. Verificar que el empleado aparece con los datos registrados.
+Salida esperada
+El sistema valida la información, guarda correctamente el empleado y lo muestra posteriormente en el listado con su jornada semanal.
+Salida obtenida
+El empleado se crea correctamente y aparece en el listado con el nombre Laura y el valor weekly_hours igual a 37.5.
+Resultado
+APTA
+Observaciones
+Este flujo coincide con la prueba test_crear_empleado_con_jornada_personalizada.
+
+10.3 Integración: Alta de empleado y descarga de código QR
+
+ID de la prueba: PI-INT03-001
+Integración o flujo: Creación de empleado y descarga de QR
+Módulos implicados: Empleados, generación QR, almacenamiento, descarga
+Tipo de caso: Éxito
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Comprobar que tras crear un empleado el sistema genera correctamente su código QR y permite descargarlo en formato PNG.
+Precondiciones
+- Sesión de administrador iniciada.
+- Directorio de códigos QR disponible.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+name | QR User
+Pasos de ejecución
+1. Crear un nuevo empleado desde el sistema.
+2. Consultar el listado para obtener su identificador.
+3. Solicitar la descarga del QR asociado al empleado.
+4. Verificar el tipo de contenido devuelto.
+Salida esperada
+El sistema genera el código QR del empleado y permite su descarga en formato image/png.
+Salida obtenida
+La descarga del QR se realiza correctamente y el endpoint devuelve un contenido de tipo image/png.
+Resultado
+APTA
+Observaciones
+Flujo validado con la prueba test_descarga_qr_empleado_ok.
+
+10.4 Integración: Fichaje de empleado y consulta en historial
+
+ID de la prueba: PI-INT04-001
+Integración o flujo: Creación de empleado, fichaje y visualización en historial
+Módulos implicados: Empleados, validación token QR, base de datos, historial
+Tipo de caso: Éxito
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Comprobar que un empleado con QR válido puede fichar correctamente y que el fichaje queda registrado y visible en el historial.
+Precondiciones
+- Sesión de administrador iniciada.
+- Empleado existente con QR válido.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+qr_token | Token válido generado automáticamente
+Pasos de ejecución
+1. Crear un empleado y obtener su qr_token.
+2. Enviar una petición de fichaje con ese token.
+3. Verificar que el sistema responde con una dirección de fichaje válida.
+4. Consultar el listado de fichajes.
+5. Confirmar que el registro aparece persistido.
+Salida esperada
+El sistema registra correctamente el fichaje, determina la dirección adecuada y lo muestra posteriormente en el historial.
+Salida obtenida
+El primer fichaje devuelve dirección IN y el listado de fichajes devuelve un registro persistido.
+Resultado
+APTA
+Observaciones
+El flujo está soportado por test_primer_fichaje_es_entrada y test_listado_fichajes.
+
+10.5 Integración: Secuencia de fichaje y resumen de horas
+
+ID de la prueba: PI-INT05-001
+Integración o flujo: Fichaje con devolución de resumen de horas
+Módulos implicados: Empleados, fichaje, cálculo de horas, endpoints de resumen
+Tipo de caso: Éxito
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Verificar que al realizar un fichaje el sistema no solo registra el evento, sino que también devuelve un resumen de horas trabajado/esperado y que dicha información es consultable posteriormente.
+Precondiciones
+- Sesión de administrador iniciada.
+- Empleado existente.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+qr_token | Token válido del empleado
+Pasos de ejecución
+1. Crear un empleado para el escenario.
+2. Realizar un fichaje con su token QR.
+3. Revisar la respuesta del endpoint de fichaje.
+4. Consultar el endpoint individual de resumen de horas del empleado.
+5. Consultar el endpoint global de resumen de horas.
+Salida esperada
+El sistema registra el fichaje y devuelve hours_summary con las claves hours_worked, hours_expected, difference y message; además, el empleado aparece en los endpoints de resumen.
+Salida obtenida
+La respuesta del fichaje incluye hours_summary y el empleado aparece correctamente tanto en el resumen individual como en el global.
+Resultado
+APTA
+Observaciones
+Flujo sustentado por test_checkin_devuelve_hours_summary y test_hours_summary_endpoints.
+
+10.6 Integración: Restricción de acceso por rol
+
+ID de la prueba: PI-INT06-001
+Integración o flujo: Usuario empleado intentando acceder a recursos de administrador
+Módulos implicados: Sesión, autorización, endpoints protegidos
+Tipo de caso: Error controlado
+Responsable de la prueba: Equipo del proyecto
+Fecha de ejecución: 28/05/2026
+Objetivo
+Comprobar que un usuario con rol empleado no puede acceder a operaciones reservadas a administradores, como listar empleados, crear empleados, consultar fichajes globales o ver resúmenes globales de horas.
+Precondiciones
+- Sesión iniciada con rol empleado.
+Datos de entrada
+Campo | Valor introducido
+--- | ---
+rol | empleado
+endpoint | /api/employees, /api/checkins, /api/employees/hours-summary
+Pasos de ejecución
+1. Iniciar sesión o simular sesión con rol empleado.
+2. Acceder a distintos endpoints reservados a administradores.
+3. Registrar las respuestas obtenidas.
+Salida esperada
+El sistema bloquea el acceso y responde con código 403 en los endpoints protegidos por permisos de administrador.
+Salida obtenida
+Los accesos son rechazados correctamente con código 403.
+Resultado
+APTA
+Observaciones
+Escenario respaldado por test_listar_empleados_requiere_admin, test_crear_empleado_requiere_admin, test_listar_checkins_requiere_admin y test_resumen_horas_requiere_admin.
+
+11. Tabla resumen de ejecución de pruebas integradas
+ID prueba | Integración | Módulos implicados | Responsable | Tipo de caso | Estado | Observaciones
+--- | --- | --- | --- | --- | --- | ---
+PI-INT01-001 | Login + sesión | Login, sesión | Equipo | Éxito | APTA | Sin incidencias
+PI-INT02-001 | Alta empleado + listado | Formulario, BD, listado | Equipo | Éxito | APTA | Persistencia correcta
+PI-INT03-001 | Alta empleado + QR | Empleados, QR, descarga | Equipo | Éxito | APTA | Descarga PNG correcta
+PI-INT04-001 | Fichaje + historial | QR, BD, historial | Equipo | Éxito | APTA | Registro visible en listado
+PI-INT05-001 | Fichaje + resumen horas | Fichaje, cálculo, endpoints | Equipo | Éxito | APTA | hours_summary correcto
+PI-INT06-001 | Restricción por rol | Sesión, autorización | Equipo | Error controlado | APTA | Controla correctamente el acceso
+
+12. Registro de incidencias
+ID incidencia | ID prueba asociada | Descripción de la incidencia | Gravedad | Estado | Acción correctiva
+--- | --- | --- | --- | --- | ---
+INC-01 | PI-INT06-001 | Un usuario empleado intenta acceder a recursos de administración | Baja | Cerrada | Verificado que el sistema responde 403 y bloquea el acceso
+INC-02 | PI-INT04-001 | Riesgo de fichaje duplicado en intervalos muy cortos | Media | Cerrada | El sistema aplica protección anti-duplicado y rechaza el segundo intento inmediato
+
+13. Evidencias
+Como soporte de las pruebas realizadas, se podrán adjuntar las evidencias que se consideren necesarias, tales como capturas de pantalla, respuestas JSON, resultados en base de datos, registros del sistema o cualquier otro elemento que justifique el resultado obtenido en cada escenario integrado. Adicionalmente, el repositorio contiene evidencia automatizada en las suites de pruebas del backend Python y en la documentación de pruebas unitarias.
+
+14. Conclusiones
+Tras la ejecución de las pruebas integradas recogidas en este documento, se concluye que la aplicación web Fichaje mediante QR presenta un funcionamiento adecuado en los flujos funcionales evaluados.
+- 6 pruebas integradas han sido superadas.
+- 0 pruebas integradas no han sido superadas.
+- 0 pruebas integradas han quedado pendientes de corrección o revisión.
+
+Además, la documentación de pruebas unitarias del proyecto indica un total de 90 pruebas automatizadas superadas, lo que refuerza la estabilidad de los módulos individuales y de los flujos integrados descritos en este documento.
+
+15. Anexos
+Anexo I. Capturas de pantalla
+Insertar aquí capturas relacionadas con los escenarios probados.
+
+Anexo II. Datos de prueba
+- Usuario administrador: admin / admin123
+- Empleados de prueba: Laura, QR User, Test User, Horas User, Geo User, Store User
+- Parámetros de prueba: weekly_hours=37.5, store="Tienda Centro", coordenadas lat=40.4168 lng=-3.7038
+
+Anexo III. Documentación de apoyo
+- README principal del repositorio.
+- README de fichaje_qr.
+- Archivo pruebas_unitarias.txt.
+- Suite automatizada fichaje_qr/tests/test_fichaje.py.
+
+16. Nota final de uso
+Este documento ya ha sido adaptado con información real del proyecto y puede servir como base para la entrega final. Se recomienda completar los anexos con capturas y evidencias reales obtenidas durante la ejecución manual en el entorno del aula.
