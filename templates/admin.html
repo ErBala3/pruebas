@@ -1954,15 +1954,15 @@ async function openUserModal(title, data) {
   }
   fRolEl.value = data.rol || 'empleado';
 
-  // Mostrar horario especial y departamentos solo para empleados
-  function actualizarHorarioEsp() {
+  // Mostrar horario especial y Departamentos solo para empleados
+  function actualizarCamposRol() {
     var rolVal = document.getElementById('fRol').value;
     var soloEmpleado = rolVal === 'empleado';
     document.getElementById('horarioEspField').style.display = soloEmpleado ? 'block' : 'none';
     document.getElementById('deptField').style.display = soloEmpleado ? 'block' : 'none';
   }
-  fRolEl.onchange = actualizarHorarioEsp;
-  actualizarHorarioEsp();
+  fRolEl.onchange = actualizarCamposRol;
+  actualizarCamposRol();
 
   // Rellenar horario especial si existe
   document.getElementById('fHorEspEntrada').value = data.horarioEsp && data.horarioEsp.entrada  ? data.horarioEsp.entrada  : '';
