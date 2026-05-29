@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QRAccess – Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0d0d0d; --surface: #161616; --surface2: #1e1e1e; --border: #2a2a2a;
+  --border2: #333333; --accent: #e2e2e2; --text: #f0f0f0;
+  --text-secondary: #a0a0a0; --muted: #666666;
+  --danger: #c0392b; --success: #2d7a4f; --warn: #8a6800;
+}
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg); color: var(--text);
+  min-height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden;
+}
+.card {
+  position: relative; width: 380px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 10px; padding: 44px 40px 40px;
+  box-shadow: 0 1px 4px rgba(0,0,0,.6);
+  animation: fadeUp .5s ease both;
+}
+@keyframes fadeUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+.logo { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 6px; }
+.logo span { color: var(--accent); }
+.subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 36px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 7px; }
+.field input {
+  width: 100%; padding: 12px 16px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 14px; outline: none;
+  transition: border-color .2s, box-shadow .2s;
+}
+.field input:focus { border-color: #555; box-shadow: 0 0 0 2px rgba(226,226,226,.08); }
+.field input::placeholder { color: var(--muted); }
+.btn {
+  width: 100%; margin-top: 8px; padding: 14px; background: #e2e2e2; color: #0d0d0d;
+  border: none; border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 14px;
+  font-weight: 600; cursor: pointer;
+  transition: background .2s, transform .1s;
+}
+.btn:hover { background: #cacaca; } .btn:active { transform: scale(.98); } .btn:disabled { opacity: .4; cursor: not-allowed; }
+.error {
+  margin-top: 14px; padding: 10px 14px; background: rgba(192,57,43,.08);
+  border-left: 3px solid var(--danger); border-radius: 6px; color: var(--danger); font-size: 13px; display: none;
+}
+.error.show { display: block; }
+/* ── Responsive ── */
+@media (max-width: 480px) {
+  .card { width: 100%; margin: 0 16px; padding: 32px 22px 28px; border-radius: 10px; }
+  body  { padding: 20px 0; min-height: 100vh; justify-content: flex-start; padding-top: 40px; }
+}
+@media (max-width: 360px) {
+  .card { margin: 0 10px; padding: 28px 16px 24px; }
+  .logo { font-size: 20px; }
+}
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">QR<span>Access</span></div>
+  <div class="subtitle">Sistema de Fichaje</div>
+  <div class="field"><label>Email</label><input type="email" id="email" placeholder="usuario@empresa.com" autocomplete="off"></div>
+  <div class="field"><label>Contraseña</label><input type="password" id="password" placeholder="••••••••"></div>
+  <button class="btn" id="btnLogin">Entrar</button>
+  <div class="error" id="error"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-sha256@0.11.1/src/sha256.min.js"></script>
+<script>
+// ── Leer parámetro ?dept de la URL y guardarlo para después del login ──
+(function() {
+  var urlParams = new URLSearchParams(window.location.search);
+  var pendingDept = urlParams.get('dept');
+  if (pendingDept) sessionStorage.setItem('pendingDept', pendingDept);
+})();
+
+firebase.initializeApp({
+  apiKey: "AIzaSyDKM2Tp1sosbdAeB6qK8P73cShQ0WP76S4",
+  authDomain: "basededatos-dd6b3.firebaseapp.com",
+  projectId: "basededatos-dd6b3",
+  storageBucket: "basededatos-dd6b3.firebasestorage.app",
+  messagingSenderId: "452860965959",
+  appId: "1:452860965959:web:42ecb1c31f17e55daa6d62"
+});
+
+const db = firebase.firestore();
+
+// ── Hash de contraseña (SHA-256 via Web Crypto API) ───────────────────
+async function hashPassword(password) {
+  if (!window.crypto || !window.crypto.subtle || typeof window.crypto.subtle.digest !== 'function') {
+    return window.sha256(password);
+  }
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password);
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function doLogin() {
+  const email    = document.getElementById('email').value.trim().toLowerCase();
+  const password = document.getElementById('password').value;
+  const errorEl  = document.getElementById('error');
+  const btn      = document.getElementById('btnLogin');
+
+  errorEl.classList.remove('show');
+
+  var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !password) {
+    errorEl.textContent = 'Rellena email y contraseña';
+    errorEl.classList.add('show');
+    return;
+  }
+  if (!emailRegex.test(email)) {
+    errorEl.textContent = 'El email no tiene un formato válido';
+    errorEl.classList.add('show');
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Conectando...';
+
+  try {
+    const hashed = await hashPassword(password);
+    const snap = await db.collection('usuarios')
+      .where('email', '==', email)
+      .where('password', '==', hashed)
+      .limit(1).get();
+
+    if (snap.empty) {
+      errorEl.textContent = 'Email o contraseña incorrectos';
+      errorEl.classList.add('show');
+      btn.disabled = false; btn.textContent = 'Entrar';
+      return;
+    }
+
+    const doc = snap.docs[0];
+    const u   = doc.data();
+
+    localStorage.setItem('user', JSON.stringify({
+      id:           doc.id,
+      email:        u.email,
+      nombre:       u.nombre       || '',
+      rol:          u.rol          || 'empleado',
+      empresa:      u.empresa      || '',
+      empresas:     Array.isArray(u.empresas) ? u.empresas : (u.empresa ? [u.empresa] : []),
+      departamento: u.departamento || '',
+      departamentos:Array.isArray(u.departamentos) ? u.departamentos : (u.departamento ? [u.departamento] : [])
+    }));
+
+    // admin y jefe van a admin.html
+    if (u.rol === 'admin' || u.rol === 'jefe') {
+      window.location.href = 'admin.html';
+      return;
+    }
+
+    const stored = sessionStorage.getItem('pendingDept');
+    if (stored) {
+      window.location.href = 'dashboard.html?dept=' + stored;
+    } else {
+      window.location.href = 'dashboard.html';
+    }
+
+  } catch(err) {
+    errorEl.textContent = err.code === 'permission-denied'
+      ? 'Error de permisos en Firestore. Revisa las reglas.'
+      : 'Error: ' + err.message;
+    errorEl.classList.add('show');
+    btn.disabled = false; btn.textContent = 'Entrar';
+  }
+}
+
+document.getElementById('btnLogin').addEventListener('click', doLogin);
+['email', 'password'].forEach(function(id) {
+  document.getElementById(id).addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+});
+</script>
+</body>
+</html>
