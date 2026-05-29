@@ -690,6 +690,19 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
   </div>
 </div>
 
+<!-- Modal calendario empleado -->
+<div class="overlay" id="ovCalEmpleado">
+  <div class="modal" style="width:600px;max-width:95vw">
+    <div class="modal-title">Calendario de <span id="calEmpleadoNombre">—</span></div>
+    <div class="cal-modal-wrap" id="calEmpleadoBody">
+      <div class="loading"><span class="spinner"></span>Cargando...</div>
+    </div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn-cancel" onclick="document.getElementById('ovCalEmpleado').classList.remove('show')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -2617,6 +2630,153 @@ function loadFichajes() {
 })();
 
 // ─────────────────────────────────────────────────────────────────────────
+// CALENDARIO EMPLEADO (variables globales)
+// ─────────────────────────────────────────────────────────────────────────
+var _calEmpleadoUserId   = null;
+var _calEmpleadoHorasDia = 8;
+var _calEmpleadoDias     = [1,2,3,4,5];
+var _calEmpleadoHorEsp   = null;
+
+// ─────────────────────────────────────────────────────────────────────────
+// CALENDARIO EMPLEADO (funciones)
+// ─────────────────────────────────────────────────────────────────────────
+async function abrirCalendarioEmpleado(userId, nombre, horasPorDia, diasActivos, horEsp) {
+  _calEmpleadoUserId   = userId;
+  _calEmpleadoHorasDia = horasPorDia || 8;
+  _calEmpleadoDias     = diasActivos  || [1,2,3,4,5];
+  _calEmpleadoHorEsp   = horEsp       || null;
+
+  document.getElementById('calEmpleadoNombre').textContent = nombre;
+  document.getElementById('calEmpleadoBody').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
+  const calOverlay = document.getElementById('ovCalEmpleado');
+  const calModal = calOverlay.querySelector('.modal');
+
+  closeUserDrawer();
+  calModal.setAttribute('tabindex', '-1');
+  calOverlay.classList.remove('show');
+  requestAnimationFrame(function() {
+    calOverlay.classList.add('show');
+    calModal.focus();
+  });
+
+  const snap = await db.collection('fichajes').where('userId','==', userId).get();
+  const anio = new Date().getFullYear();
+  const hoy = new Date();
+
+  var horasPorDiaMap = {};
+  snap.docs.forEach(function(d) {
+    var f = d.data();
+    var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate() : (f.timestampCliente ? new Date(f.timestampCliente) : null);
+    if (!ts || ts.getFullYear() !== anio) return;
+    if (f.tipo !== 'salida') return;
+    var key = ts.getFullYear() + '-' + String(ts.getMonth()+1).padStart(2,'0') + '-' + String(ts.getDate()).padStart(2,'0');
+    horasPorDiaMap[key] = (horasPorDiaMap[key] || 0) + (f.horasNormales||0) + (f.horasExtra||0);
+  });
+
+  var horasPorMes = {};
+  Object.keys(horasPorDiaMap).forEach(function(key) {
+    var m = parseInt(key.split('-')[1]) - 1;
+    horasPorMes[m] = (horasPorMes[m] || 0) + horasPorDiaMap[key];
+  });
+
+  var container = document.getElementById('calEmpleadoBody');
+  container.innerHTML = '';
+
+  for (var m = 0; m < 12; m++) {
+    var mesActual = (m === hoy.getMonth());
+    var mesFuturo = (new Date(anio, m, 1) > hoy);
+    var diasLabHasta = 0, diasLabTotal = 0;
+    var diasHasta = mesFuturo ? 0 : (mesActual ? hoy.getDate() : new Date(anio, m+1, 0).getDate());
+    var totalDias  = new Date(anio, m+1, 0).getDate();
+    for (var dd = 1; dd <= totalDias; dd++) {
+      var dow = new Date(anio, m, dd).getDay();
+      if (_calEmpleadoDias.indexOf(dow) >= 0) {
+        diasLabTotal++;
+        if (dd <= diasHasta) diasLabHasta++;
+      }
+    }
+    var hTeoricas = diasLabHasta * _calEmpleadoHorasDia;
+    var hTrab = horasPorMes[m] || 0;
+    var clsMes, txtRes;
+    if (mesFuturo || (hTrab === 0 && hTeoricas === 0)) {
+      clsMes = 'c-none'; txtRes = '';
+    } else if (hTrab === 0) {
+      clsMes = 'c-none'; txtRes = 'Sin registros';
+    } else if (hTrab >= hTeoricas - 0.5) {
+      clsMes = 'c-ok'; txtRes = hhmm(hTrab) + ' / ' + hhmm(hTeoricas);
+    } else {
+      clsMes = 'c-err'; txtRes = hhmm(hTrab) + ' / ' + hhmm(hTeoricas);
+    }
+
+    var bodyId = 'cal-emp-body-' + m;
+    var arrowId = 'cal-emp-arrow-' + m;
+    var item = document.createElement('div');
+    item.className = 'cal-mes-item';
+    item.innerHTML =
+      '<div class="cal-mes-header" onclick="toggleCalMesEmp(' + m + ')">' +
+        '<span class="cal-mes-nombre ' + clsMes + '">' + ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'][m] + '</span>' +
+        '<span class="cal-mes-resumen">' + txtRes + '</span>' +
+        '<span class="cal-mes-arrow" id="' + arrowId + '">▼</span>' +
+      '</div>' +
+      '<div class="cal-mes-body" id="' + bodyId + '">' + buildCalGridEmpleado(anio, m, hoy, horasPorDiaMap) + '</div>';
+    container.appendChild(item);
+
+    if (mesActual) {
+      document.getElementById(bodyId).classList.add('open');
+      document.getElementById(arrowId).classList.add('open');
+    }
+  }
+}
+
+function toggleCalMesEmp(m) {
+  document.getElementById('cal-emp-body-' + m).classList.toggle('open');
+  document.getElementById('cal-emp-arrow-' + m).classList.toggle('open');
+}
+
+function buildCalGridEmpleado(anio, mes, hoy, horasPorDiaMap) {
+  var totalDias = new Date(anio, mes+1, 0).getDate();
+  var primerDow = new Date(anio, mes, 1).getDay();
+  primerDow = primerDow === 0 ? 6 : primerDow - 1;
+  var DIAS_SEM = ['L','M','X','J','V','S','D'];
+  var html = '<div class="cal-week-hdr">' +
+    DIAS_SEM.map(function(d){ return '<div class="cal-wd">' + d + '</div>'; }).join('') +
+    '</div><div class="cal-grid-d">';
+
+  for (var e = 0; e < primerDow; e++) html += '<div class="cal-dia-d vacio"></div>';
+
+  for (var d = 1; d <= totalDias; d++) {
+    var fecha = new Date(anio, mes, d);
+    var esHoy = fecha.toDateString() === hoy.toDateString();
+    var esFuturo = fecha > hoy;
+    var key = anio + '-' + String(mes+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    var horas = horasPorDiaMap[key] || 0;
+    var cls, hTxt;
+
+    if (esFuturo) {
+      cls = 'futuro' + (horas ? '' : ' sin-datos');
+      hTxt = horas ? hhmm(horas) : '';
+    } else if (horas === 0) {
+      cls = 'sin-datos';
+      hTxt = '';
+    } else if (fecha.getDay() !== 0 && fecha.getDay() !== 6 && horas >= _calEmpleadoHorasDia - 0.25) {
+      cls = 'ok';
+      hTxt = hhmm(horas);
+    } else {
+      cls = 'err';
+      hTxt = hhmm(horas);
+    }
+    if (esHoy) cls += ' hoy';
+
+    html += '<div class="cal-dia-d ' + cls + '" title="' + key + (horas ? ' · ' + hhmm(horas) : '') + '">' +
+      '<span class="dn">' + d + '</span>' +
+      (hTxt ? '<span class="dh">' + hTxt + '</span>' : '') +
+      '</div>';
+  }
+
+  return html + '</div>';
+}
+
+// ─────────────────────────────────────────────────────────────────────────
 // USER DRAWER (con balance anual)
 // ─────────────────────────────────────────────────────────────────────────
 async function openUserDrawerById(userId) {
@@ -2690,6 +2850,11 @@ async function openUserDrawer(userId, userData) {
     const bal        = calcularBalanceAnual(fichajesAnio);
     const hNormAnio  = fichajesAnio.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasNormales||0):0); },0);
     const hExtraAnio = fichajesAnio.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasExtra||0):0);    },0);
+
+    document.getElementById('drawerBtnCal').onclick = function() {
+      closeUserDrawer();
+      abrirCalendarioEmpleado(userId, userData.nombre || userData.email || userId, horasPorDia, diasActivos, horEsp);
+    };
 
     document.getElementById('drawerStats').innerHTML =
       '<div class="dstat"><div class="dstat-label">Total fichajes</div><div class="dstat-value c-accent">'+total+'</div></div>' +
