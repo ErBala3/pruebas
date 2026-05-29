@@ -218,7 +218,30 @@ body {
     <div class="balance-msg s-info" id="hpMsg">
       <div class="bm-title">Cargando datos...</div>
     </div>
+<<<<<<< HEAD
     <!-- Resumen anual eliminado para simplificar -->
+=======
+    <div class="year-summary" id="yearSummary" style="display:none;">
+      <div class="year-summary-title">Resumen anual</div>
+      <div class="year-summary-grid">
+        <div class="year-summary-item">
+          <div class="label">Horas trabajadas</div>
+          <div class="value" id="hsYearWorked">—</div>
+        </div>
+        <div class="year-summary-item">
+          <div class="label">Objetivo hasta hoy</div>
+          <div class="value" id="hsYearTarget">—</div>
+        </div>
+        <div class="year-summary-item">
+          <div class="label">Diferencia</div>
+          <div class="value" id="hsYearDiff">—</div>
+        </div>
+      </div>
+      <div class="balance-msg s-info" id="hsYearMsg" style="margin-top:12px;">
+        <div class="bm-title">Cargando resumen anual...</div>
+      </div>
+    </div>
+>>>>>>> c2b0babde124b2c0982bce7ebd013588c75b4b1e
   </div>
 
   <!-- Escáner -->
@@ -583,7 +606,53 @@ async function cargarPanelHoras() {
     else if (balance < -2) barEl.className = 'progress-fill p-warn';
     else                  barEl.className = 'progress-fill';
 
+<<<<<<< HEAD
     // Resumen anual eliminado para evitar bloqueo del calendario
+=======
+    try {
+      // Resumen anual de horas
+      const yearTotalHours = snap.docs.reduce(function(sum, d) {
+        var f = d.data();
+        var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate() : null;
+        if (!ts || ts.getFullYear() !== anio || f.tipo !== 'salida') return sum;
+        return sum + (f.horasNormales || 0) + (f.horasExtra || 0);
+      }, 0);
+      const diasHabilAnio = diasLaborablesHastaHoy(anio);
+      const hoursPerDay = HORAS_ANUALES_CONVENIO / diasLaborablesAnio(anio);
+      const yearTarget   = diasHabilAnio * hoursPerDay;
+      const yearDiff     = yearTotalHours - yearTarget;
+
+      const hsYearWorked = document.getElementById('hsYearWorked');
+      const hsYearTarget = document.getElementById('hsYearTarget');
+      const hsYearDiff = document.getElementById('hsYearDiff');
+      const hsMsgEl = document.getElementById('hsYearMsg');
+      const yearSummary = document.getElementById('yearSummary');
+      if (hsYearWorked && hsYearTarget && hsYearDiff && hsMsgEl && yearSummary) {
+        hsYearWorked.textContent = hhmm(yearTotalHours);
+        hsYearTarget.textContent = hhmm(yearTarget);
+        hsYearDiff.textContent   = (yearDiff >= 0 ? '+' : '') + yearDiff.toFixed(1) + 'h';
+
+        let hsClass = 's-info';
+        let hsTitle = '';
+        if (yearDiff >= 0) {
+          hsClass = 's-ok';
+          hsTitle = 'Estás por encima del objetivo anual hasta hoy.';
+        } else if (yearDiff > -10) {
+          hsClass = 's-warn';
+          hsTitle = 'Estás cerca del objetivo anual, faltan algunas horas.';
+        } else {
+          hsClass = 's-err';
+          hsTitle = 'Estás por debajo del objetivo anual, hay margen de mejora.';
+        }
+        hsMsgEl.className = 'balance-msg ' + hsClass;
+        hsMsgEl.innerHTML = '<div class="bm-title">' + hsTitle + '</div>' +
+          'Horas trabajadas: ' + hhmm(yearTotalHours) + ' · Objetivo hasta hoy: ' + hhmm(yearTarget) + '.';
+        yearSummary.style.display = 'block';
+      }
+    } catch (err) {
+      console.error('Resumen anual empleado:', err);
+    }
+>>>>>>> c2b0babde124b2c0982bce7ebd013588c75b4b1e
 
     // Mensaje personalizado
     const msgEl = document.getElementById('hpMsg');

@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kiosco – Fichaje QR</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0b0f1a;
+      --surface: #111827;
+      --border:  #1f2d40;
+      --accent:  #00e5ff;
+      --green:   #22c55e;
+      --red:     #f43f5e;
+      --text:    #e2e8f0;
+      --muted:   #4b5e72;
+    }
+
+    body {
+      font-family: 'DM Mono', monospace;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: .3;
+      pointer-events: none;
+    }
+
+    /* ── TOPBAR ── */
+    .topbar {
+      position: relative;
+      z-index: 10;
+      background: rgba(17,24,39,.95);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      backdrop-filter: blur(10px);
+    }
+
+    .brand {
+      font-family: 'Syne', sans-serif;
+      font-size: 18px;
+      font-weight: 800;
+      color: white;
+    }
+    .brand span { color: var(--accent); }
+
+    /* User info card – esquina superior derecha */
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-size: 12px;
+    }
+
+    .user-avatar {
+      width: 34px; height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), #7c3aed);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Syne', sans-serif;
+      font-weight: 800;
+      font-size: 14px;
+      color: var(--bg);
+      flex-shrink: 0;
+    }
+
+    .user-details { line-height: 1.6; }
+    .user-name  { color: white; font-weight: 500; font-size: 13px; }
+    .user-meta  { color: var(--muted); font-size: 11px; }
+    .user-meta .store-tag {
+      color: var(--accent);
+      background: rgba(0,229,255,.1);
+      padding: 1px 7px;
+      border-radius: 20px;
+      font-size: 10px;
+      margin-left: 4px;
+    }
+    .user-meta .rol-tag {
+      font-size: 10px;
+      padding: 1px 7px;
+      border-radius: 20px;
+    }
+    .rol-admin { background: rgba(251,191,36,.15); color: #fbbf24; }
+    .rol-emp   { background: rgba(0,229,255,.1);   color: var(--accent); }
+
+    .logout-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .logout-btn:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── MAIN ── */
+    .main {
+      position: relative;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 28px;
+      padding: 32px 20px;
+    }
+
+    .store-label {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .store-label span {
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+
+    /* ── FICHAR BUTTONS ── */
+    .fichar-row {
+      display: flex;
+      gap: 28px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .btn-fichar {
+      width: 160px; height: 160px;
+      border: none;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      font-family: 'Syne', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      transition: transform .15s, box-shadow .15s;
+      position: relative;
+    }
+    .btn-fichar::after {
+      content: '';
+      position: absolute; inset: -3px;
+      border-radius: 50%;
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .btn-fichar:hover::after  { opacity: 1; }
+    .btn-fichar:hover         { transform: scale(1.06); }
+    .btn-fichar:active        { transform: scale(.97); }
+    .btn-fichar:disabled      { opacity: .35; cursor: not-allowed; transform: none !important; }
+
+    .btn-entrada {
+      background: radial-gradient(circle at 40% 40%, #34d399, #059669);
+      color: white;
+      box-shadow: 0 8px 32px rgba(34,197,94,.35);
+    }
+    .btn-entrada::after {
+      box-shadow: 0 0 0 3px rgba(34,197,94,.4);
+    }
+
+    .btn-salida {
+      background: radial-gradient(circle at 40% 40%, #fb7185, #e11d48);
+      color: white;
+      box-shadow: 0 8px 32px rgba(244,63,94,.35);
+    }
+    .btn-salida::after {
+      box-shadow: 0 0 0 3px rgba(244,63,94,.4);
+    }
+
+    .btn-icon { font-size: 40px; line-height: 1; }
+
+    /* ── STATUS BOX ── */
+    .status-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 28px;
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      min-width: 300px;
+      min-height: 52px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all .3s;
+    }
+    .status-box.ok    { border-color: var(--green); color: var(--green); background: rgba(34,197,94,.06); }
+    .status-box.err   { border-color: var(--red);   color: var(--red);   background: rgba(244,63,94,.06); }
+    .status-box.warn  { border-color: #fbbf24;      color: #fbbf24;      background: rgba(251,191,36,.06); }
+
+    /* ── HOURS MESSAGE BOX ── */
+    .hours-msg-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px 24px;
+      font-size: 13px;
+      text-align: center;
+      min-width: 300px;
+      max-width: 480px;
+      line-height: 1.6;
+      transition: all .3s;
+      display: none;
+    }
+
+    /* ── ADMIN PANEL ── */
+    .admin-panel {
+      background: var(--surface);
+      border: 1px solid rgba(251,191,36,.2);
+      border-radius: 16px;
+      padding: 20px 26px;
+      width: 100%;
+      max-width: 520px;
+    }
+    .admin-panel-title {
+      font-size: 10px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #fbbf24;
+      margin-bottom: 14px;
+    }
+    .admin-btns { display: flex; flex-wrap: wrap; gap: 10px; }
+    .admin-btns a {
+      padding: 9px 16px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      text-decoration: none;
+      transition: border-color .2s, color .2s;
+    }
+    .admin-btns a:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── QR SCANNER ── */
+    .scanner-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    .scanner-label {
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    #video-container {
+      position: relative;
+      width: 240px; height: 240px;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    .scan-frame { position: absolute; inset: 0; pointer-events: none; }
+    .scan-frame::before, .scan-frame::after {
+      content: '';
+      position: absolute;
+      width: 32px; height: 32px;
+      border-color: var(--accent); border-style: solid;
+    }
+    .scan-frame::before { top: 14px; left: 14px; border-width: 2px 0 0 2px; border-radius: 3px 0 0 0; }
+    .scan-frame::after  { bottom: 14px; right: 14px; border-width: 0 2px 2px 0; border-radius: 0 0 3px 0; }
+    @keyframes scan { 0% { top: 14px; } 100% { top: 210px; } }
+    .scan-line {
+      position: absolute; left: 14px; right: 14px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      animation: scan 2s linear infinite;
+    }
+    #cam-error { color: var(--red); font-size: 11px; text-align: center; max-width: 280px; }
+  </style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand">QR<span>Access</span></div>
+
+  <div class="user-info">
+    <div class="user-avatar" id="avatarLetter">?</div>
+    <div class="user-details">
+      <div class="user-name" id="topUser">Cargando...</div>
+      <div class="user-meta">
+        <span id="topRolTag" class="rol-tag">—</span>
+        <span class="store-tag" id="topStore">—</span>
+      </div>
+      <div class="user-meta" id="topTime" style="font-size:10px;">—</div>
+    </div>
+  </div>
+
+  <button class="logout-btn" id="logoutBtn">Salir →</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <div class="store-label">Tienda: <span id="storeName">—</span></div>
+
+  <!-- BOTONES FICHAJE -->
+  <div class="fichar-row">
+    <button class="btn-fichar btn-entrada" id="btnEntrada">
+      <span class="btn-icon">✅</span>
+      ENTRADA
+    </button>
+    <button class="btn-fichar btn-salida" id="btnSalida">
+      <span class="btn-icon">🚪</span>
+      SALIDA
+    </button>
+  </div>
+
+  <div class="status-box" id="statusBox">
+    Pulsa ENTRADA o SALIDA para registrar tu fichaje
+  </div>
+  <div class="hours-msg-box" id="hoursMsgBox"></div>
+
+  <!-- SCANNER QR (para fichar empleados desde kiosco) -->
+  <div class="scanner-section">
+    <div class="scanner-label">O escanea el QR del empleado</div>
+    <div id="video-container">
+      <video id="video" autoplay muted playsinline></video>
+      <div class="scan-frame"><div class="scan-line"></div></div>
+    </div>
+    <p id="cam-error" hidden></p>
+  </div>
+
+  <!-- PANEL ADMIN -->
+  <div class="admin-panel" id="adminPanel" style="display:none;">
+    <div class="admin-panel-title">⚡ Panel de Administrador</div>
+    <div class="admin-btns">
+      <a href="/admin">🖥 Panel Admin completo</a>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+<script>
+  let sessionData = null;
+  let scanning    = true;
+  let geoCoords   = null;
+  let canvas, ctx;
+
+  // Geolocalización en segundo plano
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      p => { geoCoords = { lat: p.coords.latitude, lng: p.coords.longitude }; },
+      ()  => {}
+    );
+  }
+
+  // Tienda desde URL
+  const store = new URLSearchParams(window.location.search).get('tienda') || '';
+
+  // Cargar sesión
+  async function loadSession() {
+    try {
+      const res  = await fetch('/api/auth/me');
+      if (!res.ok) { window.location.href = '/login'; return; }
+      sessionData = await res.json();
+
+      const u = sessionData.username;
+      document.getElementById('avatarLetter').textContent = u[0].toUpperCase();
+      document.getElementById('topUser').textContent      = u;
+      document.getElementById('topTime').textContent      = sessionData.login_time || '—';
+      document.getElementById('storeName').textContent    = store || 'General';
+      document.getElementById('topStore').textContent     = store || 'General';
+
+      const rolTag = document.getElementById('topRolTag');
+      if (sessionData.rol === 'admin') {
+        rolTag.textContent = 'Admin';
+        rolTag.className   = 'rol-tag rol-admin';
+        document.getElementById('adminPanel').style.display = 'block';
+      } else {
+        rolTag.textContent = 'Empleado';
+        rolTag.className   = 'rol-tag rol-emp';
+      }
+
+      if (!sessionData.qr_token) {
+        document.getElementById('btnEntrada').disabled = true;
+        document.getElementById('btnSalida').disabled = true;
+        const status = document.getElementById('statusBox');
+        status.className = 'status-box warn';
+        status.textContent = 'Usuario sin empleado vinculado. Escanea un QR o pide al administrador que vincule tu usuario.';
+      }
+    } catch(_) {
+      window.location.href = '/login';
+    }
+  }
+
+  // ── Fichar ──────────────────────────────────────
+  async function fichar(tipo) {
+    const btnE   = document.getElementById('btnEntrada');
+    const btnS   = document.getElementById('btnSalida');
+    const status = document.getElementById('statusBox');
+
+    if (!sessionData?.qr_token) {
+      status.className = 'status-box warn';
+      status.textContent = 'Usuario sin empleado vinculado. Pide al administrador que vincule tu usuario.';
+      return;
+    }
+
+    btnE.disabled = btnS.disabled = true;
+    status.className   = 'status-box';
+    status.textContent = '⏳ Registrando...';
+
+    // Para el botón manual usamos un token especial ligado al usuario de sesión
+    // El admin puede fichar sus propios empleados con el QR scanner
+    const now = new Date();
+
+    try {
+      // Obtener token del usuario actual (si existe como empleado)
+      const res = await fetch('/api/checkin', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          qr_token: sessionData?.qr_token || '',
+          lat:   geoCoords?.lat ?? null,
+          lng:   geoCoords?.lng ?? null,
+          store: store || 'General',
+          tipo
+        })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        const isIn = data.direction === 'IN';
+        status.className   = 'status-box ok';
+        status.textContent = `${isIn ? '✅ ENTRADA' : '🚪 SALIDA'} registrada · ${now.toLocaleTimeString('es-ES')}`;
+      } else if (res.status === 429) {
+        status.className   = 'status-box warn';
+        status.textContent = '⚠️ Fichaje duplicado — espera unos segundos';
+      } else {
+        // Error real al registrar el fichaje — mostrar el mensaje del servidor
+        status.className   = 'status-box err';
+        const errMsg = data?.error || 'Error al registrar el fichaje. Consulta al administrador.';
+        status.textContent = '❌ ' + errMsg;
+      }
+    } catch(_) {
+      status.className   = 'status-box err';
+      status.textContent = '❌ Sin conexión con el servidor';
+    }
+
+    setTimeout(() => {
+      status.className   = 'status-box';
+      status.textContent = 'Pulsa ENTRADA o SALIDA para registrar tu fichaje';
+      btnE.disabled = btnS.disabled = false;
+    }, 3500);
+  }
+
+  document.getElementById('btnEntrada').addEventListener('click', () => fichar('entrada'));
+  document.getElementById('btnSalida').addEventListener('click',  () => fichar('salida'));
+
+  // ── QR Scanner (para fichar empleados) ──────────
+  async function processToken(token) {
+    if (!token) return;
+    scanning = false;
+    const status  = document.getElementById('statusBox');
+    const msgBox  = document.getElementById('hoursMsgBox');
+    status.className   = 'status-box';
+    status.textContent = '⏳ Procesando QR...';
+    msgBox.style.display = 'none';
+
+    try {
+      const res  = await fetch('/api/checkin', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ qr_token: token, lat: geoCoords?.lat, lng: geoCoords?.lng, store: store || 'General' })
+      });
+      const data = await res.json();
+
+      if (res.ok) {
+        const isIn = data.direction === 'IN';
+        status.className   = 'status-box ok';
+        status.textContent = `${isIn ? '✅ ENTRADA' : '🚪 SALIDA'} · ${data.employee} · ${data.timestamp}`;
+
+        if (data.hours_summary) {
+          const hs   = data.hours_summary;
+          const diff = hs.difference;
+          msgBox.textContent   = hs.message;
+          msgBox.style.display = 'block';
+          if (diff >= 0) {
+            msgBox.style.borderColor = 'var(--green)';
+            msgBox.style.color       = 'var(--green)';
+            msgBox.style.background  = 'rgba(34,197,94,.06)';
+          } else if (diff > -10) {
+            msgBox.style.borderColor = '#fbbf24';
+            msgBox.style.color       = '#fbbf24';
+            msgBox.style.background  = 'rgba(251,191,36,.06)';
+          } else {
+            msgBox.style.borderColor = 'var(--red)';
+            msgBox.style.color       = 'var(--red)';
+            msgBox.style.background  = 'rgba(244,63,94,.06)';
+          }
+        }
+      } else {
+        status.className   = 'status-box err';
+        status.textContent = `❌ ${data.error || 'Error desconocido'}`;
+      }
+    } catch(_) {
+      status.className   = 'status-box err';
+      status.textContent = '❌ Sin conexión';
+    }
+
+    setTimeout(() => {
+      status.className     = 'status-box';
+      status.textContent   = 'Pulsa ENTRADA o SALIDA para registrar tu fichaje';
+      msgBox.style.display = 'none';
+      scanning = true;
+    }, 5000);
+  }
+
+  async function startCamera() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: 640, height: 640 }
+      });
+      const video = document.getElementById('video');
+      video.srcObject = stream;
+      video.addEventListener('loadedmetadata', () => {
+        canvas = document.createElement('canvas');
+        ctx    = canvas.getContext('2d');
+        requestAnimationFrame(tick);
+      });
+    } catch(err) {
+      const el = document.getElementById('cam-error');
+      el.hidden = false;
+      el.textContent = 'Cámara no disponible: ' + err.message;
+    }
+  }
+
+  function tick() {
+    requestAnimationFrame(tick);
+    const video = document.getElementById('video');
+    if (!scanning || video.readyState !== video.HAVE_ENOUGH_DATA) return;
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0);
+    const img  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(img.data, img.width, img.height);
+    if (code?.data) processToken(code.data.trim());
+  }
+
+  // ── Logout ───────────────────────────────────────
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    window.location.href = '/login';
+  });
+
+  loadSession();
+  startCamera();
+</script>
+</body>
+</html>

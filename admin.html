@@ -122,14 +122,7 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .live-dot { display: inline-block; width: 7px; height: 7px; background: #5aad7e; border-radius: 50%; margin-right: 7px; animation: pulse 2s infinite; }
 .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(4px); z-index: 200; align-items: center; justify-content: center; overflow-y: auto; padding: 20px 0; }
 .overlay.show { display: flex; }
-.cal-dia-d { position: relative; }
-.cal-dia-d .cal-note-btn { position: absolute; bottom: 4px; right: 4px; width: 22px; height: 22px; border: none; background: rgba(255,255,255,.08); color: var(--text); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; transition: background .15s, transform .15s; }
-.cal-dia-d .cal-note-btn:hover { background: rgba(255,255,255,.16); transform: translateY(-1px); }
-.cal-dia-d .cal-note-btn.active { background: #5aad7e; color: white; }
-.field textarea { width: 100%; min-height: 130px; padding: 11px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; outline: none; resize: vertical; }
-.field textarea:focus { border-color: #555; box-shadow: 0 0 0 2px rgba(226,226,226,.08); }
-.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 36px; width: 440px; max-width: 95vw; max-height: calc(100vh - 40px); overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,.6); animation: fadeUp .3s ease both; position: relative; }
-.modal--user { width: min(1180px, calc(100vw - 32px)); padding: 28px 24px 24px; max-height: calc(100vh - 32px); overflow-y: auto; }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 36px; width: 440px; max-width: 95vw; box-shadow: 0 24px 60px rgba(0,0,0,.6); animation: fadeUp .3s ease both; position: relative; }
 .modal-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 22px; }
 .field { margin-bottom: 13px; }
 .field label { display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
@@ -696,22 +689,6 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <button class="btn-cancel"  id="drawerBtnClose">Cerrar</button>
   </div>
 </div>
-
-<!-- Modal calendario empleado -->
-<div class="overlay" id="ovCalEmpleado">
-  <div class="modal" style="width:600px;max-width:95vw">
-    <div class="modal-title">Calendario de <span id="calEmpleadoNombre">—</span></div>
-    <!-- Resumen anual eliminado para simplificar carga -->
-    <div class="cal-modal-wrap" id="calEmpleadoBody">
-      <div class="loading"><span class="spinner"></span>Cargando...</div>
-    </div>
-    <div class="modal-actions" style="margin-top:16px">
-      <button class="btn-cancel" onclick="document.getElementById('ovCalEmpleado').classList.remove('show')">Cerrar</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal de notas eliminado para simplificar calendarios -->
 
 <div class="toast" id="toast"></div>
 
@@ -2642,175 +2619,6 @@ function loadFichajes() {
 // ─────────────────────────────────────────────────────────────────────────
 // USER DRAWER (con balance anual)
 // ─────────────────────────────────────────────────────────────────────────
-// ── Calendario de empleado en el drawer ──────────────────────────────────
-var _calEmpleadoUserId   = null;
-var _calEmpleadoHorasDia = 8;
-var _calEmpleadoDias     = [1,2,3,4,5];
-var _calEmpleadoHorEsp   = null;
-
-async function abrirCalendarioEmpleado(userId, nombre, horasPorDia, diasActivos, horEsp) {
-  _calEmpleadoUserId   = userId;
-  _calEmpleadoHorasDia = horasPorDia || 8;
-  _calEmpleadoDias     = diasActivos  || [1,2,3,4,5];
-  _calEmpleadoHorEsp   = horEsp       || null;
-
-  document.getElementById('calEmpleadoNombre').textContent = nombre;
-  document.getElementById('calEmpleadoBody').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
-  const calOverlay = document.getElementById('ovCalEmpleado');
-  const calModal   = calOverlay.querySelector('.modal');
-
-  closeUserDrawer();
-  calModal.setAttribute('tabindex', '-1');
-  calOverlay.classList.remove('show');
-  requestAnimationFrame(function() {
-    calOverlay.classList.add('show');
-    calModal.focus();
-  });
-
-  // Cargar todos los fichajes del empleado
-  const snap = await db.collection('fichajes').where('userId','==', userId).get();
-  const anio  = new Date().getFullYear();
-  const hoy   = new Date();
-
-  // Notas privadas deshabilitadas (simplificación)
-
-  // Agrupar horas por día 'YYYY-MM-DD'
-  var horasPorDiaMap = {};
-  snap.docs.forEach(function(d) {
-    var f  = d.data();
-    var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate()
-           : (f.timestampCliente ? new Date(f.timestampCliente) : null);
-    if (!ts || ts.getFullYear() !== anio) return;
-    if (f.tipo !== 'salida') return;
-    var key = ts.getFullYear() + '-' + String(ts.getMonth()+1).padStart(2,'0') + '-' + String(ts.getDate()).padStart(2,'0');
-    horasPorDiaMap[key] = (horasPorDiaMap[key] || 0) + (f.horasNormales||0) + (f.horasExtra||0);
-  });
-
-  // Horas por mes
-  var horasPorMes = {};
-  Object.keys(horasPorDiaMap).forEach(function(key) {
-    var m = parseInt(key.split('-')[1]) - 1;
-    horasPorMes[m] = (horasPorMes[m] || 0) + horasPorDiaMap[key];
-  });
-
-  // Resumen anual eliminado para evitar bloqueos en la carga
-
-  var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
-               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  var DIAS_SEM = ['L','M','X','J','V','S','D'];
-
-  var container = document.getElementById('calEmpleadoBody');
-  container.innerHTML = '';
-
-  for (var m = 0; m < 12; m++) {
-    var mesActual = (m === hoy.getMonth());
-    var mesFuturo = (new Date(anio, m, 1) > hoy);
-
-    // Días laborables del mes hasta hoy (para horas teóricas)
-    var diasLabHasta = 0, diasLabTotal = 0;
-    var diasHasta = mesFuturo ? 0 : (mesActual ? hoy.getDate() : new Date(anio, m+1, 0).getDate());
-    var totalDias  = new Date(anio, m+1, 0).getDate();
-    for (var dd = 1; dd <= totalDias; dd++) {
-      var dow = new Date(anio, m, dd).getDay();
-      if (_calEmpleadoDias.indexOf(dow) >= 0) {
-        diasLabTotal++;
-        if (dd <= diasHasta) diasLabHasta++;
-      }
-    }
-    var hTeoricas  = diasLabHasta  * _calEmpleadoHorasDia;
-    var hTotalMes  = diasLabTotal  * _calEmpleadoHorasDia;
-    var hTrab      = horasPorMes[m] || 0;
-
-    var clsMes, txtRes;
-    if (mesFuturo || (hTrab === 0 && hTeoricas === 0)) {
-      clsMes = 'c-none'; txtRes = '';
-    } else if (hTrab === 0) {
-      clsMes = 'c-none'; txtRes = 'Sin registros';
-    } else if (hTrab >= hTeoricas - 0.5) {
-      clsMes = 'c-ok';  txtRes = hhmm(hTrab) + ' / ' + hhmm(hTeoricas);
-    } else {
-      clsMes = 'c-err'; txtRes = hhmm(hTrab) + ' / ' + hhmm(hTeoricas);
-    }
-
-    var bodyId  = 'cal-emp-body-' + m;
-    var arrowId = 'cal-emp-arrow-' + m;
-    var item    = document.createElement('div');
-    item.className = 'cal-mes-item';
-    item.innerHTML =
-      '<div class="cal-mes-header" onclick="toggleCalMesEmp(' + m + ')">' +
-        '<span class="cal-mes-nombre ' + clsMes + '">' + MESES[m] + '</span>' +
-        '<span class="cal-mes-resumen">' + txtRes + '</span>' +
-        '<span class="cal-mes-arrow" id="' + arrowId + '">▼</span>' +
-      '</div>' +
-      '<div class="cal-mes-body" id="' + bodyId + '">' +
-        buildCalGridEmpleado(anio, m, hoy, horasPorDiaMap) +
-      '</div>';
-    container.appendChild(item);
-
-    if (mesActual) {
-      document.getElementById(bodyId).classList.add('open');
-      document.getElementById(arrowId).classList.add('open');
-    }
-  }
-}
-
-function toggleCalMesEmp(m) {
-  document.getElementById('cal-emp-body-' + m).classList.toggle('open');
-  document.getElementById('cal-emp-arrow-' + m).classList.toggle('open');
-}
-
-function buildCalGridEmpleado(anio, mes, hoy, horasPorDiaMap) {
-  var notasPorFechaMap = {};
-  var totalDias = new Date(anio, mes+1, 0).getDate();
-  var primerDow = new Date(anio, mes, 1).getDay();
-  primerDow     = primerDow === 0 ? 6 : primerDow - 1;
-  var hMinDia   = _calEmpleadoHorasDia;
-  var DIAS_SEM  = ['L','M','X','J','V','S','D'];
-
-  var html = '<div class="cal-week-hdr">' +
-    DIAS_SEM.map(function(d){ return '<div class="cal-wd">' + d + '</div>'; }).join('') +
-    '</div><div class="cal-grid-d">';
-
-  for (var e = 0; e < primerDow; e++) html += '<div class="cal-dia-d vacio"></div>';
-
-  for (var d = 1; d <= totalDias; d++) {
-    var fecha    = new Date(anio, mes, d);
-    var esHoy    = fecha.toDateString() === hoy.toDateString();
-    var esFuturo = fecha > hoy;
-    var dow      = fecha.getDay();
-    var esFin    = (dow === 0 || dow === 6);
-    var key      = anio + '-' + String(mes+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
-    var horas    = horasPorDiaMap[key] || 0;
-    var nota     = null;
-
-    var cls, hTxt;
-    if (esFuturo) {
-      cls = 'futuro' + (horas ? '' : ' sin-datos'); hTxt = horas ? hhmm(horas) : '';
-    } else if (horas === 0) {
-      cls = 'sin-datos'; hTxt = '';
-    } else if (!esFin && horas >= hMinDia - 0.25) {
-      cls = 'ok';  hTxt = hhmm(horas);
-    } else {
-      cls = 'err'; hTxt = hhmm(horas);
-    }
-    if (esHoy) cls += ' hoy';
-
-    var noteBtn = '';
-    var title   = key + (horas ? ' · ' + hhmm(horas) : '');
-    if (nota && nota.texto) title += ' · Nota: ' + escAttr(nota.texto);
-
-    html += '<div class="cal-dia-d ' + cls + '" title="' + title + '">' +
-      '<span class="dn">' + d + '</span>' +
-      (hTxt ? '<span class="dh">' + hTxt + '</span>' : '') +
-      noteBtn +
-      '</div>';
-  }
-
-  return html + '</div>';
-}
-
-// Funcionalidad de notas eliminada para estabilidad
-
 async function openUserDrawerById(userId) {
   const doc = await db.collection('usuarios').doc(userId).get();
   if (doc.exists) openUserDrawer(userId, doc.data());
@@ -2882,14 +2690,6 @@ async function openUserDrawer(userId, userData) {
     const bal        = calcularBalanceAnual(fichajesAnio);
     const hNormAnio  = fichajesAnio.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasNormales||0):0); },0);
     const hExtraAnio = fichajesAnio.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasExtra||0):0);    },0);
-
-    // Conectar botón calendario con los datos del usuario
-    (function(hpd, da, he, nom) {
-      document.getElementById('drawerBtnCal').onclick = function() {
-        closeUserDrawer();
-        abrirCalendarioEmpleado(userId, nom, hpd, da, he);
-      };
-    })(horasPorDia, diasActivos, horEsp, userData.nombre || userData.email || userId);
 
     document.getElementById('drawerStats').innerHTML =
       '<div class="dstat"><div class="dstat-label">Total fichajes</div><div class="dstat-value c-accent">'+total+'</div></div>' +

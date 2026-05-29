@@ -1,0 +1,508 @@
+================================================================================
+  DOCUMENTACIÓN DE PRUEBAS UNITARIAS — SISTEMA QRACCESS
+  Proyecto: ErBala3/pruebas
+  Fecha:    2026-05-20
+================================================================================
+
+Este documento describe todas las pruebas unitarias preparadas para el sistema
+QRAccess, organizado por sub-aplicación. En total hay 90 pruebas repartidas en
+tres conjuntos de tests.
+
+Cómo ejecutar cada suite:
+
+  backend/      →  cd backend      && npm test
+  qraccess/     →  cd qraccess     && npm install && npm test
+  fichaje_qr/   →  cd fichaje_qr   && python -m pytest tests/test_fichaje.py -v
+
+--------------------------------------------------------------------------------
+1. BACKEND NODE.JS  (archivo: backend/api.test.js)  —  35 pruebas
+--------------------------------------------------------------------------------
+
+Esta suite usa Jest + Supertest para probar la API REST del backend principal.
+
+── AUTENTICACIÓN (POST /api/auth/login) ─────────────────────────────────────
+
+  1. login correcto devuelve token JWT
+     Envía usuario "admin" y contraseña "admin123". Comprueba que la respuesta
+     tiene código 200 y contiene un campo "token" en el cuerpo JSON.
+     Propósito: verificar que el flujo de login feliz funciona correctamente.
+
+  2. credenciales incorrectas devuelve 401
+     Envía contraseña incorrecta. Comprueba código 401 y campo "error".
+     Propósito: el sistema debe rechazar credenciales inválidas.
+
+  3. campos vacíos devuelve 400
+     Envía body vacío {}. Comprueba código 400.
+     Propósito: la validación de entrada debe rechazar peticiones sin datos.
+
+── EMPLEADOS (CRUD) ──────────────────────────────────────────────────────────
+
+  4. GET /api/employees sin token devuelve 401
+     Petición sin cabecera Authorization. Comprueba código 401.
+     Propósito: los endpoints protegidos no deben ser accesibles sin JWT.
+
+  5. GET /api/employees con token devuelve lista
+     Petición con JWT válido. Comprueba código 200 y que el cuerpo es un array.
+     Propósito: un admin autenticado puede listar empleados.
+
+  6. POST /api/employees crea empleado con qr_token único
+     Crea el empleado "María Test". Comprueba código 201, presencia de "id" y
+     "qr_token", y que el token cumple el patrón /^emp_[a-zA-Z0-9]+$/.
+     Propósito: la creación genera un token QR con el formato correcto.
+
+  7. POST /api/employees sin nombre devuelve 400
+     Body vacío en la creación. Comprueba código 400.
+     Propósito: el campo "name" es obligatorio.
+
+  8. GET /api/employees/:id devuelve el empleado correcto
+     Consulta por ID el empleado recién creado. Comprueba que el nombre coincide.
+     Propósito: el endpoint por ID devuelve el recurso exacto pedido.
+
+  9. PUT /api/employees/:id actualiza el nombre
+     Actualiza el nombre a "María Actualizada". Comprueba código 200 y que
+     el nombre en la respuesta es el nuevo valor.
+     Propósito: la edición de empleado funciona y persiste el cambio.
+
+ 10. PUT /api/employees/:id con status inválido devuelve 400
+     Intenta actualizar status a "suspendido" (valor no permitido). Comprueba
+     código 400.
+     Propósito: la validación del campo status solo permite "active"/"inactive".
+
+ 11. PUT /api/employees/:id inexistente devuelve 404
+     Intenta actualizar el empleado con ID 99999. Comprueba código 404.
+     Propósito: actualizar un recurso que no existe debe dar error claro.
+
+ 12. DELETE /api/employees/:id elimina el empleado
+     Crea un empleado extra, lo elimina y verifica que un GET posterior devuelve
+     404.
+     Propósito: el borrado es efectivo y el recurso deja de existir.
+
+ 13. DELETE /api/employees/:id inexistente devuelve 404
+     Intenta borrar ID 99999. Comprueba código 404.
+     Propósito: borrar algo que no existe debe devolver error, no fallar en
+     silencio.
+
+ 14. GET /api/employees/:id inexistente devuelve 404
+     Consulta ID 99999. Comprueba código 404.
+     Propósito: consultar un recurso que no existe debe dar 404.
+
+ 15. GET /api/employees/:id/qr devuelve el qr_token del empleado
+     Comprueba código 200, presencia de "qr_token" y que "employee_id" coincide
+     con el ID solicitado.
+     Propósito: el endpoint QR devuelve el token correcto.
+
+ 16. GET /api/employees/:id/qr con ID no numérico devuelve 400
+     Solicita /api/employees/abc/qr. Comprueba código 400.
+     Propósito: los parámetros de ruta deben validarse como enteros.
+
+── FICHAJES (CHECKINS) ───────────────────────────────────────────────────────
+
+ 17. POST /api/checkins sin X-API-Key devuelve 401
+     Petición sin cabecera X-API-Key. Comprueba código 401.
+     Propósito: los kioscos deben autenticarse con su API Key.
+
+ 18. POST /api/checkins primer fichaje es IN
+     Fichaje con token de empleado activo. Comprueba código 201 y direction "IN".
+     Propósito: el primer fichaje siempre debe ser entrada.
+
+ 19. POST /api/checkins segundo fichaje inmediato es DUPLICADO (409)
+     Segundo fichaje inmediato (<10s). Comprueba código 409.
+     Propósito: la protección anti-duplicado evita fichajes accidentales rápidos.
+
+ 20. POST /api/checkins token desconocido devuelve 404
+     Token con formato válido pero no registrado. Comprueba código 404.
+     Propósito: tokens no reconocidos deben rechazarse explícitamente.
+
+ 21. POST /api/checkins con empleado inactivo devuelve 403
+     Desactiva el empleado (status "inactive") y ficha. Comprueba código 403.
+     Propósito: los empleados inactivos no pueden fichar.
+
+ 22. GET /api/checkins devuelve lista de fichajes
+     Petición con JWT admin. Comprueba código 200 y array en el cuerpo.
+     Propósito: el admin puede consultar el historial de fichajes.
+
+ 23. GET /api/checkins filtra por fecha con formato correcto
+     Filtra por la fecha de hoy (YYYY-MM-DD). Comprueba código 200.
+     Propósito: el filtro de fecha funciona con el formato correcto.
+
+ 24. GET /api/checkins con fecha incorrecta devuelve 400
+     Filtra con ?date=ayer. Comprueba código 400.
+     Propósito: el formato de fecha debe validarse (solo YYYY-MM-DD).
+
+ 25. GET /api/checkins filtra por employee_id
+     Filtra por ?employee_id=1. Comprueba código 200 y array.
+     Propósito: el filtro por empleado funciona correctamente.
+
+ 26. GET /api/checkins employee_id no numérico devuelve 400
+     Filtra con ?employee_id=abc. Comprueba código 400.
+     Propósito: employee_id debe ser un número entero positivo.
+
+── TERMINALES ────────────────────────────────────────────────────────────────
+
+ 27. GET /api/terminals sin token devuelve 401
+     Sin cabecera Authorization. Comprueba código 401.
+     Propósito: el listado de terminales también está protegido.
+
+ 28. GET /api/terminals con token devuelve lista
+     Con JWT admin. Comprueba código 200 y array.
+     Propósito: un admin puede ver los terminales registrados.
+
+ 29. POST /api/terminals crea terminal con api_key
+     Crea "Kiosco Test" en "Planta 1". Comprueba código 201, presencia de
+     "api_key" y que el nombre es correcto.
+     Propósito: la creación de terminales genera automáticamente una API Key.
+
+ 30. POST /api/terminals sin nombre devuelve 400
+     Body vacío. Comprueba código 400.
+     Propósito: el campo "name" es obligatorio para los terminales.
+
+ 31. POST /api/terminals sin token devuelve 401
+     Sin cabecera Authorization. Comprueba código 401.
+     Propósito: crear terminales requiere autenticación de admin.
+
+── MIDDLEWARE JWT ─────────────────────────────────────────────────────────────
+
+ 32. Token con formato incorrecto (sin Bearer) devuelve 401
+     Envía el token sin el prefijo "Bearer ". Comprueba código 401.
+     Propósito: el middleware exige el esquema de autenticación correcto.
+
+ 33. Token manipulado devuelve 401
+     Envía "Bearer token.manipulado". Comprueba código 401.
+     Propósito: tokens alterados deben ser rechazados.
+
+── MIDDLEWARE API KEY ────────────────────────────────────────────────────────
+
+ 34. X-API-Key incorrecta devuelve 403
+     Envía una clave que no existe en la BD. Comprueba código 403.
+     Propósito: distingue "clave ausente" (401) de "clave inválida" (403).
+
+ 35. Cabecera X-API-Key ausente devuelve 401
+     Sin la cabecera. Comprueba código 401.
+     Propósito: sin clave no se puede ni intentar el acceso.
+
+--------------------------------------------------------------------------------
+2. QRACCESS NODE.JS  (archivo: qraccess/server.test.js)  —  23 pruebas
+--------------------------------------------------------------------------------
+
+Suite nueva (archivo creado desde cero). Usa Jest + Supertest sobre el servidor
+Express de qraccess, que previamente no tenía ningún test.
+
+── AUTENTICACIÓN – LOGIN (POST /api/auth/login) ─────────────────────────────
+
+  1. login correcto (admin) devuelve token JWT y datos de usuario
+     Envía admin/admin123. Comprueba código 200, presencia de "token", rol
+     "admin" y username "admin".
+     Propósito: verificar el login feliz del administrador.
+
+  2. login correcto (empleado) devuelve token JWT
+     Envía empleado1/emp123. Comprueba código 200, token y rol "empleado".
+     Propósito: los empleados también pueden autenticarse con JWT.
+
+  3. contraseña incorrecta devuelve 401
+     Envía admin con contraseña mala. Comprueba código 401 y campo "error".
+     Propósito: el sistema rechaza credenciales incorrectas.
+
+  4. usuario inexistente devuelve 401
+     Envía usuario "nadie". Comprueba código 401.
+     Propósito: no se filtra si el usuario existe o no (mismo error).
+
+  5. campos vacíos devuelven 400
+     Body vacío. Comprueba código 400 y campo "error".
+     Propósito: los campos username y password son obligatorios.
+
+  6. solo username sin password devuelve 400
+     Solo envía username. Comprueba código 400.
+     Propósito: ambos campos son necesarios para intentar el login.
+
+── AUTENTICACIÓN – LOGOUT (POST /api/auth/logout) ────────────────────────────
+
+  7. logout con token válido devuelve ok:true
+     Token de admin. Comprueba código 200 y ok === true.
+     Propósito: el logout con token válido confirma el cierre de sesión.
+
+  8. logout sin token devuelve 401
+     Sin cabecera. Comprueba código 401.
+     Propósito: el logout también requiere estar autenticado.
+
+  9. logout con token manipulado devuelve 401
+     Token alterado. Comprueba código 401.
+     Propósito: tokens inválidos son rechazados en cualquier ruta protegida.
+
+── DATOS DE USUARIO (GET /api/me) ───────────────────────────────────────────
+
+ 10. devuelve datos del usuario autenticado
+     Token de admin. Comprueba código 200, username "admin", rol "admin",
+     presencia de "id" y "nombre".
+     Propósito: el endpoint /api/me devuelve la información correcta del
+     usuario que hace la petición.
+
+ 11. sin token devuelve 401
+     Sin cabecera. Comprueba código 401.
+     Propósito: no se puede consultar el perfil sin estar autenticado.
+
+── FICHAJES (POST /api/fichajes) ────────────────────────────────────────────
+
+ 12. fichaje sin QR devuelve 400
+     Body vacío. Comprueba código 400 y campo "error".
+     Propósito: el campo "qr" es obligatorio para registrar un fichaje.
+
+ 13. primer fichaje con QR válido devuelve tipo "entrada"
+     Primer fichaje del empleado1. Comprueba código 200, ok === true,
+     tipo === "entrada" y presencia de "timestamp".
+     Propósito: el primer fichaje del día siempre es de entrada.
+
+ 14. segundo fichaje inmediato es "salida" (lógica IN/OUT)
+     Segundo fichaje inmediato. Comprueba tipo === "salida".
+     Propósito: la lógica toggle entrada/salida funciona correctamente.
+
+ 15. tercer fichaje vuelve a ser "entrada"
+     Tercer fichaje. Comprueba tipo === "entrada".
+     Propósito: el ciclo entrada→salida→entrada es continuo y correcto.
+
+ 16. sin token devuelve 401
+     Sin cabecera. Comprueba código 401.
+     Propósito: registrar un fichaje requiere autenticación.
+
+ 17. diferente usuario tiene su propia secuencia entrada/salida
+     El admin ficha por primera vez. Comprueba que el tipo es "entrada"
+     (no se contamina con los fichajes del empleado1).
+     Propósito: el estado IN/OUT es individual por usuario.
+
+── LISTADO DE FICHAJES (GET /api/fichajes) ───────────────────────────────────
+
+ 18. admin puede listar todos los fichajes
+     Token de admin. Comprueba código 200 y array con al menos un elemento.
+     Propósito: el admin ve todos los fichajes del sistema.
+
+ 19. empleado no puede listar fichajes (403)
+     Token de empleado1. Comprueba código 403 y campo "error".
+     Propósito: los empleados no tienen acceso al histórico global.
+
+ 20. sin token devuelve 401
+     Sin cabecera. Comprueba código 401.
+     Propósito: el listado de fichajes está protegido.
+
+── MIDDLEWARE JWT ─────────────────────────────────────────────────────────────
+
+ 21. cabecera Authorization ausente devuelve 401
+     Sin cabecera en GET /api/me. Comprueba código 401.
+     Propósito: verificar el caso base de cabecera inexistente.
+
+ 22. token sin prefijo "Bearer " devuelve 401
+     Envía el token sin prefijo. Comprueba código 401.
+     Propósito: el formato de la cabecera debe ser exactamente "Bearer <token>".
+
+ 23. token expirado / inválido devuelve 401
+     Envía un JWT bien formado pero firmado con clave diferente. Comprueba 401.
+     Propósito: tokens de otros entornos o caducados no deben funcionar.
+
+--------------------------------------------------------------------------------
+3. FICHAJE_QR PYTHON FLASK  (archivo: fichaje_qr/tests/test_fichaje.py)  —  32 pruebas
+--------------------------------------------------------------------------------
+
+Suite sobre la aplicación Flask con SQLite. Usa pytest con un cliente de test
+que monta una base de datos temporal en cada test (fixture "client"). Las primeras
+17 pruebas ya existían; se añadieron 15 nuevas.
+
+── EMPLEADOS (CRUD) ──────────────────────────────────────────────────────────
+
+  1. test_crear_empleado_ok
+     Crea empleado "Ana García". Comprueba código 201, que el nombre es correcto
+     y que el qr_token tiene exactamente 32 caracteres.
+     Propósito: la creación genera un token UUID de longitud correcta.
+
+  2. test_crear_empleado_sin_nombre
+     Body vacío. Comprueba código 400.
+     Propósito: el campo "name" es obligatorio.
+
+  3. test_crear_empleado_nombre_largo
+     Nombre de 101 caracteres. Comprueba código 400.
+     Propósito: el nombre está limitado a 100 caracteres.
+
+  4. test_listar_empleados
+     Crea 2 empleados y lista. Comprueba código 200 y que la lista tiene 2
+     elementos.
+     Propósito: el listado devuelve exactamente los empleados creados.
+
+  5. test_eliminar_empleado
+     Crea un empleado, lo elimina por ID y verifica que la lista queda vacía.
+     Propósito: el borrado funciona y el empleado desaparece de la BD.
+
+  6. test_eliminar_empleado_inexistente
+     Elimina ID 999. Comprueba código 404.
+     Propósito: borrar algo inexistente devuelve 404, no 200 silencioso.
+
+── FICHAJES (CHECKIN) ────────────────────────────────────────────────────────
+
+  7. test_primer_fichaje_es_entrada
+     Primer fichaje de un empleado. Comprueba código 200 y direction "IN".
+     Propósito: sin historial previo, el fichaje es siempre entrada.
+
+  8. test_segundo_fichaje_es_salida
+     Manipula la BD para que el primer fichaje tenga -10 segundos de antigüedad
+     y hace un segundo fichaje. Comprueba direction "OUT".
+     Propósito: la lógica de alternancia IN→OUT funciona.
+
+  9. test_token_invalido
+     Token de 10 caracteres (< 32). Comprueba código 400.
+     Propósito: tokens con formato incorrecto son rechazados en validación.
+
+ 10. test_token_vacio
+     Token vacío "". Comprueba código 400.
+     Propósito: el token no puede ser una cadena vacía.
+
+ 11. test_token_desconocido
+     Token de 32 caracteres válidos pero no registrado. Comprueba código 404.
+     Propósito: tokens bien formados pero no existentes dan 404.
+
+ 12. test_antiduplicate
+     Dos fichajes seguidos < 5 segundos. Comprueba código 429.
+     Propósito: la protección anti-duplicado evita fichajes accidentales.
+
+── LISTADO DE FICHAJES ────────────────────────────────────────────────────────
+
+ 13. test_listado_fichajes
+     Hace un fichaje y lista. Comprueba código 200 y que hay 1 fichaje.
+     Propósito: el fichaje queda persistido y visible en el listado.
+
+ 14. test_filtro_fecha
+     Filtra por hoy (devuelve >= 1) y por 2000-01-01 (devuelve 0).
+     Propósito: el filtro de fecha funciona para fechas con y sin datos.
+
+── JORNADA PERSONALIZADA Y RESUMEN DE HORAS ──────────────────────────────────
+
+ 15. test_crear_empleado_con_jornada_personalizada
+     Crea empleado con weekly_hours=37.5. Comprueba código 201 y que el campo
+     se guarda y aparece en el listado.
+     Propósito: la jornada laboral personalizada se almacena correctamente.
+
+ 16. test_checkin_devuelve_hours_summary
+     Ficha y comprueba que la respuesta incluye "hours_summary" con las claves
+     hours_worked, hours_expected, difference y message.
+     Propósito: el fichaje devuelve en tiempo real el balance de horas.
+
+ 17. test_hours_summary_endpoints
+     Comprueba GET /api/employees/:id/hours y GET /api/employees/hours-summary.
+     Verifica que el employee_id es correcto y que aparece en el resumen global.
+     Propósito: los endpoints de horas anuales funcionan individualmente y en
+     conjunto.
+
+── AUTENTICACIÓN ─────────────────────────────────────────────────────────────
+
+ 18. test_login_admin_ok
+     Envía admin/admin123. Comprueba código 200, username "admin" y rol "admin".
+     Propósito: el login con credenciales correctas funciona en Flask.
+
+ 19. test_login_password_incorrecta
+     Envía contraseña mala. Comprueba código 401 y campo "error".
+     Propósito: contraseña incorrecta es rechazada con el código adecuado.
+
+ 20. test_login_usuario_inexistente
+     Envía usuario que no existe. Comprueba código 401.
+     Propósito: usuario inexistente devuelve 401 (sin revelar si existe).
+
+ 21. test_login_campos_vacios
+     Body vacío. Comprueba código 400.
+     Propósito: usuario y contraseña son campos obligatorios.
+
+ 22. test_logout_ok
+     Llama a POST /api/auth/logout con sesión activa. Comprueba código 200 y
+     ok === true.
+     Propósito: el cierre de sesión limpia correctamente la sesión Flask.
+
+ 23. test_me_autenticado
+     Llama a GET /api/auth/me con sesión activa. Comprueba código 200, username
+     "admin" y rol "admin".
+     Propósito: el endpoint /me devuelve los datos del usuario en sesión.
+
+ 24. test_me_sin_sesion
+     Llama a GET /api/auth/me sin sesión. Comprueba código 401.
+     Propósito: sin sesión activa se devuelve 401.
+
+── RESTRICCIONES DE ROL (ADMIN) ─────────────────────────────────────────────
+
+ 25. test_listar_empleados_requiere_admin
+     Sesión con rol "empleado". GET /api/employees. Comprueba código 403.
+     Propósito: listar empleados es exclusivo de administradores.
+
+ 26. test_crear_empleado_requiere_admin
+     Sesión con rol "empleado". POST /api/employees. Comprueba código 403.
+     Propósito: crear empleados es exclusivo de administradores.
+
+ 27. test_listar_checkins_requiere_admin
+     Sesión con rol "empleado". GET /api/checkins. Comprueba código 403.
+     Propósito: ver el historial global de fichajes es exclusivo de admins.
+
+ 28. test_resumen_horas_requiere_admin
+     Sesión con rol "empleado". GET /api/employees/hours-summary. Comprueba 403.
+     Propósito: el resumen anual de horas es exclusivo de administradores.
+
+── CÓDIGO QR ─────────────────────────────────────────────────────────────────
+
+ 29. test_descarga_qr_empleado_ok
+     Crea empleado y llama a GET /api/employees/:id/qr. Comprueba código 200 y
+     que el Content-Type es "image/png".
+     Propósito: el endpoint QR genera y devuelve la imagen PNG correctamente.
+
+ 30. test_descarga_qr_empleado_inexistente
+     Solicita QR del ID 99999. Comprueba código 404.
+     Propósito: solicitar QR de un empleado inexistente devuelve 404.
+
+── FICHAJE CON DATOS ADICIONALES ─────────────────────────────────────────────
+
+ 31. test_checkin_con_coordenadas
+     Ficha enviando lat=40.4168 y lng=-3.7038. Comprueba código 200 y que
+     direction es "IN".
+     Propósito: el fichaje acepta coordenadas GPS opcionales sin fallar.
+
+ 32. test_checkin_con_tienda
+     Ficha enviando store="Tienda Centro". Comprueba código 200.
+     Propósito: el campo "store" opcional se acepta correctamente.
+
+================================================================================
+  RESUMEN TOTAL
+================================================================================
+
+  Sub-aplicación          | Archivo de tests                        | Tests
+  ------------------------|-----------------------------------------|-------
+  backend (Node.js)       | backend/api.test.js                     |  35
+  qraccess (Node.js)      | qraccess/server.test.js                 |  23
+  fichaje_qr (Python)     | fichaje_qr/tests/test_fichaje.py        |  32
+  ------------------------|-----------------------------------------|-------
+  TOTAL                   |                                         |  90
+
+Todas las pruebas se ejecutan y pasan correctamente (90/90 en verde).
+
+================================================================================
+  TIPOS DE PRUEBA CUBIERTOS
+================================================================================
+
+  · Pruebas de camino feliz (Happy path)
+    Verifican que la operación principal funciona cuando se dan los datos
+    correctos (login correcto, crear recurso, fichar, etc.).
+
+  · Pruebas de validación de entrada
+    Comprueban que los campos obligatorios son rechazados cuando faltan o
+    tienen formato incorrecto (email vacío, ID no numérico, fecha inválida,
+    nombre demasiado largo, token con longitud incorrecta).
+
+  · Pruebas de autenticación y autorización
+    Verifican que los endpoints protegidos devuelven 401 cuando no hay token,
+    403 cuando el rol es insuficiente, y que tokens manipulados o expirados
+    son rechazados.
+
+  · Pruebas de lógica de negocio
+    Verifican la lógica de alternancia IN/OUT de los fichajes, la protección
+    anti-duplicado (ventana de 5-10 segundos), que empleados inactivos no
+    pueden fichar, y que cada usuario tiene su propio estado de fichaje.
+
+  · Pruebas de recursos no encontrados (404)
+    Consultar, actualizar, borrar o fichar con IDs/tokens que no existen debe
+    devolver siempre 404 y no un error 500 ni un silencio incorrecto.
+
+  · Pruebas de integración de endpoints
+    Flujos encadenados (crear empleado → obtener QR → fichar → comprobar
+    historial) que verifican la coherencia del sistema end-to-end dentro de
+    la suite.
+
+================================================================================
