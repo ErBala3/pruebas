@@ -714,4 +714,4 @@ pytest tests/test_fichaje.py -v
 - Usa HTTPS (nginx + certbot).
 - Configura `SECRET_KEY` en Flask con un valor aleatorio largo.
 - Haz backup periódico de `fichaje.db`.
->>>>>>> c2b0babde124b2c0982bce7ebd013588c75b4b1e
+
