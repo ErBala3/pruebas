@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # QRAccess — Sistema de Fichaje por Código QR
 
 Guía completa para empresas que deseen implantar el sistema de control de presencia QRAccess.
