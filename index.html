@@ -70,7 +70,7 @@ body {
   <div class="error" id="error"></div>
 </div>
 
-<<<<<<< HEAD
+< HEAD
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/js-sha256@0.11.1/src/sha256.min.js"></script>
@@ -100,7 +100,7 @@ firebase.initializeApp({
 const db = firebase.firestore();
 
 // ── Hash de contraseña (SHA-256 via Web Crypto API) ───────────────────
-<<<<<<< HEAD
+< HEAD
 async function hashPassword(password) {
   if (!window.crypto || !window.crypto.subtle || typeof window.crypto.subtle.digest !== 'function') {
     return window.sha256(password);
@@ -116,7 +116,7 @@ async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
   const hash = await crypto.subtle.digest('SHA-256', data);
->>>>>>> c2b0babde124b2c0982bce7ebd013588c75b4b1e
+> 
   return Array.from(new Uint8Array(hash))
     .map(b => b.toString(16).padStart(2, '0')).join('');
 }
