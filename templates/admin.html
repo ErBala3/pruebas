@@ -2065,8 +2065,8 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
   var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!nombre || !email) { errEl.textContent = 'Nombre y email son obligatorios'; errEl.classList.add('show'); return; }
   if (!emailRegex.test(email)) { errEl.textContent = 'El email no tiene un formato válido (ej: usuario@empresa.com)'; errEl.classList.add('show'); return; }
-  // Departamento obligatorio solo si el usuario NO es jefe (los jefes no requieren departamento)
-  if (rol !== 'jefe' && esJefe && _modalDepts.length === 0) { errEl.textContent = 'Debes seleccionar al menos un departamento'; errEl.classList.add('show'); return; }
+  // Departamento obligatorio solo para empleados (los jefes y admins no lo requieren)
+  if (rol === 'empleado' && _modalDepts.length === 0 && _modalEmpresas.length > 0) { errEl.textContent = 'Debes seleccionar al menos un departamento'; errEl.classList.add('show'); return; }
   // Validar contraseña: mínimo 6 caracteres, al menos una mayúscula, una minúscula y un número
   if (!editingUserId && !password) { errEl.textContent = 'La contraseña es obligatoria'; errEl.classList.add('show'); return; }
   if (password) {
@@ -2484,6 +2484,7 @@ document.getElementById('btnGuardarEmpresa').addEventListener('click', async fun
   var errEl  = document.getElementById('modalEmpresaErr');
   errEl.classList.remove('show');
   if (!nombre) { errEl.textContent = 'El nombre es obligatorio'; errEl.classList.add('show'); return; }
+  if (nombre.length > 100) { errEl.textContent = 'El nombre es demasiado largo (máx. 100 caracteres)'; errEl.classList.add('show'); return; }
   // Verificar duplicados
   var existSnap = await db.collection('empresas').where('nombre', '==', nombre).get();
   if (!existSnap.empty) { errEl.textContent = 'Ya existe una empresa con ese nombre'; errEl.classList.add('show'); return; }
