@@ -392,6 +392,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="nav-item" data-sec="usuarios">Usuarios</div>
     <div class="nav-item" data-sec="horas">Horas por empleado</div>
     <div class="nav-item" data-sec="departamentos">Departamentos</div>
+    <div class="nav-item" data-sec="empresas" id="navEmpresas" style="display:none">Empresas</div>
     <div class="nav-item" data-sec="fichajes">Fichajes</div>
   </nav>
 
@@ -474,6 +475,17 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
       <div id="qrGrid" class="qr-grid"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
     </div>
 
+    <!-- EMPRESAS (solo admin) -->
+    <div class="section" id="sec-empresas">
+      <div class="page-header">
+        <div><div class="page-title">Empresas</div><div class="page-sub">Dar de alta y gestionar empresas</div></div>
+        <button class="btn-primary" id="btnNuevaEmpresa">+ Nueva empresa</button>
+      </div>
+      <div class="tcard">
+        <div id="tablaEmpresas"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+      </div>
+    </div>
+
     <!-- FICHAJES -->
     <div class="section" id="sec-fichajes">
       <div class="page-header">
@@ -516,13 +528,15 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
       </div>
       <div class="field full">
         <label>Empresas</label>
-        <!-- Modo admin: texto libre + chips -->
+        <!-- Modo admin: selector de empresas registradas + chips -->
         <div id="empAdminWrap">
           <div class="emp-input-wrap">
-            <input type="text" id="fEmpresa" placeholder="Nombre de empresa...">
+            <select id="fEmpresaSelect" style="flex:1;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;">
+              <option value="">— Selecciona empresa —</option>
+            </select>
             <button type="button" class="btn-add-emp" id="btnAddEmp">+ Añadir</button>
           </div>
-          <div style="font-size:10px;color:var(--muted);margin-top:4px">Escribe el nombre y pulsa Añadir. Si no existe, se creará.</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">Selecciona una empresa registrada y pulsa Añadir.</div>
           <div class="chips-wrap" id="empChips"></div>
         </div>
         <!-- Modo jefe: checkboxes de sus propias empresas -->
@@ -575,13 +589,12 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="field"><label>Nombre del departamento</label><input type="text" id="fDeptNombre" placeholder="Ej: Almacén, Oficina, Producción..."></div>
     <div class="field">
       <label>Empresa</label>
-      <!-- Modo admin: select con existentes + opción nueva -->
+      <!-- Modo admin: select con empresas registradas -->
       <div id="deptEmpAdminWrap">
         <select id="fDeptEmpresaSel" style="width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;margin-bottom:6px;">
           <option value="">— Selecciona empresa —</option>
         </select>
-        <input type="text" id="fDeptEmpresaNueva" placeholder="O escribe una nueva empresa..." style="width:100%;padding:11px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:13px;outline:none;">
-        <div style="font-size:10px;color:var(--muted);margin-top:4px">Selecciona una existente o escribe el nombre de una nueva.</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Selecciona una empresa registrada desde el apartado de Empresas.</div>
       </div>
       <!-- Modo jefe: solo sus empresas -->
       <div id="deptEmpJefeWrap" style="display:none">
@@ -627,6 +640,19 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
     <div class="modal-actions">
       <button class="btn-cancel"  id="btnCancelDept">Cancelar</button>
       <button class="btn-primary" id="btnGuardarDept">Crear y generar QR</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal empresa -->
+<div class="overlay" id="ovEmpresa">
+  <div class="modal">
+    <div class="modal-title">Nueva empresa</div>
+    <div class="field"><label>Nombre de la empresa</label><input type="text" id="fEmpresaNombre" placeholder="Ej: TechCorp, Logística Sur..."></div>
+    <div class="modal-err" id="modalEmpresaErr"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" id="btnCancelEmpresa">Cancelar</button>
+      <button class="btn-primary" id="btnGuardarEmpresa">Guardar</button>
     </div>
   </div>
 </div>
@@ -709,6 +735,11 @@ document.getElementById('userPuesto').textContent = puesto;
 // Badge y permisos según rol
 var esJefe = (me.rol === 'jefe');
 document.getElementById('rolBadge').textContent = esJefe ? 'Jefe' : 'Admin';
+
+// Mostrar sección Empresas solo a admins
+if (!esJefe) {
+  document.getElementById('navEmpresas').style.display = '';
+}
 
 // (el filtro de empresa se activa al final del script, cuando todas las variables ya están definidas)
 
@@ -870,6 +901,7 @@ document.querySelectorAll('.nav-item').forEach(function(item) {
     if (sec === 'usuarios')      loadUsuarios();
     if (sec === 'horas')         loadHorasEmpleados();
     if (sec === 'departamentos') loadDepartamentos();
+    if (sec === 'empresas')      loadEmpresas();
     if (sec === 'fichajes')      loadFichajes();
   });
 });
@@ -1608,6 +1640,7 @@ function aplicarFiltroEmpresaGlobal() {
   if (sec === 'usuarios')      loadUsuarios();
   if (sec === 'horas')         loadHorasEmpleados();
   if (sec === 'departamentos') loadDepartamentos();
+  if (sec === 'empresas')      loadEmpresas();
   if (sec === 'fichajes') {
     if (_fichajesCache.length) applyFichajesFilters();
     else loadFichajes();
@@ -1897,19 +1930,27 @@ function _toggleDept(cb) {
 
 // Listener botón añadir empresa
 document.getElementById('btnAddEmp').addEventListener('click', function() {
-  var inp = document.getElementById('fEmpresa');
-  var val = inp.value.trim();
+  var sel = document.getElementById('fEmpresaSelect');
+  var val = sel.value.trim();
   if (!val) return;
-  // Separar por comas (permite pegar múltiples a la vez)
-  val.split(',').map(function(e){ return e.trim(); }).filter(Boolean).forEach(function(e) {
-    if (_modalEmpresas.indexOf(e) < 0) _modalEmpresas.push(e);
-  });
-  inp.value = '';
+  if (_modalEmpresas.indexOf(val) < 0) _modalEmpresas.push(val);
+  sel.value = '';
   _renderEmpChips();
 });
-document.getElementById('fEmpresa').addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('btnAddEmp').click(); }
-});
+
+async function _loadEmpresasSelect() {
+  var sel = document.getElementById('fEmpresaSelect');
+  sel.innerHTML = '<option value="">— Selecciona empresa —</option>';
+  try {
+    var snap = await db.collection('empresas').orderBy('nombre').get();
+    snap.docs.forEach(function(d) {
+      var opt = document.createElement('option');
+      opt.value = d.data().nombre;
+      opt.textContent = d.data().nombre;
+      sel.appendChild(opt);
+    });
+  } catch(e) { /* silenciar */ }
+}
 
 async function openUserModal(title, data) {
   data = data || {};
@@ -1919,7 +1960,7 @@ async function openUserModal(title, data) {
   document.getElementById('fPassword').value = '';
   document.getElementById('fEmail').disabled = !!editingUserId;
   document.getElementById('modalUserErr').classList.remove('show');
-  document.getElementById('fEmpresa').value  = '';
+  document.getElementById('fEmpresaSelect').value  = '';
 
   // Opciones de rol según quien edita
   var fRolEl = document.getElementById('fRol');
@@ -1981,6 +2022,7 @@ async function openUserModal(title, data) {
   } else {
     adminWrap.style.display = 'block';
     jefeWrap.style.display  = 'none';
+    await _loadEmpresasSelect();
     _renderEmpChips();
   }
 
@@ -2023,8 +2065,8 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
   var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!nombre || !email) { errEl.textContent = 'Nombre y email son obligatorios'; errEl.classList.add('show'); return; }
   if (!emailRegex.test(email)) { errEl.textContent = 'El email no tiene un formato válido (ej: usuario@empresa.com)'; errEl.classList.add('show'); return; }
-  // Jefes: al menos un departamento obligatorio
-  if (esJefe && _modalDepts.length === 0) { errEl.textContent = 'Debes seleccionar al menos un departamento'; errEl.classList.add('show'); return; }
+  // Departamento obligatorio solo si el usuario NO es jefe (los jefes no requieren departamento)
+  if (rol !== 'jefe' && esJefe && _modalDepts.length === 0) { errEl.textContent = 'Debes seleccionar al menos un departamento'; errEl.classList.add('show'); return; }
   // Validar contraseña: mínimo 6 caracteres, al menos una mayúscula, una minúscula y un número
   if (!editingUserId && !password) { errEl.textContent = 'La contraseña es obligatoria'; errEl.classList.add('show'); return; }
   if (password) {
@@ -2035,21 +2077,6 @@ document.getElementById('btnGuardarUser').addEventListener('click', async functi
   }
   btn.disabled = true; btn.textContent = 'Guardando...';
   try {
-    // Admins: asegurarse de que cada empresa existe en Firestore
-    if (!esJefe && _modalEmpresas.length) {
-      const empSnap = await db.collection('departamentos').get();
-      const empresasExistentes = new Set(empSnap.docs.map(function(d){ return d.data().empresa; }));
-      // También revisar la colección de usuarios para empresas ya registradas
-      const uSnap2 = await db.collection('usuarios').get();
-      uSnap2.docs.forEach(function(d) {
-        var u = d.data();
-        (Array.isArray(u.empresas) ? u.empresas : (u.empresa ? [u.empresa] : []))
-          .forEach(function(e){ empresasExistentes.add(e); });
-      });
-      // Por ahora solo registramos el nombre — el admin puede crear depts después
-      // No hay colección separada de empresas; se usan las que aparecen en usuarios/depts
-    }
-
     // Horario especial (solo empleados)
     var horarioEsp = null;
     if (rol === 'empleado') {
@@ -2182,9 +2209,13 @@ async function initDeptEmpresaSelector(empActual) {
   } else {
     adminWrap.style.display = 'block';
     jefeWrap.style.display  = 'none';
-    // Cargar empresas existentes desde usuarios y departamentos
+    // Cargar empresas desde la colección 'empresas' y también desde usuarios/departamentos
     var empresasSet = new Set();
     try {
+      var empSnap = await db.collection('empresas').get();
+      empSnap.docs.forEach(function(d) {
+        if (d.data().nombre) empresasSet.add(d.data().nombre);
+      });
       var uSnap = await db.collection('usuarios').get();
       uSnap.docs.forEach(function(d) {
         var u = d.data();
@@ -2204,18 +2235,11 @@ async function initDeptEmpresaSelector(empActual) {
       if (e === empActual) o.selected = true;
       sel.appendChild(o);
     });
-    // Al elegir del select, limpiar el texto libre y actualizar hidden
+    // Al elegir del select, actualizar hidden
     sel.onchange = function() {
-      document.getElementById('fDeptEmpresaNueva').value = '';
       document.getElementById('fDeptEmpresa').value = this.value;
     };
-    // Al escribir en el campo nuevo, limpiar el select y actualizar hidden
-    document.getElementById('fDeptEmpresaNueva').oninput = function() {
-      sel.value = '';
-      document.getElementById('fDeptEmpresa').value = this.value.trim();
-    };
     document.getElementById('fDeptEmpresaSel').value    = empActual || '';
-    document.getElementById('fDeptEmpresaNueva').value  = '';
     document.getElementById('fDeptEmpresa').value       = empActual || '';
   }
 }
@@ -2401,6 +2425,74 @@ document.getElementById('btnDescargaQR').addEventListener('click', function() {
   else if (img && img.src) src = img.src;
   else return;
   const a = document.createElement('a'); a.href=src; a.download='QR_'+currentQRData.nombre.replace(/\s+/g,'_')+'.png'; a.click();
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// EMPRESAS (solo admin) – CRUD en Firestore colección 'empresas'
+// ─────────────────────────────────────────────────────────────────────────
+var _empresasCache = [];
+
+async function loadEmpresas() {
+  var container = document.getElementById('tablaEmpresas');
+  if (!container) return;
+  container.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
+  try {
+    var snap = await db.collection('empresas').orderBy('nombre').get();
+    _empresasCache = snap.docs.map(function(d) { return { id: d.id, nombre: d.data().nombre, creadoEn: d.data().creadoEn }; });
+    if (!_empresasCache.length) {
+      container.innerHTML = '<div class="empty">No hay empresas registradas. Pulsa "+ Nueva empresa" para dar de alta una.</div>';
+      return;
+    }
+    var html = '<table><thead><tr><th>Nombre</th><th>Acciones</th></tr></thead><tbody>';
+    _empresasCache.forEach(function(emp) {
+      html += '<tr><td>' + esc(emp.nombre) + '</td><td><button class="btn-del" data-action="delEmpresa" data-id="' + emp.id + '" data-nombre="' + escAttr(emp.nombre) + '">Eliminar</button></td></tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch(e) {
+    container.innerHTML = '<div class="empty">Error al cargar empresas: ' + esc(e.message) + '</div>';
+  }
+}
+
+document.getElementById('tablaEmpresas').addEventListener('click', function(event) {
+  var btn = event.target.closest('button[data-action="delEmpresa"]');
+  if (!btn) return;
+  var id = btn.dataset.id;
+  var nombre = btn.dataset.nombre;
+  delEmpresa(id, nombre);
+});
+
+async function delEmpresa(id, nombre) {
+  if (!confirm('¿Eliminar la empresa "' + nombre + '"?')) return;
+  try {
+    await db.collection('empresas').doc(id).delete();
+    toast('Empresa eliminada');
+    loadEmpresas();
+  } catch(e) { toast('Error: ' + e.message, 'err'); }
+}
+
+document.getElementById('btnNuevaEmpresa').addEventListener('click', function() {
+  document.getElementById('fEmpresaNombre').value = '';
+  document.getElementById('modalEmpresaErr').classList.remove('show');
+  document.getElementById('ovEmpresa').classList.add('show');
+});
+document.getElementById('btnCancelEmpresa').addEventListener('click', function() {
+  document.getElementById('ovEmpresa').classList.remove('show');
+});
+document.getElementById('btnGuardarEmpresa').addEventListener('click', async function() {
+  var nombre = document.getElementById('fEmpresaNombre').value.trim();
+  var errEl  = document.getElementById('modalEmpresaErr');
+  errEl.classList.remove('show');
+  if (!nombre) { errEl.textContent = 'El nombre es obligatorio'; errEl.classList.add('show'); return; }
+  // Verificar duplicados
+  var existSnap = await db.collection('empresas').where('nombre', '==', nombre).get();
+  if (!existSnap.empty) { errEl.textContent = 'Ya existe una empresa con ese nombre'; errEl.classList.add('show'); return; }
+  try {
+    await db.collection('empresas').add({ nombre: nombre, creadoEn: firebase.firestore.FieldValue.serverTimestamp() });
+    toast('Empresa registrada');
+    document.getElementById('ovEmpresa').classList.remove('show');
+    loadEmpresas();
+  } catch(e) { errEl.textContent = 'Error: ' + e.message; errEl.classList.add('show'); }
 });
 
 // ─────────────────────────────────────────────────────────────────────────
