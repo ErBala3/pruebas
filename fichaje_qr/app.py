@@ -10,16 +10,26 @@ import os
 import uuid
 from datetime import datetime, timedelta
 import qrcode
-import io
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "cambiar_en_produccion_" + uuid.uuid4().hex)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=False,
+)
 
 BASE_DIR  = os.path.abspath(os.path.dirname(__file__))
+REPO_ROOT = os.path.abspath(os.path.join(BASE_DIR, ".."))
 DB_PATH   = os.path.join(BASE_DIR, "fichaje.db")
 QR_FOLDER = os.path.join(BASE_DIR, "static", "qr_codes")
+
+DEFAULT_WEEKLY_HOURS = 40.0
+MIN_WEEKLY_HOURS = 1.0
+MAX_WEEKLY_HOURS = 80.0
+DUPLICATE_CHECKIN_SECONDS = 5
 
 # ─────────────────────────────────────────────
 # BASE DE DATOS
@@ -30,6 +40,22 @@ def get_db():
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+def load_json():
+    return request.get_json(silent=True) or {}
+
+
+def error_response(message, status=400):
+    return jsonify({"error": message}), status
+
+
+def parse_weekly_hours(raw_value):
+    try:
+        weekly_hours = float(raw_value or DEFAULT_WEEKLY_HOURS)
+    except (TypeError, ValueError):
+        return None
+    return max(MIN_WEEKLY_HOURS, min(MAX_WEEKLY_HOURS, weekly_hours))
 
 
 def init_db():
@@ -135,6 +161,9 @@ def compute_hours_summary(conn, employee_id, weekly_hours):
             total_seconds += (out_ts - last_in).total_seconds()
             last_in = None
 
+    if last_in is not None:
+        total_seconds += (datetime.now() - last_in).total_seconds()
+
     hours_worked = total_seconds / 3600.0
 
     # Calcular días laborables (lun-vie) desde el 1 de enero hasta hoy
@@ -170,7 +199,8 @@ def compute_hours_summary(conn, employee_id, weekly_hours):
 
 
 def generate_qr_image(token: str) -> str:
-    """Genera imagen QR y la guarda. Devuelve la ruta relativa."""
+    """Genera imagen QR y la guarda. Devuelve la ruta absoluta."""
+    os.makedirs(QR_FOLDER, exist_ok=True)
     path = os.path.join(QR_FOLDER, f"{token}.png")
     if not os.path.exists(path):
         img = qrcode.make(token)
@@ -308,33 +338,37 @@ def employees_hours_summary():
 @require_admin
 def create_employee():
     """Crea un empleado y genera su QR."""
-    data         = request.get_json(silent=True) or {}
-    name         = (data.get("name") or "").strip()
-    try:
-        weekly_hours = float(data.get("weekly_hours") or 40.0)
-    except (TypeError, ValueError):
-        return jsonify({"error": "weekly_hours debe ser un número"}), 400
-    weekly_hours = max(1.0, min(80.0, weekly_hours))
+    data = load_json()
+    name = (data.get("name") or "").strip()
+    weekly_hours = parse_weekly_hours(data.get("weekly_hours"))
 
+    if weekly_hours is None:
+        return error_response("weekly_hours debe ser un número")
     if not name:
-        return jsonify({"error": "El campo 'name' es obligatorio"}), 400
+        return error_response("El campo 'name' es obligatorio")
     if len(name) > 100:
-        return jsonify({"error": "Nombre demasiado largo (máx. 100 caracteres)"}), 400
+        return error_response("Nombre demasiado largo (máx. 100 caracteres)")
 
     token = uuid.uuid4().hex
     try:
         with get_db() as conn:
-            conn.execute(
+            cursor = conn.execute(
                 "INSERT INTO employees (name, qr_token, weekly_hours) VALUES (?, ?, ?)",
                 (name, token, weekly_hours)
             )
+            employee_id = cursor.lastrowid
     except sqlite3.IntegrityError:
-        return jsonify({"error": "Ya existe un empleado con ese token"}), 409
+        return error_response("Ya existe un empleado con ese token", 409)
 
     generate_qr_image(token)
     return jsonify({
-        "message":  "Empleado creado",
-        "employee": {"name": name, "qr_token": token, "weekly_hours": weekly_hours}
+        "message": "Empleado creado",
+        "employee": {
+            "id": employee_id,
+            "name": name,
+            "qr_token": token,
+            "weekly_hours": weekly_hours
+        }
     }), 201
 
 
@@ -590,6 +624,16 @@ def kiosk():
     return render_template("kiosk.html")
 
 
+@app.route("/index.html")
+def index_html():
+    return send_file(os.path.join(REPO_ROOT, "index.html"))
+
+
+@app.route("/dashboard.html")
+def dashboard_html():
+    return send_file(os.path.join(REPO_ROOT, "dashboard.html"))
+
+
 @app.route("/admin")
 def admin():
     if session.get("rol") != "admin":
@@ -597,9 +641,20 @@ def admin():
     return render_template("admin.html")
 
 
+@app.route("/admin.html")
+def admin_html():
+    return send_file(os.path.join(REPO_ROOT, "admin.html"))
+
+
 # ─────────────────────────────────────────────
 # ARRANQUE
 # ─────────────────────────────────────────────
+
+@app.before_request
+def ensure_database_initialized():
+    if not app.config.get("db_initialized", False):
+        init_db()
+        app.config["db_initialized"] = True
 
 if __name__ == "__main__":
     init_db()

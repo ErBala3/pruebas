@@ -1,2 +1,10 @@
 __pycache__/
 *.pyc
+.pytest_cache/
+venv/
+.venv/
+*.db
+*.sqlite
+status.txt
+npm-debug.log*
+yarn-error.log*

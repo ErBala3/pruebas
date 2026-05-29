@@ -93,6 +93,12 @@ body {
 .balance-msg.s-warn { background: rgba(138,104,0,.08);   border-color: #8a6800; color: #b8960a; }
 .balance-msg.s-err  { background: rgba(192,57,43,.08);   border-color: #c0392b; color: #c0392b; }
 .balance-msg.s-info { background: rgba(226,226,226,.04); border-color: #444;   color: var(--text-secondary); }
+.year-summary { margin-top: 16px; padding: 14px 16px; background: rgba(255,255,255,.02); border: 1px solid var(--border); border-radius: 10px; }
+.year-summary-title { font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: .7px; margin-bottom: 10px; }
+.year-summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.year-summary-item { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 8px; padding: 10px 12px; }
+.year-summary-item .label { font-size: 10px; color: var(--text-secondary); margin-bottom: 4px; }
+.year-summary-item .value { font-size: 14px; font-weight: 700; color: var(--text); }
 .bm-title { font-weight: 600; margin-bottom: 2px; font-size: 12px; }
 
 /* ── Card escáner ── */
@@ -212,6 +218,7 @@ body {
     <div class="balance-msg s-info" id="hpMsg">
       <div class="bm-title">Cargando datos...</div>
     </div>
+    <!-- Resumen anual eliminado para simplificar -->
   </div>
 
   <!-- Escáner -->
@@ -576,6 +583,8 @@ async function cargarPanelHoras() {
     else if (balance < -2) barEl.className = 'progress-fill p-warn';
     else                  barEl.className = 'progress-fill';
 
+    // Resumen anual eliminado para evitar bloqueo del calendario
+
     // Mensaje personalizado
     const msgEl = document.getElementById('hpMsg');
     let cls, titulo, detalle;
@@ -865,10 +874,10 @@ async function onScanSuccess(scannedText) {
 
 // ── Inicio ────────────────────────────────────────────────────────────────
 document.getElementById('btnRescan').addEventListener('click', function() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const deptId    = urlParams.get('dept') || sessionStorage.getItem('pendingDept');
-  if (deptId) { document.getElementById('btnRescan').classList.remove('show'); procesarFichajeAutomatico(deptId); }
-  else initScanner();
+  sessionStorage.removeItem('pendingDept');
+  history.replaceState(null, '', 'dashboard.html');
+  document.getElementById('btnRescan').classList.remove('show');
+  initScanner();
 });
 
 (function init() {

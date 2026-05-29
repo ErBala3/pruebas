@@ -105,10 +105,9 @@ El sistema se compone de tres capas:
 |---|---|
 | `fichaje_qr/` | Backend principal (Python/Flask) con base de datos SQLite |
 | `backend/` | Backend alternativo (Node.js/Express) con autenticación JWT |
-| `qraccess/` | Versión anterior del backend Node.js (referencia) |
-| `index.html` | Pantalla de login del panel web |
-| `admin.html` | Panel de administración |
-| `dashboard.html` | Vista de fichajes del panel web |
+| `index.html` | Pantalla de login del panel web publicada en GitHub Pages |
+| `admin.html` | Panel de administración compartido entre GitHub Pages y pruebas locales |
+| `dashboard.html` | Vista de fichajes compartida entre GitHub Pages y pruebas locales |
 
 ---
 
@@ -169,6 +168,7 @@ El servidor se inicia en `http://localhost:5000`. La base de datos `fichaje.db` 
 
 - Panel de administración: `http://localhost:5000/admin`
 - Kiosco de fichaje: `http://localhost:5000/`
+- Frontend estilo GitHub Pages: `http://localhost:5000/index.html`
 
 ---
 

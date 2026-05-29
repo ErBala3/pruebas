@@ -7,6 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/js-sha256@0.11.1/src/sha256.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
@@ -19,7 +20,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .topbar { position: fixed; top: 0; left: 0; right: 0; height: 58px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 28px; z-index: 100; }
 .logo { font-size: 20px; font-weight: 700; color: var(--text); }
 .logo span { color: var(--accent); }
-.logo small { font-size: 12px; color: var(--text-secondary); margin-left: 10px; font-weight: 400; }
+.logo small { font-size: 12px; color: var(--text-secondary); margin-left: 10px; font-weight: 400; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; }
 .topbar-right { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--text-secondary); }
 .badge { padding: 3px 10px; background: rgba(226,226,226,.08); border: 1px solid #333; border-radius: 20px; color: #a0a0a0; font-size: 11px; font-weight: 500; }
 .btn-hamburger { display:none; background:transparent; border:none; color:var(--text); font-size:20px; cursor:pointer; padding:4px 8px; line-height:1; }
@@ -119,19 +120,41 @@ tr:hover td { background: rgba(255,255,255,.02); }
 .btn-edit-dept:hover { background: rgba(226,226,226,.06); }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 .live-dot { display: inline-block; width: 7px; height: 7px; background: #5aad7e; border-radius: 50%; margin-right: 7px; animation: pulse 2s infinite; }
-.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(4px); z-index: 200; align-items: center; justify-content: center; }
+.overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.7); backdrop-filter: blur(4px); z-index: 200; align-items: center; justify-content: center; overflow-y: auto; padding: 20px 0; }
 .overlay.show { display: flex; }
-.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 36px; width: 440px; max-width: 95vw; box-shadow: 0 24px 60px rgba(0,0,0,.6); animation: fadeUp .3s ease both; position: relative; }
+.cal-dia-d { position: relative; }
+.cal-dia-d .cal-note-btn { position: absolute; bottom: 4px; right: 4px; width: 22px; height: 22px; border: none; background: rgba(255,255,255,.08); color: var(--text); border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font-size: 12px; transition: background .15s, transform .15s; }
+.cal-dia-d .cal-note-btn:hover { background: rgba(255,255,255,.16); transform: translateY(-1px); }
+.cal-dia-d .cal-note-btn.active { background: #5aad7e; color: white; }
+.field textarea { width: 100%; min-height: 130px; padding: 11px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; outline: none; resize: vertical; }
+.field textarea:focus { border-color: #555; box-shadow: 0 0 0 2px rgba(226,226,226,.08); }
+.modal { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 36px; width: 440px; max-width: 95vw; max-height: calc(100vh - 40px); overflow-y: auto; box-shadow: 0 24px 60px rgba(0,0,0,.6); animation: fadeUp .3s ease both; position: relative; }
+.modal--user { width: min(1180px, calc(100vw - 32px)); padding: 28px 24px 24px; max-height: calc(100vh - 32px); overflow-y: auto; }
 .modal-title { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 22px; }
 .field { margin-bottom: 13px; }
 .field label { display: block; font-size: 13px; font-weight: 500; color: var(--text-secondary); margin-bottom: 6px; }
 .field input, .field select { width: 100%; padding: 11px 14px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'Inter', sans-serif; font-size: 13px; outline: none; transition: border-color .2s; }
 .field input:focus, .field select:focus { border-color: #555; box-shadow: 0 0 0 2px rgba(226,226,226,.08); }
 .field select option { background: var(--surface); }
+.modal-user-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 18px; }
+.modal-user-grid .field { margin-bottom: 0; }
+.modal-user-grid .field.full { grid-column: 1 / -1; }
 .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
 .modal-actions .btn-primary { flex: 1; }
 .btn-cancel { flex: 1; padding: 9px; background: transparent; color: var(--text-secondary); border: 1px solid var(--border); border-radius: 8px; font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: border-color .2s, color .2s; }
 .btn-cancel:hover { border-color: var(--text); color: var(--text); }
+@media (max-width: 900px) {
+  .modal--user { width: min(980px, calc(100vw - 24px)); padding: 22px 16px 18px; }
+  .modal-user-grid { grid-template-columns: 1fr; gap: 12px; }
+  .modal-user-grid .field.full { grid-column: auto; }
+}
+@media (max-width: 640px) {
+  .modal--user { width: calc(100vw - 16px); padding: 18px 12px; border-radius: 12px; }
+  .modal-title { margin-bottom: 16px; }
+  .modal-actions { flex-direction: column; }
+  .modal-actions .btn-primary,
+  .modal-actions .btn-cancel { width: 100%; }
+}
 /* ── Selector multi-empresa / multi-dept ── */
 .emp-input-wrap { display:flex; gap:6px; }
 /* Selector empresa jefe */
@@ -322,12 +345,45 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
 .drawer-table-wrap td { padding:11px 20px; border-bottom:1px solid rgba(42,47,69,.5); }
 .drawer-table-wrap tr:last-child td { border-bottom:none; }
 .drawer-footer { padding:20px 28px; border-top:1px solid var(--border); display:flex; gap:10px; }
+/* ── Calendario en modal del drawer ── */
+.cal-modal-wrap { max-height: 70vh; overflow-y: auto; padding: 0 4px; }
+.cal-modal-wrap::-webkit-scrollbar { width: 4px; }
+.cal-modal-wrap::-webkit-scrollbar-thumb { background:#333; border-radius:2px; }
+.cal-mes-item { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 6px; }
+.cal-mes-header { display:flex; align-items:center; justify-content:space-between; padding:9px 14px; cursor:pointer; transition:background .15s; }
+.cal-mes-header:hover { background:rgba(255,255,255,.03); }
+.cal-mes-nombre { font-size:13px; font-weight:600; }
+.cal-mes-nombre.c-ok   { color:#6ab88a; }
+.cal-mes-nombre.c-err  { color:#c0392b; }
+.cal-mes-nombre.c-none { color:var(--text-secondary); }
+.cal-mes-resumen { font-size:11px; color:var(--muted); }
+.cal-mes-arrow { font-size:10px; color:var(--muted); transition:transform .2s; }
+.cal-year-summary { padding: 14px 20px 10px; margin: 0 8px 14px; border: 1px solid var(--border); border-radius: 10px; background: rgba(255,255,255,.02); }
+.cal-year-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.cal-year-item { background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06); border-radius: 8px; padding: 10px 12px; }
+.cal-year-label { font-size: 10px; color: var(--text-secondary); margin-bottom: 4px; }
+.cal-year-value { font-size: 14px; font-weight: 700; color: var(--text); }
+.cal-mes-arrow.open { transform:rotate(180deg); }
+.cal-mes-body { display:none; padding:10px 12px 12px; background:var(--surface2); border-top:1px solid var(--border); }
+.cal-mes-body.open { display:block; }
+.cal-week-hdr { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; margin-bottom:3px; }
+.cal-wd { font-size:9px; font-weight:600; color:var(--muted); text-align:center; }
+.cal-grid-d { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.cal-dia-d { aspect-ratio:1; border-radius:4px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:10px; font-weight:600; border:1px solid transparent; }
+.cal-dia-d.vacio    { background:transparent; border-color:transparent; }
+.cal-dia-d.sin-datos{ background:rgba(255,255,255,.03); border-color:var(--border); color:var(--muted); }
+.cal-dia-d.ok       { background:rgba(45,122,79,.18);  border-color:rgba(45,122,79,.4);  color:#6ab88a; }
+.cal-dia-d.err      { background:rgba(192,57,43,.18);  border-color:rgba(192,57,43,.4);  color:#c0392b; }
+.cal-dia-d.hoy      { outline:2px solid var(--accent); outline-offset:1px; }
+.cal-dia-d.futuro   { opacity:.25; pointer-events:none; }
+.cal-dia-d .dn { font-size:10px; line-height:1; }
+.cal-dia-d .dh { font-size:8px; opacity:.8; margin-top:1px; }
 </style>
 </head>
 <body>
 
 <div class="topbar">
-  <div class="logo">QR<span>Access</span> <small>Admin</small></div>
+  <div class="logo">QR<span>Access</span> <small id="userPuesto">—</small></div>
   <button class="btn-hamburger" id="btnHamburger" aria-label="Menú">☰</button>
   <div class="topbar-right">
     <span id="adminName">—</span>
@@ -362,6 +418,14 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
           </select>
         </div>
       </div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Fichajes hoy</div><div class="stat-value c-success" id="stHoy">—</div></div>
+        <div class="stat-card"><div class="stat-label">Dentro ahora</div><div class="stat-value c-warn" id="stActivos">—</div></div>
+        <div class="stat-card"><div class="stat-label">Fichajes este mes</div><div class="stat-value c-accent" id="stMes">—</div></div>
+        <div class="stat-card"><div class="stat-label">H. normales hoy</div><div class="stat-value c-success" id="stHNorm">—</div></div>
+        <div class="stat-card"><div class="stat-label">H. extra hoy</div><div class="stat-value c-warn" id="stHExtra">—</div></div>
+        <div class="stat-card"><div class="stat-label">Empleados activos</div><div class="stat-value c-accent" id="stEmpleados">—</div></div>
+      </div>
       <!-- ── Gráficas ── -->
       <div class="charts-grid">
 
@@ -389,17 +453,6 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
           <div class="chart-wrap" style="height:200px"><canvas id="chartEmpleados"></canvas></div>
         </div>
 
-      </div>
-
-      <div class="stats-grid">
-        <div class="stat-card"><div class="stat-label">Usuarios</div><div class="stat-value c-accent" id="stUsuarios">—</div></div>
-        <div class="stat-card"><div class="stat-label">Departamentos</div><div class="stat-value c-accent" id="stDepts">—</div></div>
-        <div class="stat-card"><div class="stat-label">Fichajes hoy</div><div class="stat-value c-success" id="stHoy">—</div></div>
-        <div class="stat-card"><div class="stat-label">Dentro ahora</div><div class="stat-value c-warn" id="stActivos">—</div></div>
-        <div class="stat-card"><div class="stat-label">Fichajes este mes</div><div class="stat-value c-accent" id="stMes">—</div></div>
-        <div class="stat-card"><div class="stat-label">H. normales hoy</div><div class="stat-value c-success" id="stHNorm">—</div></div>
-        <div class="stat-card"><div class="stat-label">H. extra hoy</div><div class="stat-value c-warn" id="stHExtra">—</div></div>
-        <div class="stat-card"><div class="stat-label">Empleados activos</div><div class="stat-value c-accent" id="stEmpleados">—</div></div>
       </div>
       <div class="tcard">
         <div class="tcard-head"><div class="tcard-title"><span class="live-dot"></span>Últimos fichajes</div></div>
@@ -471,57 +524,59 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
 
 <!-- Modal usuario -->
 <div class="overlay" id="ovUsuario">
-  <div class="modal">
+  <div class="modal modal--user">
     <div class="modal-title" id="modalUserTitle">Nuevo usuario</div>
-    <div class="field"><label>Nombre</label><input type="text" id="fNombre" placeholder="Juan García"></div>
-    <div class="field"><label>Email</label><input type="email" id="fEmail" placeholder="juan@empresa.com"></div>
-    <div class="field"><label>Contraseña</label><input type="password" id="fPassword" placeholder="Mín. 6 car. · Mayús, minús y número"></div>
-    <div class="field"><label>Rol</label>
-      <select id="fRol"><option value="empleado">Empleado</option><option value="jefe">Jefe</option><option value="admin">Admin</option></select>
-    </div>
-    <div class="field">
-      <label>Empresas</label>
-      <!-- Modo admin: texto libre + chips -->
-      <div id="empAdminWrap">
-        <div class="emp-input-wrap">
-          <input type="text" id="fEmpresa" placeholder="Nombre de empresa...">
-          <button type="button" class="btn-add-emp" id="btnAddEmp">+ Añadir</button>
-        </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px">Escribe el nombre y pulsa Añadir. Si no existe, se creará.</div>
-        <div class="chips-wrap" id="empChips"></div>
+    <div class="modal-user-grid">
+      <div class="field"><label>Nombre</label><input type="text" id="fNombre" placeholder="Juan García"></div>
+      <div class="field"><label>Email</label><input type="email" id="fEmail" placeholder="juan@empresa.com"></div>
+      <div class="field"><label>Contraseña</label><input type="password" id="fPassword" placeholder="Mín. 6 car. · Mayús, minús y número"></div>
+      <div class="field"><label>Rol</label>
+        <select id="fRol"><option value="empleado">Empleado</option><option value="jefe">Jefe</option><option value="admin">Admin</option></select>
       </div>
-      <!-- Modo jefe: checkboxes de sus propias empresas -->
-      <div id="empJefeWrap" style="display:none">
-        <div class="emp-checks-wrap" id="empJefeChecks"></div>
-      </div>
-    </div>
-    <div class="field">
-      <label>Departamentos <span style="font-size:10px;color:var(--muted)">(de las empresas seleccionadas)</span></label>
-      <div class="dept-scroll" id="deptChecks">
-        <div class="dept-empty">Añade una empresa primero</div>
-      </div>
-    </div>
-    <!-- Horario especial: visible solo para empleados -->
-    <div class="field" id="horarioEspField" style="display:none">
-      <label>Horario especial <span style="font-size:10px;color:var(--muted)">(deja vacío para usar el del departamento)</span></label>
-      <div class="horario-esp-wrap">
-        <div class="horario-esp-title">Tramo mañana</div>
-        <div class="horario-esp-row">
-          <input type="time" id="fHorEspEntrada" placeholder="Entrada">
-          <span class="horario-sep">→</span>
-          <input type="time" id="fHorEspSalida" placeholder="Salida">
-        </div>
-        <!-- Tramo tarde (horario partido) -->
-        <div id="horEspPartidoWrap" style="display:none;margin-top:8px">
-          <div class="horario-esp-title">Tramo tarde</div>
-          <div class="horario-esp-row">
-            <input type="time" id="fHorEspEntrada2" placeholder="Entrada tarde">
-            <span class="horario-sep">→</span>
-            <input type="time" id="fHorEspSalida2" placeholder="Salida tarde">
+      <div class="field full">
+        <label>Empresas</label>
+        <!-- Modo admin: texto libre + chips -->
+        <div id="empAdminWrap">
+          <div class="emp-input-wrap">
+            <input type="text" id="fEmpresa" placeholder="Nombre de empresa...">
+            <button type="button" class="btn-add-emp" id="btnAddEmp">+ Añadir</button>
           </div>
+          <div style="font-size:10px;color:var(--muted);margin-top:4px">Escribe el nombre y pulsa Añadir. Si no existe, se creará.</div>
+          <div class="chips-wrap" id="empChips"></div>
         </div>
-        <button type="button" id="btnHorEspPartido" style="margin-top:8px;padding:5px 12px;background:transparent;border:1px solid var(--border);border-radius:7px;color:var(--text-secondary);font-family:'Inter',sans-serif;font-size:11px;cursor:pointer;">+ Añadir tramo tarde</button>
-        <div style="font-size:10px;color:var(--muted);margin-top:6px">Fichar fuera de este rango generará un fichaje fallido. Las horas dentro del rango cuentan como normales; las de fuera, como extra.</div>
+        <!-- Modo jefe: checkboxes de sus propias empresas -->
+        <div id="empJefeWrap" style="display:none">
+          <div class="emp-checks-wrap" id="empJefeChecks"></div>
+        </div>
+      </div>
+      <div class="field full">
+        <label>Departamentos <span style="font-size:10px;color:var(--muted)">(de las empresas seleccionadas)</span></label>
+        <div class="dept-scroll" id="deptChecks">
+          <div class="dept-empty">Añade una empresa primero</div>
+        </div>
+      </div>
+      <!-- Horario especial: visible solo para empleados -->
+      <div class="field full" id="horarioEspField" style="display:none">
+        <label>Horario especial <span style="font-size:10px;color:var(--muted)">(deja vacío para usar el del departamento)</span></label>
+        <div class="horario-esp-wrap">
+          <div class="horario-esp-title">Tramo mañana</div>
+          <div class="horario-esp-row">
+            <input type="time" id="fHorEspEntrada" placeholder="Entrada">
+            <span class="horario-sep">→</span>
+            <input type="time" id="fHorEspSalida" placeholder="Salida">
+          </div>
+          <!-- Tramo tarde (horario partido) -->
+          <div id="horEspPartidoWrap" style="display:none;margin-top:8px">
+            <div class="horario-esp-title">Tramo tarde</div>
+            <div class="horario-esp-row">
+              <input type="time" id="fHorEspEntrada2" placeholder="Entrada tarde">
+              <span class="horario-sep">→</span>
+              <input type="time" id="fHorEspSalida2" placeholder="Salida tarde">
+            </div>
+          </div>
+          <button type="button" id="btnHorEspPartido" style="margin-top:8px;padding:5px 12px;background:transparent;border:1px solid var(--border);border-radius:7px;color:var(--text-secondary);font-family:'Inter',sans-serif;font-size:11px;cursor:pointer;">+ Añadir tramo tarde</button>
+          <div style="font-size:10px;color:var(--muted);margin-top:6px">Fichar fuera de este rango generará un fichaje fallido. Las horas dentro del rango cuentan como normales; las de fuera, como extra.</div>
+        </div>
       </div>
     </div>
     <div class="modal-err" id="modalUserErr"></div>
@@ -637,9 +692,26 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
   </div>
   <div class="drawer-footer">
     <button class="btn-primary" id="drawerBtnEdit">Editar</button>
+    <button class="btn-cancel btn-cal-drawer" id="drawerBtnCal">📅 Calendario</button>
     <button class="btn-cancel"  id="drawerBtnClose">Cerrar</button>
   </div>
 </div>
+
+<!-- Modal calendario empleado -->
+<div class="overlay" id="ovCalEmpleado">
+  <div class="modal" style="width:600px;max-width:95vw">
+    <div class="modal-title">Calendario de <span id="calEmpleadoNombre">—</span></div>
+    <!-- Resumen anual eliminado para simplificar carga -->
+    <div class="cal-modal-wrap" id="calEmpleadoBody">
+      <div class="loading"><span class="spinner"></span>Cargando...</div>
+    </div>
+    <div class="modal-actions" style="margin-top:16px">
+      <button class="btn-cancel" onclick="document.getElementById('ovCalEmpleado').classList.remove('show')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal de notas eliminado para simplificar calendarios -->
 
 <div class="toast" id="toast"></div>
 
@@ -652,6 +724,8 @@ if (!userRaw) location.href = 'index.html';
 const me = JSON.parse(userRaw);
 if (me.rol !== 'admin' && me.rol !== 'jefe') location.href = 'dashboard.html';
 document.getElementById('adminName').textContent = me.nombre || me.email;
+var puesto = me.departamento || me.empresa || (me.rol === 'jefe' ? 'Jefe' : 'Admin');
+document.getElementById('userPuesto').textContent = puesto;
 
 // Badge y permisos según rol
 var esJefe = (me.rol === 'jefe');
@@ -674,10 +748,13 @@ const db = firebase.firestore();
 
 // ── Constantes ────────────────────────────────────────────────────────────
 const HORAS_ANUALES_CONVENIO = 1792;
-document.getElementById('convenioLabel').textContent = HORAS_ANUALES_CONVENIO;
+// (etiqueta convenio eliminada del HTML)
 
 // ── Hash contraseña ───────────────────────────────────────────────────────
 async function hashPassword(password) {
+  if (!window.crypto || !window.crypto.subtle || typeof window.crypto.subtle.digest !== 'function') {
+    return window.sha256(password);
+  }
   const data = new TextEncoder().encode(password);
   const hash = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join('');
@@ -700,6 +777,30 @@ var _filtroEmpresa   = '';  // '' = todas
 var _filtroDept      = '';  // '' = todos
 var _soloMiEmpresa   = false;
 var _empresaIdx      = -1;  // -1 = todas mis empresas, 0,1,2... = empresa individual
+var _usuariosEmpresaCache = {};
+
+function getEmpresasFromUsuario(data) {
+  if (Array.isArray(data && data.empresas) && data.empresas.length) return data.empresas.slice();
+  if (data && data.empresa) return [data.empresa];
+  return [];
+}
+function setUsuariosEmpresaCacheFromSnap(uSnap) {
+  _usuariosEmpresaCache = {};
+  if (!uSnap || !uSnap.docs) return;
+  uSnap.docs.forEach(function(d) {
+    var data = d.data() || {};
+    _usuariosEmpresaCache[d.id] = data;
+    if (data.id) _usuariosEmpresaCache[String(data.id)] = data;
+  });
+}
+function getEmpresasFromFichaje(f) {
+  if (!f) return [];
+  if (Array.isArray(f.empresas) && f.empresas.length) return f.empresas.slice();
+  if (f.empresa) return [f.empresa];
+  var user = _usuariosEmpresaCache[String(f.userId)];
+  if (user) return getEmpresasFromUsuario(user);
+  return [];
+}
 
 // ── Días laborables ───────────────────────────────────────────────────────
 function diasLaborablesHastaHoy(anio) {
@@ -1404,23 +1505,21 @@ function filtrarDocs(docs) {
 
   return docs.filter(function(d) {
     var f = d.data ? d.data() : d;
+    var empresas = getEmpresasFromFichaje(f);
+    var empDoc = empresas[0] || '';
 
     // ── Filtro empresa ──
-    // Los fichajes guardan 'empresa' como string; los usuarios pueden tener 'empresas' array
-    var empDoc = f.empresa || '';  // campo string en fichajes y usuarios legacy
-
     if (_soloMiEmpresa && window._misEmpresasJefe && window._misEmpresasJefe.length) {
       var misEmps = window._misEmpresasJefe;
-      // Comprobar empresa string O array empresas
       var coincide = misEmps.indexOf(empDoc) >= 0;
-      if (!coincide && Array.isArray(f.empresas)) {
-        coincide = f.empresas.some(function(e){ return misEmps.indexOf(e) >= 0; });
+      if (!coincide && empresas.length) {
+        coincide = empresas.some(function(e){ return misEmps.indexOf(e) >= 0; });
       }
       if (!coincide) return false;
     } else if (_filtroEmpresa) {
       var coincide2 = (empDoc === _filtroEmpresa);
-      if (!coincide2 && Array.isArray(f.empresas)) {
-        coincide2 = f.empresas.indexOf(_filtroEmpresa) >= 0;
+      if (!coincide2 && empresas.length) {
+        coincide2 = empresas.indexOf(_filtroEmpresa) >= 0;
       }
       if (!coincide2) return false;
     }
@@ -1574,6 +1673,8 @@ document.getElementById('btnMiEmpresa').addEventListener('click', function() {
 
 function loadResumen() {
   if (resumenUnsub) resumenUnsub();
+  // Diagnóstico: mostrar que loadResumen arrancó
+  document.getElementById('recentFichajes').innerHTML = '<div class="loading"><span class="spinner"></span>Conectando con Firestore...</div>';
   resumenUnsub = db.collection('fichajes').orderBy('timestamp','desc').limit(500).onSnapshot(async function(fSnap) {
     try {
       const [uSnap, dSnap] = await Promise.all([
@@ -1581,23 +1682,13 @@ function loadResumen() {
         db.collection('departamentos').get()
       ]);
 
+      setUsuariosEmpresaCacheFromSnap(uSnap);
+
       // Poblar selects con empresas y departamentos disponibles
       popularFiltrosResumen(fSnap.docs);
 
       // Aplicar filtros globales a los docs
       var docsVisibles = filtrarDocs(fSnap.docs);
-
-      // ── Stat: usuarios, depts (filtrados) ────────────────────────────
-      var usuariosVisibles = _filtroEmpresa
-        ? uSnap.docs.filter(function(d){ return (d.data().empresa||'') === _filtroEmpresa; }).length
-        : uSnap.size;
-      var deptsVisibles = _filtroDept
-        ? 1
-        : (_filtroEmpresa
-            ? dSnap.docs.filter(function(d){ return (d.data().empresa||'') === _filtroEmpresa; }).length
-            : dSnap.size);
-      document.getElementById('stUsuarios').textContent = usuariosVisibles;
-      document.getElementById('stDepts').textContent    = deptsVisibles;
 
       // ── Fechas de referencia ──────────────────────────────────────────
       const ahora    = new Date();
@@ -1649,8 +1740,16 @@ function loadResumen() {
 
       // Renderizar gráficas con todos los docs disponibles
       renderCharts(docsVisibles);
-    } catch(e) { console.error(e); }
-  }, function(err) { console.error(err); });
+    } catch(e) {
+      console.error('loadResumen catch:', e);
+      document.getElementById('recentFichajes').innerHTML =
+        '<div class="empty" style="color:#c0392b;font-size:11px">Error interno: ' + (e.message||String(e)) + '</div>';
+    }
+  }, function(err) {
+    console.error('Firestore onSnapshot error:', err);
+    document.getElementById('recentFichajes').innerHTML =
+      '<div class="empty" style="color:#c0392b;font-size:11px">Error Firestore: ' + (err.message||err.code||String(err)) + '</div>';
+  });
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -1665,21 +1764,23 @@ async function loadUsuarios() {
     // Mis empresas (para jefes)
     var misEmps = Array.isArray(me.empresas) && me.empresas.length
       ? me.empresas : (me.empresa ? [me.empresa] : []);
+    var empresaFiltro = window._filtroEmpresa || '';
 
     // Filtrar usuarios visibles según rol del admin actual
     var visibles = snap.docs.filter(function(d) {
       var u = d.data();
+      var uEmps = Array.isArray(u.empresas) && u.empresas.length ? u.empresas : (u.empresa ? [u.empresa] : []);
+      if (empresaFiltro && uEmps.indexOf(empresaFiltro) < 0) return false;
+
       // Nadie ve su propio registro oculto — pero sí se ve a sí mismo
       if (esJefe) {
         // Jefe: solo ve jefes y empleados de SUS empresas. Nunca ve admins.
         if (u.rol === 'admin') return false;
-        var uEmps = Array.isArray(u.empresas) && u.empresas.length ? u.empresas : (u.empresa ? [u.empresa] : []);
         return misEmps.some(function(e) { return uEmps.indexOf(e) >= 0; });
       } else {
         // Admin: ve a todos EXCEPTO admins de otras empresas
         // (admins de su misma empresa sí los ve)
         if (u.rol === 'admin' && u.id !== me.id) {
-          var uEmps = Array.isArray(u.empresas) && u.empresas.length ? u.empresas : (u.empresa ? [u.empresa] : []);
           var meEmps = Array.isArray(me.empresas) && me.empresas.length ? me.empresas : (me.empresa ? [me.empresa] : []);
           // Si no comparte ninguna empresa con el admin actual, ocultar
           var comparte = meEmps.some(function(e) { return uEmps.indexOf(e) >= 0; });
@@ -1704,8 +1805,8 @@ async function loadUsuarios() {
           '<td><span class="pill ' + (u.rol==='admin'?'pill-admin':(u.rol==='jefe'?'pill-warn':'pill-emp')) + '">' + esc(u.rol||'empleado') + '</span></td>' +
           '<td>' +
             (puedeEditar
-              ? '<button class="btn-act btn-edit" onclick="editUser(\'' + d.id + '\')">Editar</button>' +
-                '<button class="btn-act btn-del"  onclick="delUser(\'' + d.id + '\',\'' + escAttr(u.nombre||u.email).replace(/'/g,"\\'") + '\')">Eliminar</button>'
+              ? '<button class="btn-act btn-edit" data-action="edit" data-user-id="' + escAttr(d.id) + '">Editar</button>' +
+                '<button class="btn-act btn-del"  data-action="delete" data-user-id="' + escAttr(d.id) + '" data-user-name="' + escAttr(u.nombre||u.email) + '">Eliminar</button>'
               : '<span style="font-size:11px;color:var(--muted)">Sin permisos</span>') +
           '</td></tr>';
       }).join('') + '</tbody></table>';
@@ -1926,6 +2027,16 @@ document.getElementById('btnNuevoUsuario').addEventListener('click', function() 
   }
   openUserModal('Nuevo usuario', preData);
 });
+document.getElementById('tablaUsuarios').addEventListener('click', function(event) {
+  var button = event.target.closest('button');
+  if (!button || !this.contains(button)) return;
+  var action = button.dataset.action;
+  if (!action) return;
+  var id = button.dataset.userId;
+  if (!id) return;
+  if (action === 'edit') return editUser(id);
+  if (action === 'delete') return delUser(id, button.dataset.userName || '');
+});
 document.getElementById('btnCancelUser').addEventListener('click',   function() { document.getElementById('ovUsuario').classList.remove('show'); });
 document.getElementById('btnGuardarUser').addEventListener('click', async function() {
   const nombre   = document.getElementById('fNombre').value.trim();
@@ -2030,10 +2141,16 @@ async function loadDepartamentos() {
   try {
     const snap = await db.collection('departamentos').get();
     var docs = snap.docs;
+    var empresaFiltro = window._filtroEmpresa || '';
     // Jefes: filtrar solo los departamentos de sus empresas
     if (esJefe && window._misEmpresasJefe && window._misEmpresasJefe.length) {
       docs = docs.filter(function(d) {
         return window._misEmpresasJefe.indexOf(d.data().empresa) >= 0;
+      });
+    }
+    if (empresaFiltro) {
+      docs = docs.filter(function(d) {
+        return d.data().empresa === empresaFiltro;
       });
     }
     if (!docs.length) { document.getElementById('qrGrid').innerHTML = '<div class="empty">Sin departamentos. Crea el primero.</div>'; return; }
@@ -2346,7 +2463,7 @@ function fichajeRowHtml(f) {
   var ubicacion = '—';
   if (f.lat!=null && f.lng!=null) {
     var dist = f.distanciaDept!=null ? ' ('+Math.round(f.distanciaDept)+'m)' : '';
-    ubicacion = '<a href="https://maps.google.com/?q='+encodeURIComponent(f.lat)+','+encodeURIComponent(f.lng)+'" target="_blank" style="color:var(--accent)">Maps'+dist+'</a>';
+    ubicacion = '<a href="https://maps.google.com/?q='+encodeURIComponent(f.lat)+','+encodeURIComponent(f.lng)+'" target="_blank" rel="noopener noreferrer" style="color:var(--accent)">Maps'+dist+'</a>';
   } else if (f.locError) { ubicacion = '<span style="color:var(--muted);font-size:11px">'+esc(f.locError)+'</span>'; }
   return '<tr>' +
     '<td>'+esc(f.nombre||'—')+'</td>' +
@@ -2439,12 +2556,12 @@ function applyFichajesFilters() {
   // Filtro empresa global (botón topbar)
   if (_soloMiEmpresa && window._misEmpresasJefe && window._misEmpresasJefe.length) {
     datos = datos.filter(function(f) {
-      var emp = Array.isArray(f.empresas) ? f.empresas : (f.empresa ? [f.empresa] : []);
+      var emp = getEmpresasFromFichaje(f);
       return window._misEmpresasJefe.some(function(e){ return emp.indexOf(e) >= 0; });
     });
   } else if (_filtroEmpresa) {
     datos = datos.filter(function(f) {
-      var emp = Array.isArray(f.empresas) ? f.empresas : (f.empresa ? [f.empresa] : []);
+      var emp = getEmpresasFromFichaje(f);
       return emp.indexOf(_filtroEmpresa) >= 0;
     });
   }
@@ -2486,10 +2603,17 @@ function loadFichajes() {
 
   if (fichajesUnsub) fichajesUnsub();
   fichajesUnsub = db.collection('fichajes').orderBy('timestamp','desc').limit(500)
-    .onSnapshot(function(snap) {
-      _fichajesCache = snap.docs.map(function(d){ return d.data(); });
-      if (snap.empty) { document.getElementById('tablaFichajes').innerHTML = '<div class="empty">No hay fichajes aún</div>'; return; }
-      applyFichajesFilters();
+    .onSnapshot(async function(snap) {
+      try {
+        const uSnap = await db.collection('usuarios').get();
+        setUsuariosEmpresaCacheFromSnap(uSnap);
+        _fichajesCache = snap.docs.map(function(d){ return d.data(); });
+        if (snap.empty) { document.getElementById('tablaFichajes').innerHTML = '<div class="empty">No hay fichajes aún</div>'; return; }
+        applyFichajesFilters();
+      } catch (e) {
+        console.error(e);
+        document.getElementById('tablaFichajes').innerHTML = '<div class="empty">Error al cargar</div>';
+      }
     }, function(err) { console.error(err); });
 }
 
@@ -2518,6 +2642,175 @@ function loadFichajes() {
 // ─────────────────────────────────────────────────────────────────────────
 // USER DRAWER (con balance anual)
 // ─────────────────────────────────────────────────────────────────────────
+// ── Calendario de empleado en el drawer ──────────────────────────────────
+var _calEmpleadoUserId   = null;
+var _calEmpleadoHorasDia = 8;
+var _calEmpleadoDias     = [1,2,3,4,5];
+var _calEmpleadoHorEsp   = null;
+
+async function abrirCalendarioEmpleado(userId, nombre, horasPorDia, diasActivos, horEsp) {
+  _calEmpleadoUserId   = userId;
+  _calEmpleadoHorasDia = horasPorDia || 8;
+  _calEmpleadoDias     = diasActivos  || [1,2,3,4,5];
+  _calEmpleadoHorEsp   = horEsp       || null;
+
+  document.getElementById('calEmpleadoNombre').textContent = nombre;
+  document.getElementById('calEmpleadoBody').innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
+  const calOverlay = document.getElementById('ovCalEmpleado');
+  const calModal   = calOverlay.querySelector('.modal');
+
+  closeUserDrawer();
+  calModal.setAttribute('tabindex', '-1');
+  calOverlay.classList.remove('show');
+  requestAnimationFrame(function() {
+    calOverlay.classList.add('show');
+    calModal.focus();
+  });
+
+  // Cargar todos los fichajes del empleado
+  const snap = await db.collection('fichajes').where('userId','==', userId).get();
+  const anio  = new Date().getFullYear();
+  const hoy   = new Date();
+
+  // Notas privadas deshabilitadas (simplificación)
+
+  // Agrupar horas por día 'YYYY-MM-DD'
+  var horasPorDiaMap = {};
+  snap.docs.forEach(function(d) {
+    var f  = d.data();
+    var ts = f.timestamp && f.timestamp.toDate ? f.timestamp.toDate()
+           : (f.timestampCliente ? new Date(f.timestampCliente) : null);
+    if (!ts || ts.getFullYear() !== anio) return;
+    if (f.tipo !== 'salida') return;
+    var key = ts.getFullYear() + '-' + String(ts.getMonth()+1).padStart(2,'0') + '-' + String(ts.getDate()).padStart(2,'0');
+    horasPorDiaMap[key] = (horasPorDiaMap[key] || 0) + (f.horasNormales||0) + (f.horasExtra||0);
+  });
+
+  // Horas por mes
+  var horasPorMes = {};
+  Object.keys(horasPorDiaMap).forEach(function(key) {
+    var m = parseInt(key.split('-')[1]) - 1;
+    horasPorMes[m] = (horasPorMes[m] || 0) + horasPorDiaMap[key];
+  });
+
+  // Resumen anual eliminado para evitar bloqueos en la carga
+
+  var MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio',
+               'Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var DIAS_SEM = ['L','M','X','J','V','S','D'];
+
+  var container = document.getElementById('calEmpleadoBody');
+  container.innerHTML = '';
+
+  for (var m = 0; m < 12; m++) {
+    var mesActual = (m === hoy.getMonth());
+    var mesFuturo = (new Date(anio, m, 1) > hoy);
+
+    // Días laborables del mes hasta hoy (para horas teóricas)
+    var diasLabHasta = 0, diasLabTotal = 0;
+    var diasHasta = mesFuturo ? 0 : (mesActual ? hoy.getDate() : new Date(anio, m+1, 0).getDate());
+    var totalDias  = new Date(anio, m+1, 0).getDate();
+    for (var dd = 1; dd <= totalDias; dd++) {
+      var dow = new Date(anio, m, dd).getDay();
+      if (_calEmpleadoDias.indexOf(dow) >= 0) {
+        diasLabTotal++;
+        if (dd <= diasHasta) diasLabHasta++;
+      }
+    }
+    var hTeoricas  = diasLabHasta  * _calEmpleadoHorasDia;
+    var hTotalMes  = diasLabTotal  * _calEmpleadoHorasDia;
+    var hTrab      = horasPorMes[m] || 0;
+
+    var clsMes, txtRes;
+    if (mesFuturo || (hTrab === 0 && hTeoricas === 0)) {
+      clsMes = 'c-none'; txtRes = '';
+    } else if (hTrab === 0) {
+      clsMes = 'c-none'; txtRes = 'Sin registros';
+    } else if (hTrab >= hTeoricas - 0.5) {
+      clsMes = 'c-ok';  txtRes = hhmm(hTrab) + ' / ' + hhmm(hTeoricas);
+    } else {
+      clsMes = 'c-err'; txtRes = hhmm(hTrab) + ' / ' + hhmm(hTeoricas);
+    }
+
+    var bodyId  = 'cal-emp-body-' + m;
+    var arrowId = 'cal-emp-arrow-' + m;
+    var item    = document.createElement('div');
+    item.className = 'cal-mes-item';
+    item.innerHTML =
+      '<div class="cal-mes-header" onclick="toggleCalMesEmp(' + m + ')">' +
+        '<span class="cal-mes-nombre ' + clsMes + '">' + MESES[m] + '</span>' +
+        '<span class="cal-mes-resumen">' + txtRes + '</span>' +
+        '<span class="cal-mes-arrow" id="' + arrowId + '">▼</span>' +
+      '</div>' +
+      '<div class="cal-mes-body" id="' + bodyId + '">' +
+        buildCalGridEmpleado(anio, m, hoy, horasPorDiaMap) +
+      '</div>';
+    container.appendChild(item);
+
+    if (mesActual) {
+      document.getElementById(bodyId).classList.add('open');
+      document.getElementById(arrowId).classList.add('open');
+    }
+  }
+}
+
+function toggleCalMesEmp(m) {
+  document.getElementById('cal-emp-body-' + m).classList.toggle('open');
+  document.getElementById('cal-emp-arrow-' + m).classList.toggle('open');
+}
+
+function buildCalGridEmpleado(anio, mes, hoy, horasPorDiaMap) {
+  var notasPorFechaMap = {};
+  var totalDias = new Date(anio, mes+1, 0).getDate();
+  var primerDow = new Date(anio, mes, 1).getDay();
+  primerDow     = primerDow === 0 ? 6 : primerDow - 1;
+  var hMinDia   = _calEmpleadoHorasDia;
+  var DIAS_SEM  = ['L','M','X','J','V','S','D'];
+
+  var html = '<div class="cal-week-hdr">' +
+    DIAS_SEM.map(function(d){ return '<div class="cal-wd">' + d + '</div>'; }).join('') +
+    '</div><div class="cal-grid-d">';
+
+  for (var e = 0; e < primerDow; e++) html += '<div class="cal-dia-d vacio"></div>';
+
+  for (var d = 1; d <= totalDias; d++) {
+    var fecha    = new Date(anio, mes, d);
+    var esHoy    = fecha.toDateString() === hoy.toDateString();
+    var esFuturo = fecha > hoy;
+    var dow      = fecha.getDay();
+    var esFin    = (dow === 0 || dow === 6);
+    var key      = anio + '-' + String(mes+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+    var horas    = horasPorDiaMap[key] || 0;
+    var nota     = null;
+
+    var cls, hTxt;
+    if (esFuturo) {
+      cls = 'futuro' + (horas ? '' : ' sin-datos'); hTxt = horas ? hhmm(horas) : '';
+    } else if (horas === 0) {
+      cls = 'sin-datos'; hTxt = '';
+    } else if (!esFin && horas >= hMinDia - 0.25) {
+      cls = 'ok';  hTxt = hhmm(horas);
+    } else {
+      cls = 'err'; hTxt = hhmm(horas);
+    }
+    if (esHoy) cls += ' hoy';
+
+    var noteBtn = '';
+    var title   = key + (horas ? ' · ' + hhmm(horas) : '');
+    if (nota && nota.texto) title += ' · Nota: ' + escAttr(nota.texto);
+
+    html += '<div class="cal-dia-d ' + cls + '" title="' + title + '">' +
+      '<span class="dn">' + d + '</span>' +
+      (hTxt ? '<span class="dh">' + hTxt + '</span>' : '') +
+      noteBtn +
+      '</div>';
+  }
+
+  return html + '</div>';
+}
+
+// Funcionalidad de notas eliminada para estabilidad
+
 async function openUserDrawerById(userId) {
   const doc = await db.collection('usuarios').doc(userId).get();
   if (doc.exists) openUserDrawer(userId, doc.data());
@@ -2537,6 +2830,8 @@ async function openUserDrawer(userId, userData) {
   document.getElementById('drawerBalance').style.display = 'none';
   document.getElementById('drawerProgressWrap').style.display = 'none';
   document.getElementById('drawerBtnEdit').onclick = function() { closeUserDrawer(); editingUserId = userId; editUser(userId); };
+  // Botón calendario: se conecta después de cargar los datos del usuario (ver abajo)
+  document.getElementById('drawerBtnCal').onclick  = null; // reset
   document.getElementById('drawerOverlay').classList.add('show');
   document.getElementById('userDrawer').classList.add('show');
   try {
@@ -2546,6 +2841,32 @@ async function openUserDrawer(userId, userData) {
 
     const snap     = await db.collection('fichajes').where('userId','==',userId).orderBy('timestamp','desc').limit(200).get();
     const fichajes = snap.docs.map(function(d){ return d.data(); });
+
+    // Calcular horario del usuario para el calendario
+    var horasPorDia = 8, diasActivos = [1,2,3,4,5];
+    var horEsp = userData.horarioEsp || null;
+    var deptNom = Array.isArray(userData.departamentos) && userData.departamentos.length
+      ? userData.departamentos[0] : (userData.departamento || null);
+    if (horEsp && horEsp.entrada && horEsp.salida) {
+      var hE = parseInt(horEsp.entrada.split(':')[0]), mE = parseInt(horEsp.entrada.split(':')[1]);
+      var hS = parseInt(horEsp.salida.split(':')[0]),  mS = parseInt(horEsp.salida.split(':')[1]);
+      var mins = (hS*60+mS) - (hE*60+mE);
+      if (horEsp.entrada2 && horEsp.salida2) {
+        var hE2 = parseInt(horEsp.entrada2.split(':')[0]), mE2 = parseInt(horEsp.entrada2.split(':')[1]);
+        var hS2 = parseInt(horEsp.salida2.split(':')[0]),  mS2 = parseInt(horEsp.salida2.split(':')[1]);
+        mins += (hS2*60+mS2) - (hE2*60+mE2);
+      }
+      horasPorDia = mins / 60;
+    } else if (deptNom) {
+      try {
+        var dSnap2 = await db.collection('departamentos').where('nombre','==',deptNom).limit(1).get();
+        if (!dSnap2.empty) {
+          var dd = dSnap2.docs[0].data();
+          if (dd.horasDia)    horasPorDia = dd.horasDia;
+          if (dd.diasActivos) diasActivos  = dd.diasActivos;
+        }
+      } catch(_) {}
+    }
 
     const hoy       = new Date(); hoy.setHours(0,0,0,0);
     const mesInicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
@@ -2561,6 +2882,14 @@ async function openUserDrawer(userId, userData) {
     const bal        = calcularBalanceAnual(fichajesAnio);
     const hNormAnio  = fichajesAnio.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasNormales||0):0); },0);
     const hExtraAnio = fichajesAnio.reduce(function(s,f){ return s+(f.tipo==='salida'?(f.horasExtra||0):0);    },0);
+
+    // Conectar botón calendario con los datos del usuario
+    (function(hpd, da, he, nom) {
+      document.getElementById('drawerBtnCal').onclick = function() {
+        closeUserDrawer();
+        abrirCalendarioEmpleado(userId, nom, hpd, da, he);
+      };
+    })(horasPorDia, diasActivos, horEsp, userData.nombre || userData.email || userId);
 
     document.getElementById('drawerStats').innerHTML =
       '<div class="dstat"><div class="dstat-label">Total fichajes</div><div class="dstat-value c-accent">'+total+'</div></div>' +
@@ -2685,7 +3014,7 @@ document.querySelector('.sidebar').addEventListener('click', function(e) {
 });
 
 // ── Inicio ────────────────────────────────────────────────────────────────
-// Activar filtro empresa al arrancar (solo si tiene empresas asignadas)
+// Activar filtro empresa al arrancar
 (function() {
   var misEmps = Array.isArray(me.empresas) && me.empresas.length
     ? me.empresas
@@ -2693,17 +3022,25 @@ document.querySelector('.sidebar').addEventListener('click', function(e) {
 
   if (misEmps.length) {
     window._misEmpresasJefe = misEmps;
-    // Para jefes: filtro obligatorio y activo por defecto
-    // Para admins: filtro activo si tienen empresa asignada
+  }
+
+  // Solo los JEFES arrancan con el filtro obligatoriamente activo
+  // Los admins ven todo y pueden filtrar manualmente
+  if (esJefe && misEmps.length) {
     _soloMiEmpresa = true;
+    _filtroEmpresa = '';
+    _filtroDept    = '';
     _empresaIdx    = -1;
     var btn = document.getElementById('btnMiEmpresa');
     if (btn) {
       btn.classList.add('active');
       btn.textContent = '🏢 Todas mis empresas';
     }
+    var sel = document.getElementById('rFiltroEmpresa');
+    if (sel) sel.value = '';
+    var selD = document.getElementById('rFiltroDept');
+    if (selD) selD.value = '';
   }
-  // Admins sin empresa asignada: ven todo sin filtro
 })();
 loadResumen();
 </script>
