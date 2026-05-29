@@ -556,7 +556,7 @@ th.sort-desc::after { content:' ▼'; opacity:.9; }
           <div class="emp-checks-wrap" id="empJefeChecks"></div>
         </div>
       </div>
-      <div class="field full">
+      <div class="field full" id="deptField">
         <label>Departamentos <span style="font-size:10px;color:var(--muted)">(de las empresas seleccionadas)</span></label>
         <div class="dept-scroll" id="deptChecks">
           <div class="dept-empty">Añade una empresa primero</div>
@@ -1954,10 +1954,12 @@ async function openUserModal(title, data) {
   }
   fRolEl.value = data.rol || 'empleado';
 
-  // Mostrar horario especial solo para empleados
+  // Mostrar horario especial y departamentos solo para empleados
   function actualizarHorarioEsp() {
     var rolVal = document.getElementById('fRol').value;
-    document.getElementById('horarioEspField').style.display = rolVal === 'empleado' ? 'block' : 'none';
+    var soloEmpleado = rolVal === 'empleado';
+    document.getElementById('horarioEspField').style.display = soloEmpleado ? 'block' : 'none';
+    document.getElementById('deptField').style.display = soloEmpleado ? 'block' : 'none';
   }
   fRolEl.onchange = actualizarHorarioEsp;
   actualizarHorarioEsp();
